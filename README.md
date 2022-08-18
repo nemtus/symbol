@@ -1,76 +1,257 @@
-# Symbol Monorepo
+# @nemtus/symbol-sdk-typescript
 
-In Q1 2021, we consolidated a number of projects into this repository.
-It includes our specialized binary payload DSL (parser and schemas), clients and sdks.
+Symbol SDK for TypeScript built with [official JavaScript SDK](https://github.com/symbol/symbol/tree/dev/sdk/javascript).
 
-| component | lint | build | test | coverage | package |
-|-----------|------|-------|------|----------| ------- |
-| [@catbuffer/parser](catbuffer/parser) | [![lint][catbuffer-parser-lint]][catbuffer-job] || [![test][catbuffer-parser-test]][catbuffer-job] <br> [![vectors][catbuffer-parser-vectors]][catbuffer-job] | [![][catbuffer-parser-cov]][catbuffer-parser-cov-link] | [![][catbuffer-package]][catbuffer-package-link] |
-|||||||
-| [@client/catapult](client/catapult) | [![lint][client-catapult-lint]][client-catapult-job] | [![build][client-catapult-build]][client-catapult-job] | [![build][client-catapult-test]][client-catapult-job] | [![][client-catapult-cov]][client-catapult-cov-link] |
-| [@client/rest](client/rest) | [![lint][client-rest-lint]][client-rest-job] || [![test][client-rest-test]][client-rest-job] | [![][client-rest-cov]][client-rest-cov-link] |
-|||||||
-| [@sdk/javascript](sdk/javascript) | [![lint][sdk-javascript-lint]][sdk-javascript-job] | [![build][sdk-javascript-build]][sdk-javascript-job] | [![test][sdk-javascript-test]][sdk-javascript-job] <br> [![examples][sdk-javascript-examples]][sdk-javascript-job] <br> [![vectors][sdk-javascript-vectors]][sdk-javascript-job] | [![][sdk-javascript-cov]][sdk-javascript-cov-link] | [![][sdk-javascript-package]][sdk-javascript-package-link] |
-| [@sdk/python](sdk/python) | [![lint][sdk-python-lint]][sdk-python-job] | [![build][sdk-python-build]][sdk-python-job] | [![test][sdk-python-test]][sdk-python-job] <br> [![examples][sdk-python-examples]][sdk-python-job] <br> [![vectors][sdk-python-vectors]][sdk-python-job] | [![][sdk-python-cov]][sdk-python-cov-link] | [![][sdk-python-package]][sdk-python-package-link] |
-|||||||
-| [@linters](linters) | [![lint][linters-lint]][linters-job] |||||
-| [@jenkins](jenkins) | [![lint][jenkins-lint]][jenkins-job] |||||
+Note: Currently This is a very experimental level.
+Note: This repository is a fork of [symbol/symbol](https://github.com/symbol/symbol) to create and maintain a temporal npm package of symbol-sdk for TypeScript.
+Note: If you wanna refer the original Symbol Monorepo, please refer [https://github.com/symbol/symbol](https://github.com/symbol/symbol)
 
-## Full Coverage Report
+## For package users
 
-Detailed version can be seen on [codecov.io][symbol-cov-link].
+### Install
 
-[![][symbol-cov]][symbol-cov-link]
+```bash
+npm install @nemtus/symbol-sdk-typescript
 
-[symbol-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graphs/tree.svg
-[symbol-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev
+```
 
-[catbuffer-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Fparser/activity/?branch=dev
-[catbuffer-parser-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fparser%2Fdev%2F&config=catbuffer-parser-lint
-[catbuffer-parser-test]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fparser%2Fdev%2F&config=catbuffer-parser-test
-[catbuffer-parser-vectors]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fparser%2Fdev%2F&config=catbuffer-parser-vectors
-[catbuffer-parser-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graph/badge.svg?token=SSYYBMK0M7&flag=catbuffer-parser
-[catbuffer-parser-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev/catbuffer/parser
-[catbuffer-package]: https://img.shields.io/pypi/v/catparser
-[catbuffer-package-link]: https://pypi.org/project/catparser
+### Usage
 
-[client-catapult-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Fcatapult/activity?branch=dev
-[client-catapult-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fcatapult%2Fdev%2F&config=client-catapult-lint
-[client-catapult-build]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fcatapult%2Fdev%2F&config=client-catapult-build
-[client-catapult-test]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fcatapult%2Fdev%2F&config=client-catapult-test
-[client-catapult-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graph/badge.svg?token=SSYYBMK0M7&flag=client-catapult
-[client-catapult-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev/client/catapult
+Example to send a simple transfer transaction.
 
-[client-rest-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Frest/activity?branch=dev
-[client-rest-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Frest%2Fdev%2F&config=client-rest-lint
-[client-rest-test]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Frest%2Fdev%2F&config=client-rest-test
-[client-rest-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graph/badge.svg?token=SSYYBMK0M7&flag=client-rest
-[client-rest-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev/client/rest
+```typescript
+import { SymbolFacade } from "@nemtus/symbol-sdk-typescript/esm/facade/SymbolFacade";
+import { PrivateKey } from "@nemtus/symbol-sdk-typescript/esm/CryptoTypes";
+import { KeyPair } from "@nemtus/symbol-sdk-typescript/esm/symbol/KeyPair";
+import { Signature } from "@nemtus/symbol-sdk-typescript/esm/symbol/models";
+import {
+  Configuration,
+  NetworkRoutesApi,
+  TransactionRoutesApi,
+} from "@nemtus/symbol-sdk-openapi-generator-typescript-axios";
+import WebSocket from "ws";
 
-[sdk-javascript-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Fjavascript/activity?branch=dev
-[sdk-javascript-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-lint
-[sdk-javascript-build]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-build
-[sdk-javascript-test]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-test
-[sdk-javascript-examples]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-examples
-[sdk-javascript-vectors]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-vectors
-[sdk-javascript-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graph/badge.svg?token=SSYYBMK0M7&flag=sdk-javascript
-[sdk-javascript-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev/sdk/javascript
-[sdk-javascript-package]: https://img.shields.io/npm/v/symbol-sdk-javascript
-[sdk-javascript-package-link]: https://www.npmjs.com/package/symbol-sdk-javascript
+const NODE_DOMAIN = "symbol-test.next-web-technology.com";
 
-[sdk-python-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Fpython/activity?branch=dev
-[sdk-python-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fpython%2Fdev%2F&config=sdk-python-lint
-[sdk-python-build]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fpython%2Fdev%2F&config=sdk-python-build
-[sdk-python-test]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fpython%2Fdev%2F&config=sdk-python-test
-[sdk-python-examples]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fpython%2Fdev%2F&config=sdk-python-examples
-[sdk-python-vectors]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fpython%2Fdev%2F&config=sdk-python-vectors
-[sdk-python-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graph/badge.svg?token=SSYYBMK0M7&flag=sdk-python
-[sdk-python-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev/sdk/python
-[sdk-python-package]: https://img.shields.io/pypi/v/symbol-sdk-python
-[sdk-python-package-link]: https://pypi.org/project/symbol-sdk-python
+(async () => {
+  // Call NetworkRoutesApi.getNetworkProperties to get epochAdjustment and networkCurrencyMosaicId.
+  const configurationParameters = {
+    basePath: `http://${NODE_DOMAIN}:3000`,
+  };
+  const configuration = new Configuration(configurationParameters);
+  const networkRoutesApi = new NetworkRoutesApi(configuration);
+  const networkPropertiesDTO = (await networkRoutesApi.getNetworkProperties()).data;
 
-[jenkins-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Fjenkins/activity?branch=dev
-[jenkins-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjenkins%2Fdev%2F&config=jenkins-lint
+  // Remove s from the response of epochAdjustment and convert to number.
+  const epochAdjustmentOriginal = networkPropertiesDTO.network.epochAdjustment;
+  if (!epochAdjustmentOriginal) {
+    throw Error("epochAdjustment is not found");
+  }
+  const epochAdjustment = parseInt(epochAdjustmentOriginal.replace(/s/g, ""));
 
-[linters-job]: https://jenkins.symboldev.com/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Flinters/activity?branch=dev
-[linters-lint]: https://jenkins.symboldev.com/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Flinters%2Fdev%2F&config=linters-lint
+  // Remove ' from the response of networkCurrencyMosaicId and convert to BigInt.
+  const networkCurrencyMosaicIdOriginal =
+    networkPropertiesDTO.chain.currencyMosaicId;
+  if (!networkCurrencyMosaicIdOriginal) {
+    throw Error("networkCurrencyMosaicId is not found");
+  }
+  const networkCurrencyMosaicId = BigInt(
+    networkCurrencyMosaicIdOriginal.replace(/'/g, "")
+  );
+
+  // Call NetworkRoutesApi.getNetworkType to get network name to be placed in facade. (ex. "testnet")
+  const networkTypeDTO = (await networkRoutesApi.getNetworkType()).data;
+  if (!networkTypeDTO) {
+    throw Error("networkType is not found");
+  }
+  const networkName = networkTypeDTO.name;
+
+  // Initialize SDK with network name.
+  const facade = new SymbolFacade(networkName);
+
+  // Restore account to send a transaction.
+  const privateKey = new PrivateKey("PUT_YOUR_PRIVATE_KEY_HERE");
+  const keyPair = new KeyPair(privateKey);
+  const signerPublicKeyString = keyPair.publicKey.toString();
+  const signerAddressString = facade.network
+    .publicKeyToAddress(keyPair.publicKey)
+    .toString();
+
+  // Calculate deadline. (The following sample means 2 hours.)
+  const now = Date.now();
+  const deadline = BigInt(now - epochAdjustment * 1000 + 2 * 60 * 60 * 1000);
+
+  // Recipient Address
+  const recipientAddressString = "TBK7XV2NHC466HZ63XC7RPESLNXFEGCSJ3ZZ2FY";
+
+  // Create a transfer transaction data.
+  const transaction = facade.transactionFactory.create({
+    type: "transfer_transaction",
+    signerPublicKey: signerPublicKeyString,
+    deadline,
+    recipientAddress: recipientAddressString,
+    mosaics: [{ mosaicId: networkCurrencyMosaicId, amount: 1000000n }],
+  });
+
+  // Set fee.
+  const feeMultiplier = 100;
+  (transaction as any).fee.value = BigInt(
+    (transaction as any).size * feeMultiplier
+  );
+
+  // Sign.
+  const signature = facade.signTransaction(keyPair, transaction);
+  (transaction as any).signature = new Signature(signature.bytes);
+
+  // Set the generationHashSeed. (It is a network-specific value.)
+  (transaction as any).network.generationHashSeed = facade.network;
+
+  // Calculate transaction hash.
+  const hash = facade.hashTransaction(transaction);
+  console.log(hash.toString());
+  console.log(`https://testnet.symbol.fyi/transactions/${hash.toString()}`);
+
+  // Add signature to transaction data and create final data to announce. When you announce transaction, you need to use this value.
+  const transactionPayload = (facade.transactionFactory.constructor as any).attachSignature(transaction, signature);
+
+  // Transaction monitoring status.
+  const confirmationHeight = 6; // ex. 6conf
+  let transactionHeight = 0;
+  let blockHeight = 0;
+  let finalizedBlockHeight = 0;
+
+  // Define websocket.
+  const ws = new WebSocket(`wss://${NODE_DOMAIN}:3001/ws`);
+
+  ws.on("open", () => {
+    console.log("connection open");
+  });
+
+  ws.on("close", () => {
+    console.log("connection closed");
+  });
+
+  ws.on("message", (msg: any) => {
+    const res = JSON.parse(msg);
+    if ("uid" in res) {
+      console.log(`uid : ${res.uid}`);
+
+      // Monitor target address related unconfirmed transaction.
+      const unconfirmedBody = `{"uid": "${res.uid}", "subscribe": "unconfirmedAdded/${recipientAddressString}"}`;
+      console.log(unconfirmedBody);
+      ws.send(unconfirmedBody);
+
+      // Monitor target address related confirmed transaction.
+      const confirmedBody = `{"uid": "${res.uid}", "subscribe": "confirmedAdded/${recipientAddressString}"}`;
+      console.log(confirmedBody);
+      ws.send(confirmedBody);
+
+      // Monitor target address related confirmed transaction.
+      const statusBody = `{"uid": "${res.uid}", "subscribe": "status/${recipientAddressString}"}`;
+      console.log(statusBody);
+      ws.send(statusBody);
+
+      // Monitor newly generated block.
+      const blockBody = `{"uid": "${res.uid}", "subscribe": "block"}`;
+      console.log(blockBody);
+      ws.send(blockBody);
+
+      // Monitor finalized block.
+      const finalizedBlockBody = `{"uid": "${res.uid}", "subscribe": "finalizedBlock"}`;
+      console.log(finalizedBlockBody);
+      ws.send(finalizedBlockBody);
+    }
+
+    // Execute when unconfirmed transaction is detected.
+    if (
+      res.topic === `unconfirmedAdded/${recipientAddressString}` &&
+      res.data.meta.hash === hash.toString()
+    ) {
+      console.log("transaction unconfirmed");
+    }
+
+    // Execute when confirmed transaction is detected.
+    if (
+      res.topic === `confirmedAdded/${recipientAddressString}` &&
+      res.data.meta.hash === hash.toString()
+    ) {
+      console.log("transaction confirmed");
+      transactionHeight = parseInt(res.data.meta.height);
+    }
+
+    // Execute when new block is generated.
+    if (res.topic === `block`) {
+      console.log("block");
+      blockHeight = parseInt(res.data.block.height);
+    }
+
+    // Execute when a specified block is finalized.
+    if (res.topic === `finalizedBlock`) {
+      console.log("finalizedBlock");
+      console.log(res);
+      finalizedBlockHeight = parseInt(res.data.height);
+    }
+
+    // Execute when the transaction failed.
+    if (
+      res.topic === `status/${recipientAddressString}` &&
+      res.data.hash === hash.toString()
+    ) {
+      console.log(res.data.code);
+      ws.close();
+    } else {
+      console.log(res);
+    }
+
+    // After the blocks required for confirmation are generated, end to monitor.
+    if (
+      transactionHeight !== 0 &&
+      transactionHeight + confirmationHeight - 1 <= blockHeight
+    ) {
+      console.log(
+        `${confirmationHeight} blocks confirmed. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
+      );
+      ws.close();
+    } else {
+      console.log(
+        `wait for ${confirmationHeight} blocks. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
+      );
+    }
+
+    // After finalizedBlockHeight overtakes the transactionHeight, end monitoring.
+    if (transactionHeight !== 0 && transactionHeight <= finalizedBlockHeight) {
+      console.log(
+        `${finalizedBlockHeight} block finalized. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
+      );
+      ws.close();
+    } else {
+      console.log(
+        `wait for finalized block. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
+      );
+    }
+  });
+
+  // Announce transaction.
+  try {
+    const transactionRoutesApi = new TransactionRoutesApi(configuration);
+    console.log(transactionPayload);
+    const response = await transactionRoutesApi.announceTransaction({
+      transactionPayload,
+    });
+    console.log(response.data);
+  } catch (err) {
+    console.error(err);
+  }
+})();
+
+```
+
+## For Developers
+
+### Build for TypeScript
+
+```bash
+npm install
+npm run build
+
+```
