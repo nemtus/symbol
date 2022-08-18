@@ -1,6 +1,6 @@
 {
   "name": "@nemtus/symbol-sdk-typescript",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "JavaScript/TypeScript SDK for Symbol",
   "main": "cjs/src/index.js",
   "module": "esm/src/index.js",
@@ -17,8 +17,7 @@
     "build:cjs": "npm run clean:cjs && npx tsc --build --clean && npx tsc --target es5 --module commonjs --outDir cjs",
     "build:esm": "npm run clean:esm && npx tsc --build --clean && npx tsc --target esnext --module esnext --outDir esm",
     "clean:cjs": "rimraf cjs",
-    "clean:esm": "rimraf esm",
-    "publish": "npm publish --access public"
+    "clean:esm": "rimraf esm"
   },
   "keywords": [],
   "author": "nemtus",
