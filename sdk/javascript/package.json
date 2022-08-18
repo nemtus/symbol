@@ -17,8 +17,7 @@
     "build:cjs": "npm run clean:cjs && npx tsc --build --clean && npx tsc --target es5 --module commonjs --outDir cjs",
     "build:esm": "npm run clean:esm && npx tsc --build --clean && npx tsc --target esnext --module esnext --outDir esm",
     "clean:cjs": "rimraf cjs",
-    "clean:esm": "rimraf esm",
-    "publish": "npm publish --access public"
+    "clean:esm": "rimraf esm"
   },
   "keywords": [],
   "author": "nemtus",
