@@ -1,6 +1,6 @@
 {
   "name": "@nemtus/symbol-sdk-typescript",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "JavaScript/TypeScript SDK for Symbol",
   "main": "cjs/src/index.js",
   "module": "esm/src/index.js",
@@ -19,7 +19,20 @@
     "clean:cjs": "rimraf cjs",
     "clean:esm": "rimraf esm"
   },
-  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nemtus/symbol.git"
+  },
+  "keywords": [
+    "blockchain",
+    "symbol",
+    "sdk",
+    "typescript"
+  ],
+  "bugs": {
+    "url": "https://github.com/nemtus/symbol/issues"
+  },
+  "homepage": "https://github.com/nemtus/symbol#readme",
   "author": "nemtus",
   "license": "MIT",
   "devDependencies": {
