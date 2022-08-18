@@ -1,7 +1,7 @@
 {
-  "name": "symbol-sdk",
-  "version": "3.0.0",
-  "description": "JavaScript SDK for Symbol",
+  "name": "@nemtus/symbol-sdk-typescript",
+  "version": "3.0.0-alpha.1",
+  "description": "JavaScript/TypeScript SDK for Symbol",
   "main": "cjs/src/index.js",
   "module": "esm/src/index.js",
   "scripts": {
@@ -13,11 +13,15 @@
     "test:jenkins": "nyc --require mocha --no-clean  --reporter=lcov npm run test",
     "vectors:jenkins": "nyc --require mocha --no-clean  --reporter=lcov npm run vectors",
     "catvectors:jenkins": "nyc --require mocha --no-clean  --reporter=lcov npm run catvectors",
-    "build:cjs": "npx tsc --build --clean && npx tsc --target es5 --module commonjs --outDir cjs",
-    "build:esm": "npx tsc --build --clean && npx tsc --target esnext --module esnext --outDir esm"
+    "build": "npm run build:cjs && npm run build:esm",
+    "build:cjs": "npm run clean:cjs && npx tsc --build --clean && npx tsc --target es5 --module commonjs --outDir cjs",
+    "build:esm": "npm run clean:esm && npx tsc --build --clean && npx tsc --target esnext --module esnext --outDir esm",
+    "clean:cjs": "rimraf cjs",
+    "clean:esm": "rimraf esm",
+    "publish": "npm publish --access public"
   },
   "keywords": [],
-  "author": "Symbol Contributors <contributors@symbol.dev>",
+  "author": "nemtus",
   "license": "MIT",
   "devDependencies": {
     "chai": "^4.3.6",
@@ -27,6 +31,7 @@
     "mocha": "^9.2.2",
     "mocha-jenkins-reporter": "^0.4.7",
     "nyc": "^15.1.0",
+    "rimraf": "^3.0.2",
     "typescript": "^4.7.4",
     "yargs": "^17.5.1"
   },
