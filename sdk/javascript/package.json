@@ -1,9 +1,9 @@
 {
   "name": "@nemtus/symbol-sdk-typescript",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "JavaScript/TypeScript SDK for Symbol",
-  "main": "cjs/src/index.js",
-  "module": "esm/src/index.js",
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
   "scripts": {
     "lint": "eslint .",
     "test": "mocha --full-trace --recursive ./test",
