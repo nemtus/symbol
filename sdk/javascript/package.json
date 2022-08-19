@@ -1,6 +1,6 @@
 {
   "name": "@nemtus/symbol-sdk-typescript",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "JavaScript/TypeScript SDK for Symbol",
   "main": "cjs/index.js",
   "module": "esm/index.js",
@@ -16,7 +16,7 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:cdn",
     "build:cjs": "npm run clean:cjs && npx tsc --build --clean && npx tsc --target es5 --module commonjs --outDir cjs",
     "build:esm": "npm run clean:esm && npx tsc --build --clean && npx tsc --target esnext --module esnext --outDir esm",
-    "build:cdn": "npm run clean:cdn && webpack --mode=production",
+    "build:cdn": "npm run clean:cdn && webpack",
     "clean:cjs": "rimraf cjs",
     "clean:esm": "rimraf esm",
     "clean:cdn": "rimraf index.min.js && rimraf index.min.js.LICENSE.txt"
