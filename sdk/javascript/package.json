@@ -1,6 +1,6 @@
 {
   "name": "@nemtus/symbol-sdk-typescript",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "JavaScript/TypeScript SDK for Symbol",
   "main": "cjs/index.js",
   "module": "esm/index.js",
