@@ -4,11 +4,11 @@
 // Shows how to create multisig account.
 //
 
-const symbolSdk = require('../src/index');
+import symbolSdk from '../src/index.js';
 
 (() => {
 	const createKeyPairFromPrivateKey = privateKeyString =>
-		new symbolSdk.symbol.KeyPair(new symbolSdk.CryptoTypes.PrivateKey(privateKeyString));
+		new symbolSdk.symbol.KeyPair(new symbolSdk.PrivateKey(privateKeyString));
 
 	class MultisigAccountModificationSample {
 		constructor() {
@@ -40,7 +40,7 @@ const symbolSdk = require('../src/index');
 		createAggregateTransaction() {
 			const embeddedTransactions = [
 				this.facade.transactionFactory.createEmbedded({
-					type: 'multisig_account_modification_transaction',
+					type: 'multisig_account_modification_transaction_v1',
 					signerPublicKey: this.multisigkeyPair.publicKey,
 					minApprovalDelta: 1,
 					minRemovalDelta: 1,
@@ -49,7 +49,7 @@ const symbolSdk = require('../src/index');
 			];
 
 			return this.facade.transactionFactory.create({
-				type: 'aggregate_complete_transaction',
+				type: 'aggregate_complete_transaction_v2',
 				signerPublicKey: this.multisigkeyPair.publicKey,
 				fee: 625n,
 				deadline: 12345n,

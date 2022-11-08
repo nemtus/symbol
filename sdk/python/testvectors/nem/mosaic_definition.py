@@ -1,9 +1,9 @@
 recipes = {
-	'schema_name': 'MosaicDefinitionTransaction',
+	'schema_name': 'MosaicDefinitionTransactionV1',
 	'descriptors': [
 		# comment: without supply
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'mosaic_definition': {
 				'owner_public_key': '875BD953CB8EC0BDEAA01552E390B5E59DEAAD44D81BD7DEAF0C332F99AEECE8',
 				'id': {
@@ -16,15 +16,14 @@ recipes = {
 					{'property_': {'name': b'initialSupply', 'value': b'0'}},
 					{'property_': {'name': b'supplyMutable', 'value': b'false'}},
 					{'property_': {'name': b'transferable', 'value': b'true'}}
-				],
-				'levy_size': 0x0,
+				]
 			},
 			'rental_fee_sink': 'TDX5YX2NJUSWXEKJ4UQN3WXUY3SCCAGWHHFJ3B5J',
 			'rental_fee': 0x0000000028697580
 		},
 		# comment: non-zero supply
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'mosaic_definition': {
 				'owner_public_key': 'F53B19CB1CAB394E22E3DDFA6D9B42DA87F37EB517EFA214433071E5619F898D',
 				'id': {
@@ -37,15 +36,14 @@ recipes = {
 					{'property_': {'name': b'initialSupply', 'value': b'345678'}},
 					{'property_': {'name': b'supplyMutable', 'value': b'false'}},
 					{'property_': {'name': b'transferable', 'value': b'true'}}
-				],
-				'levy_size': 0x0,
+				]
 			},
 			'rental_fee_sink': 'TCO5WSTHXII62V3MYWKBD7GOMCDRX35TFOZEX3BD',
 			'rental_fee': 0x0000000028697580,
 		},
 		# comment: supplyMutable
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'mosaic_definition': {
 				'owner_public_key': '69AF8763FEECEF35E0AEF44A202EFAC4936532C202784CF85CBCD16BFC45F119',
 				'id': {
@@ -58,15 +56,14 @@ recipes = {
 					{'property_': {'name': b'initialSupply', 'value': b'1000'}},
 					{'property_': {'name': b'supplyMutable', 'value': b'true'}},
 					{'property_': {'name': b'transferable', 'value': b'true'}}
-				],
-				'levy_size': 0x0,
+				]
 			},
 			'rental_fee_sink': 'TARPSQFPJL6A2ORAQJ46GOZUDPNYVQJKGVT2NMG7',
 			'rental_fee': 0x0000000028697580
 		},
 		# comment: absolute levy
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'mosaic_definition': {
 				'owner_public_key': 'B5B93DDE2D05D21D0A14E6F60DB33E983B88A99FB203916D408AF5749A396960',
 				'id': {
@@ -80,7 +77,6 @@ recipes = {
 					{'property_': {'name': b'supplyMutable', 'value': b'true'}},
 					{'property_': {'name': b'transferable', 'value': b'true'}}
 				],
-				'levy_size': 0x54,  # note: needs to be here, as it is not derived now...
 				'levy': {
 					'transfer_fee_type': 'absolute',
 					'recipient_address': 'TCUTCNM64Y6Q4VB4OTEHBQT2ZKUY3CUYRVHCTIZ3',
@@ -97,7 +93,7 @@ recipes = {
 		},
 		# comment: percentile-based levy
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'mosaic_definition': {
 				'owner_public_key': 'D7F44870D24E7626DB24591452A2F7ECF6650B0D41D3BCB4FB4BA11B063B80AC',
 				'id': {
@@ -112,7 +108,6 @@ recipes = {
 					{'property_': {'name': b'supplyMutable', 'value': b'true'}},
 					{'property_': {'name': b'transferable', 'value': b'true'}}
 				],
-				'levy_size': 0x50,  # note: needs to be here, as it is not derived now...
 				'levy': {
 					'transfer_fee_type': 'percentile',
 					'recipient_address': 'TDAQGCFP4TR2U33WBXJEDUHH6OWV3T4YXWHSH46A',

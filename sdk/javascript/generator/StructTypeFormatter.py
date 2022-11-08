@@ -19,6 +19,10 @@ def is_const(field):
 	return field.is_const
 
 
+def is_computed(field):
+	return hasattr(field.field_type, 'sizeref') and field.field_type.sizeref
+
+
 def create_temporary_buffer_name(name):
 	return f'{name}_condition'
 
@@ -59,10 +63,13 @@ class StructFormatter(AbstractTypeFormatter):
 		return filter(is_const, self.struct.fields)
 
 	def non_reserved_fields(self):
-		return filter_size_if_first(filterfalse(is_bound_size, filterfalse(is_reserved, self.non_const_fields())))
+		return filter_size_if_first(filterfalse(is_computed, filterfalse(is_bound_size, filterfalse(is_reserved, self.non_const_fields()))))
 
 	def reserved_fields(self):
 		return filter(is_reserved, self.non_const_fields())
+
+	def computed_fields(self):
+		return filter(is_computed, self.non_const_fields())
 
 	@property
 	def typename(self):
@@ -70,6 +77,10 @@ class StructFormatter(AbstractTypeFormatter):
 
 	@staticmethod
 	def field_name(field, object_name='this'):
+		if is_computed(field):
+			# add _computed postfix for easier filtering in bespoke code
+			return f'{object_name}.{field.extensions.printer.name}Computed'
+
 		return f'{object_name}._{field.extensions.printer.name}'
 
 	@staticmethod
@@ -115,7 +126,18 @@ class StructFormatter(AbstractTypeFormatter):
 			if const_field:
 				body += f'{field_name} = {self.typename}.{const_field.name};\n'
 			else:
-				body += f'{field_name} = {field.extensions.printer.get_default_value()};\n'
+				value = field.extensions.printer.get_default_value()
+				if field.is_conditional:
+					conditional = field.value
+					condition_field_name = conditional.linked_field_name
+					condition_field = next(f for f in self.non_const_fields() if condition_field_name == f.name)
+					condition_model = condition_field.extensions.type_model
+
+					# only initialize default implicit union field in constructor
+					if f'{condition_model.name}.{conditional.value}' != condition_field.extensions.printer.get_default_value():
+						value = 'null'  # needs to be null or else field will not be destination when copying descriptor properties
+
+				body += f'{field_name} = {value};\n'
 
 		body += '\n'.join(
 			map(
@@ -128,6 +150,25 @@ class StructFormatter(AbstractTypeFormatter):
 			return None
 
 		return MethodDescriptor(body=body, arguments=arguments)
+
+	def get_comparer_descriptor(self):
+		if not self.struct.comparer:
+			return None
+
+		body = 'return [\n'
+		for (property_name, transform) in self.struct.comparer:
+			body += '\t'
+			if not transform:
+				body += f'this.{lang_field_name(property_name)}'
+			else:
+				body += f'{lang_field_name(transform).replace("_", "")}(this.{lang_field_name(property_name)}.bytes)'
+
+			body += ',\n'
+
+		body = body[:-2]  # strip trailing comma
+		body += '\n];'
+
+		return MethodDescriptor(body=body)
 
 	def generate_condition(self, field, prefix_field=False):
 		if not field.is_conditional:
@@ -159,7 +200,34 @@ class StructFormatter(AbstractTypeFormatter):
 		if conditional.operation in ['not in', 'in']:
 			return f'if ({condition_operator}{field_prefix}{display_condition_field_name}.has({yoda_value}))'
 
-		return f'if ({yoda_value} {condition_operator} {field_prefix}{display_condition_field_name})'
+		field_postfix = 'Computed' if prefix_field and is_computed(condition_field) else ''
+
+		return f'if ({yoda_value} {condition_operator} {field_prefix}{display_condition_field_name}{field_postfix})'
+
+	def get_sort_descriptor(self):
+		body = ''
+		is_last_sort_field_conditional = False
+		for field in self.non_const_fields():
+			field_value = self.field_name(field)
+
+			sort = field.extensions.printer.sort(field_value)
+			if not sort:
+				continue
+
+			condition = self.generate_condition(field, True)
+
+			if is_computed(field):
+				sort += 'Computed'
+
+			body += indent_if_conditional(condition, f'{sort}\n')
+			is_last_sort_field_conditional = bool(condition)
+
+		# indent_if_conditional always adds a newline when there is a condition
+		# if the last sortable field has a condition, the newline needs to be stripped to avoid a blank line before closing brace
+		if is_last_sort_field_conditional:
+			body = body[:-1]
+
+		return MethodDescriptor(body=body)
 
 	def generate_deserialize_field(self, field, arg_buffer_name=None):
 		# pylint: disable=too-many-locals
@@ -177,8 +245,10 @@ class StructFormatter(AbstractTypeFormatter):
 			buffer_load_name = f'view.window({lang_field_name(size_fields[0].name)})'
 
 		use_custom_buffer_name = arg_buffer_name or size_fields
+		if not use_custom_buffer_name:
+			buffer_load_name = 'view.buffer'
 
-		load = field.extensions.printer.load(buffer_load_name) if use_custom_buffer_name else field.extensions.printer.load('view.buffer')
+		load = field.extensions.printer.load(buffer_load_name, self.struct.is_aligned)
 		const_field = 'const ' if not condition else ''
 		deserialize = f'{const_field}{field_name} = {load};\n'
 
@@ -200,7 +270,7 @@ class StructFormatter(AbstractTypeFormatter):
 		deserialize_field = deserialize + adjust + additional_statements
 
 		if condition:
-			condition = f'let {field.extensions.printer.name};\n' + condition
+			condition = f'let {field.extensions.printer.name} = null;\n' + condition
 
 		return indent_if_conditional(condition, deserialize_field)
 
@@ -325,10 +395,16 @@ class StructFormatter(AbstractTypeFormatter):
 		return MethodDescriptor(body=body)
 
 	def create_getter_descriptor(self, field):
-		method_descriptor = MethodDescriptor(
-			method_name=f'get {field.extensions.printer.name}',
-			body=f'return {self.field_name(field)};',
-		)
+		method_name = f'get {field.extensions.printer.name}'
+		body = f'return {self.field_name(field)};'
+
+		if is_computed(field):
+			method_name += 'Computed'
+
+			sizeref = field.field_type.sizeref
+			body = f'return this.{sizeref.property_name} ? this.{sizeref.property_name}.size + {sizeref.delta} : 0;'
+
+		method_descriptor = MethodDescriptor(method_name=method_name, body=body)
 		return method_descriptor
 
 	def create_setter_descriptor(self, field):
@@ -344,6 +420,10 @@ class StructFormatter(AbstractTypeFormatter):
 		for field in self.non_reserved_fields():
 			descriptors.append(self.create_getter_descriptor(field))
 			descriptors.append(self.create_setter_descriptor(field))
+
+		for field in self.computed_fields():
+			descriptors.append(self.create_getter_descriptor(field))
+
 		return descriptors
 
 	def generate_str_field(self, field):

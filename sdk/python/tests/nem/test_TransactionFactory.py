@@ -22,6 +22,10 @@ class TransactionFactoryTest(BasicTransactionFactoryTest, unittest.TestCase):
 	def create_factory(self, type_rule_overrides=None):
 		return TransactionFactory(Network.TESTNET, type_rule_overrides)
 
+	@staticmethod
+	def transaction_type_name():
+		return 'transfer_transaction_v2'
+
 	def assert_signature(self, transaction, signature, signed_transaction_payload):
 		transaction_hex = hexlify(TransactionFactory.to_non_verifiable_transaction(transaction).serialize()).decode('utf8').upper()
 		signature_hex = str(signature)
@@ -78,7 +82,7 @@ class TransactionFactoryTest(BasicTransactionFactoryTest, unittest.TestCase):
 
 		# Act:
 		transaction = factory.create({
-			'type': 'namespace_registration_transaction',
+			'type': 'namespace_registration_transaction_v1',
 			'signer_public_key': 'signer_name',
 			'rental_fee_sink': 'fee sink',
 			'rental_fee': 'fake fee'
@@ -103,7 +107,7 @@ class TransactionFactoryTest(BasicTransactionFactoryTest, unittest.TestCase):
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'namespace_registration_transaction',
+			'type': 'namespace_registration_transaction_v1',
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
 			'rental_fee_sink': Address('AEBAGBAFAYDQQCIKBMGA2DQPCAIREEYUCULBOGAB')
 		})
@@ -115,6 +119,56 @@ class TransactionFactoryTest(BasicTransactionFactoryTest, unittest.TestCase):
 
 	# endregion
 
+	# region sorting
+
+	@staticmethod
+	def _create_unordered_descriptor():
+		return {
+			'type': 'multisig_account_modification_transaction_v2',
+			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
+			'modifications': [
+				{
+					'modification': {
+						'modification_type': 'delete_cosignatory',
+						'cosignatory_public_key': PublicKey('D79936328C188A4416224ABABF580CA2C5C8D852248DB1933FE4BC0DCA0EE7BC')
+					}
+				},
+				{
+					'modification': {
+						'modification_type': 'add_cosignatory',
+						'cosignatory_public_key': PublicKey('5D378657691CAD70CE35A46FB88CB134232B0B6B3655449C019A1F5F20AE9AAD')
+					}
+				}
+			]
+		}
+
+	def test_can_create_transaction_with_out_of_order_array_when_autosort_is_enabled(self):
+		# Arrange:
+		factory = self.create_factory()
+
+		# Act:
+		transaction = self.create_transaction(factory)(self._create_unordered_descriptor())
+
+		# Assert: modifications were reordered
+		self.assertEqual(nc.MultisigAccountModificationType.ADD_COSIGNATORY, transaction.modifications[0].modification.modification_type)
+		self.assertEqual(nc.MultisigAccountModificationType.DELETE_COSIGNATORY, transaction.modifications[1].modification.modification_type)
+
+	def test_cannot_create_transaction_with_out_of_order_array_when_autosort_is_disabled(self):
+		# Arrange:
+		factory = self.create_factory()
+
+		# Act:
+		transaction = self.create_transaction(factory)(self._create_unordered_descriptor(), autosort=False)
+
+		# Assert: modifications were NOT reordered (serialization will fail)
+		self.assertEqual(nc.MultisigAccountModificationType.DELETE_COSIGNATORY, transaction.modifications[0].modification.modification_type)
+		self.assertEqual(nc.MultisigAccountModificationType.ADD_COSIGNATORY, transaction.modifications[1].modification.modification_type)
+
+		with self.assertRaises(ValueError):
+			transaction.serialize()
+
+	# endregion
+
 	# region message encoding
 
 	def test_can_create_transfer_with_string_message(self):
@@ -123,7 +177,7 @@ class TransactionFactoryTest(BasicTransactionFactoryTest, unittest.TestCase):
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v2',
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
 			'message': {
 				'message_type': 'plain',

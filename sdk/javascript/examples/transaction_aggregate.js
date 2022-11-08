@@ -6,19 +6,22 @@
 // Signs aggregate transaction using private key provided in file specified via `--private` switch.
 //
 
-const { readContents, readPrivateKey } = require('./examples_utils');
-const { SymbolFacade } = require('../src/index').facade;
-const yargs = require('yargs');
-const fs = require('fs');
-const path = require('path');
+import { readContents, readPrivateKey } from './examples_utils.js';
+import symbolSdk from '../src/index.js';
+import yargs from 'yargs';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 (() => {
+	const { SymbolFacade } = symbolSdk.facade;
+
 	const addEmbeddedTransfers = (facade, publicKey) => {
 		const textEncoder = new TextEncoder();
 
 		// obtain recipient from publicKey, so direct all transfers to 'self'
 		const recipientAddress = facade.network.publicKeyToAddress(publicKey);
-		const resourcesDirectory = path.join(__dirname, 'resources');
+		const resourcesDirectory = path.join(path.dirname(fileURLToPath(import.meta.url)), 'resources');
 
 		const filenames = fs.readdirSync(resourcesDirectory).filter(filename => filename.startsWith('part'));
 		filenames.sort();
@@ -26,7 +29,7 @@ const path = require('path');
 		return filenames.map(filename => {
 			const message = readContents(path.join(resourcesDirectory, filename));
 			const embeddedTransaction = facade.transactionFactory.createEmbedded({
-				type: 'transfer_transaction',
+				type: 'transfer_transaction_v1',
 				signerPublicKey: publicKey,
 				recipientAddress,
 				// note: additional 0 byte at the beginning is added for compatibility with explorer
@@ -50,7 +53,7 @@ const path = require('path');
 	const merkleHash = facade.constructor.hashEmbeddedTransactions(embeddedTransactions);
 
 	const aggregateTransaction = facade.transactionFactory.create({
-		type: 'aggregate_complete_transaction',
+		type: 'aggregate_complete_transaction_v2',
 		signerPublicKey: keyPair.publicKey,
 		fee: 0n,
 		deadline: 1n,

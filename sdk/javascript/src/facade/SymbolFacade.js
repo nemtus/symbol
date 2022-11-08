@@ -1,13 +1,14 @@
-const {
+import {
 	Hash256, PrivateKey, PublicKey, Signature
-} = require('../CryptoTypes');
-const { NetworkLocator } = require('../Network');
-const { KeyPair, Verifier } = require('../symbol/KeyPair');
-const { MerkleHashBuilder } = require('../symbol/MerkleHashBuilder');
-const { Address, Network } = require('../symbol/Network');
-const { TransactionFactory } = require('../symbol/TransactionFactory');
-const { TransactionType } = require('../symbol/models');
-const { sha3_256 } = require('@noble/hashes/sha3');
+} from '../CryptoTypes.js';
+import { NetworkLocator } from '../Network.js';
+import { KeyPair, Verifier } from '../symbol/KeyPair.js';
+import { Address, Network } from '../symbol/Network.js';
+import { deriveSharedKey } from '../symbol/SharedKey.js';
+import TransactionFactory from '../symbol/TransactionFactory.js';
+import { MerkleHashBuilder } from '../symbol/merkle.js';
+import * as sc from '../symbol/models.js';
+import { sha3_256 } from '@noble/hashes/sha3';
 
 const TRANSACTION_HEADER_SIZE = [
 	4, // size
@@ -27,7 +28,7 @@ const AGGREGATE_HASHED_SIZE = [
 const isAggregateTransaction = transactionBuffer => {
 	const transactionTypeOffset = TRANSACTION_HEADER_SIZE + 2; // skip version and network byte
 	const transactionType = (transactionBuffer[transactionTypeOffset + 1] << 8) + transactionBuffer[transactionTypeOffset];
-	const aggregateTypes = [TransactionType.AGGREGATE_BONDED.value, TransactionType.AGGREGATE_COMPLETE.value];
+	const aggregateTypes = [sc.TransactionType.AGGREGATE_BONDED.value, sc.TransactionType.AGGREGATE_COMPLETE.value];
 	return aggregateTypes.some(aggregateType => aggregateType === transactionType);
 };
 
@@ -43,7 +44,7 @@ const transactionDataBuffer = transactionBuffer => {
 /**
  * Facade used to interact with Symbol blockchain.
  */
-class SymbolFacade {
+export default class SymbolFacade {
 	static BIP32_CURVE_NAME = 'ed25519';
 
 	static Address = Address;
@@ -51,6 +52,8 @@ class SymbolFacade {
 	static KeyPair = KeyPair;
 
 	static Verifier = Verifier;
+
+	static deriveSharedKey = deriveSharedKey;
 
 	/**
 	 * Creates a Symbol facade.
@@ -103,6 +106,27 @@ class SymbolFacade {
 	}
 
 	/**
+	 * Cosigns a Symbol transaction.
+	 * @param {KeyPair} keyPair Key pair of the cosignatory.
+	 * @param {object} transaction Transaction object.
+	 * @param {boolean} detached \c true if resulting cosignature is appropriate for network propagation.
+	 *                           \c false if resulting cosignature is appropriate for attaching to an aggregate.
+	 * @returns {Cosignature|DetachedCosignature} Signed cosignature.
+	 */
+	cosignTransaction(keyPair, transaction, detached = false) {
+		const transactionHash = this.hashTransaction(transaction);
+
+		const cosignature = detached ? new sc.DetachedCosignature() : new sc.Cosignature();
+		if (detached)
+			cosignature.parentHash = new sc.Hash256(transactionHash.bytes);
+
+		cosignature.version = 0n;
+		cosignature.signerPublicKey = new sc.PublicKey(keyPair.publicKey.bytes);
+		cosignature.signature = new sc.Signature(keyPair.sign(transactionHash.bytes).bytes);
+		return cosignature;
+	}
+
+	/**
 	 * Hashes embedded transactions of an aggregate."""
 	 * @param {array<object>} embeddedTransactions Embedded transactions to hash.
 	 * @returns {Hash256} Aggregate transactions hash.
@@ -135,5 +159,3 @@ class SymbolFacade {
 		return new KeyPair(new PrivateKey(bip32Node.privateKey.bytes));
 	}
 }
-
-module.exports = { SymbolFacade };

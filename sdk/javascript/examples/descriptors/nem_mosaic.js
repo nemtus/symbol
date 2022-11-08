@@ -1,6 +1,8 @@
-const { nem } = require('../../src/index');
+import symbolSdk from '../../src/index.js';
 
-const descriptorFactory = () => {
+const { nem } = symbolSdk;
+
+export default () => {
 	const sampleAddress = 'TALICEROONSJCPHC63F52V6FY3SDMSVAEUGHMB7C';
 	const textEncoder = new TextEncoder();
 
@@ -17,7 +19,7 @@ const descriptorFactory = () => {
 	return [
 		// without properties
 		{
-			type: 'mosaic_definition_transaction',
+			type: 'mosaic_definition_transaction_v1',
 			rentalFeeSink: 'TBMOSAICOD4F54EE5CDMR23CCBGOAM2XSJBR5OLC',
 			rentalFee: 50000n * 1000000n,
 
@@ -27,14 +29,13 @@ const descriptorFactory = () => {
 				description: textEncoder.encode('Not really valuable mosaic'),
 				properties: [
 				],
-				levySize: 0,
 				levy: {}
 			}
 		},
 
 		// with properties
 		{
-			type: 'mosaic_definition_transaction',
+			type: 'mosaic_definition_transaction_v1',
 			rentalFeeSink: 'TBMOSAICOD4F54EE5CDMR23CCBGOAM2XSJBR5OLC',
 			rentalFee: 50000n * 1000000n,
 
@@ -48,14 +49,13 @@ const descriptorFactory = () => {
 					{ property: { name: textEncoder.encode('supplyMutable'), value: textEncoder.encode('false') } },
 					{ property: { name: textEncoder.encode('transferable'), value: textEncoder.encode('true') } }
 				],
-				levySize: 0,
 				levy: {}
 			}
 		},
 
 		// with levy
 		{
-			type: 'mosaic_definition_transaction',
+			type: 'mosaic_definition_transaction_v1',
 			rentalFeeSink: 'TBMOSAICOD4F54EE5CDMR23CCBGOAM2XSJBR5OLC',
 			rentalFee: 50000n * 1000000n,
 
@@ -65,7 +65,6 @@ const descriptorFactory = () => {
 				description: textEncoder.encode('Not really valuable mosaic'),
 				properties: [
 				],
-				levySize: levy.size,
 				levy: {
 					transferFeeType: 'absolute',
 					recipientAddress: sampleAddress,
@@ -77,12 +76,10 @@ const descriptorFactory = () => {
 
 		// supply change
 		{
-			type: 'mosaic_supply_change_transaction',
+			type: 'mosaic_supply_change_transaction_v1',
 			mosaicId: { namespaceId: { name: textEncoder.encode('genes') }, name: textEncoder.encode('memes') },
 			action: 'increase',
 			delta: 321_000n
 		}
 	];
 };
-
-module.exports = { descriptorFactory };

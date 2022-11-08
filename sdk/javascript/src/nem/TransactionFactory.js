@@ -1,13 +1,13 @@
-const { Address } = require('./Network');
-const nc = require('./models');
-const { Hash256, PublicKey } = require('../CryptoTypes');
-const { RuleBasedTransactionFactory } = require('../RuleBasedTransactionFactory');
-const { uint8ToHex } = require('../utils/converter');
+import { Address } from './Network.js';
+import * as nc from './models.js';
+import { Hash256, PublicKey } from '../CryptoTypes.js';
+import RuleBasedTransactionFactory from '../RuleBasedTransactionFactory.js';
+import { uint8ToHex } from '../utils/converter.js';
 
 /**
  * Factory for creating NEM transactions.
  */
-class TransactionFactory {
+export default class TransactionFactory {
 	/**
 	 * Creates a factory for the specified network.
 	 * @param {Network} network NEM network.
@@ -21,16 +21,20 @@ class TransactionFactory {
 	/**
 	 * Creates a transaction from a transaction descriptor.
 	 * @param {object} transactionDescriptor Transaction descriptor.
+	 * @param {boolean} autosort When set (default), descriptor arrays requiring ordering will be automatically sorted.
+	 *                           When unset, descriptor arrays will be presumed to be already sorted.
 	 * @returns {object} Newly created transaction.
 	 */
-	create(transactionDescriptor) {
+	create(transactionDescriptor, autosort = true) {
 		const transaction = this.factory.createFromFactory(nc.TransactionFactory.createByName, {
 			...transactionDescriptor,
 			network: this.network.identifier
 		});
+		if (autosort)
+			transaction.sort();
 
 		// hack: explicitly translate transfer message
-		if (nc.TransactionType.TRANSFER === transaction.type && 'string' === typeof (transaction.message.message))
+		if (nc.TransactionType.TRANSFER === transaction.type && transaction.message && 'string' === typeof (transaction.message.message))
 			transaction.message.message = new TextEncoder().encode(transaction.message.message);
 
 		return transaction;
@@ -108,5 +112,3 @@ class TransactionFactory {
 		return factory;
 	}
 }
-
-module.exports = { TransactionFactory };

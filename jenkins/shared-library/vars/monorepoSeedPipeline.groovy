@@ -4,6 +4,8 @@ void call(Closure body) {
 	body.delegate = params
 	body()
 
+	final String nightlyJenkinsfile = '.github/jenkinsfile/nightlyBuild.groovy'
+
 	pipeline {
 		parameters {
 			gitParameter branchFilter: 'origin/(.*)',
@@ -28,7 +30,7 @@ void call(Closure body) {
 		}
 
 		environment {
-			JENKINS_ROOT_FOLDER	  = "${params.organizationName}/generated"
+			JENKINS_ROOT_FOLDER = "${params.organizationName}/generated"
 			GITHUB_CREDENTIALS_ID = "${params.gitHubId}"
 		}
 
@@ -52,13 +54,37 @@ void call(Closure body) {
 			stage('create pipeline jobs') {
 				when {
 					expression {
-						return fileExists(resolveBuildConfigurationFile())
+						return fileExists(helper.resolveBuildConfigurationFile())
 					}
 				}
-				steps {
-					script {
-						buildConfiguration = yamlHelper.readYamlFromFile(resolveBuildConfigurationFile())
-						createMonorepoMultibranchJobs(buildConfiguration, env.GIT_URL, env.JENKINS_ROOT_FOLDER, env.GITHUB_CREDENTIALS_ID)
+				stages {
+					stage('Multibranch job') {
+						steps {
+							script {
+								buildConfiguration = yamlHelper.readYamlFromFile(helper.resolveBuildConfigurationFile())
+								createMonorepoMultibranchJobs(buildConfiguration, env.GIT_URL, env.JENKINS_ROOT_FOLDER, env.GITHUB_CREDENTIALS_ID)
+							}
+						}
+					}
+					stage('Nightly job') {
+						when {
+							expression {
+								return fileExists(nightlyJenkinsfile)
+							}
+						}
+						steps {
+							script {
+								def (String ownerName, String repositoryName) = resolveOwnerAndProject(env.GIT_URL)
+								Map jobConfiguration = [:]
+								jobConfiguration.jobName = "${env.JENKINS_ROOT_FOLDER}/${repositoryName}/nightlyJob"
+								jobConfiguration.displayName = 'Nightly Job'
+								jobConfiguration.trigger = '@midnight'
+								jobConfiguration.ownerAndProject = "${ownerName}/${repositoryName}"
+								jobConfiguration.credentialsId = env.GITHUB_CREDENTIALS_ID
+								jobConfiguration.jenkinsfilePath = nightlyJenkinsfile
+								createPipelineJob(jobConfiguration)
+							}
+						}
 					}
 				}
 			}
@@ -66,8 +92,7 @@ void call(Closure body) {
 	}
 }
 
-String resolveBuildConfigurationFile()  {
-	String filepath = helper.resolveBuildConfigurationFile()
-	logger.logInfo("build configuration file: ${filepath}")
-	return filepath
+String resolveOwnerAndProject(String gitUrl) {
+	String[] tokens = gitUrl.tokenize('/')
+	return [tokens[2], tokens.last().split('\\.')[0]]
 }

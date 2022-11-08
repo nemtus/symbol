@@ -1,6 +1,6 @@
 {
   "name": "symbol-api-rest",
-  "version": "0.0.0",
+  "version": "2.4.2",
   "description": "Symbol API REST",
   "main": "src/index.js",
   "scripts": {
@@ -8,33 +8,35 @@
     "lint": "eslint .",
     "test": "mocha --full-trace --recursive ./test",
     "lint:jenkins": "eslint -o lint.client.rest.xml -f junit . || exit 0",
-    "test:jenkins": "nyc --require mocha --reporter=lcov npm run test"
+    "test:jenkins": "nyc --require mocha --reporter=lcov npm run test",
+    "version": "echo $npm_package_version"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "axios": "^0.27.2",
+    "axios": "^1.1.3",
     "chai": "^4.3.6",
-    "eslint": "^8.23.0",
+    "eslint": "^8.27.0",
     "eslint-config-airbnb": "^19.0.4",
-    "minimist": "^1.2.6",
-    "mocha": "^9.2.2",
-    "mocha-jenkins-reporter": "^0.4.7",
+    "minimist": "^1.2.7",
+    "mocha": "^10.1.0",
+    "mocha-jenkins-reporter": "^0.4.8",
     "nyc": "^15.1.0",
-    "sinon": "^14.0.0"
+    "sinon": "^14.0.1",
+    "tmp": "^0.2.1"
   },
   "dependencies": {
-    "@noble/hashes": "^1.1.2",
+    "@noble/hashes": "^1.1.3",
     "ini": "^3.0.1",
-    "long": "^5.2.0",
-    "mongodb": "^4.9.0",
+    "long": "^5.2.1",
+    "mongodb": "^4.11.0",
     "restify": "^8.6.1",
     "restify-errors": "^8.0.2",
     "ripemd160": "^2.0.2",
     "sshpk": "^1.17.0",
-    "winston": "^3.8.1",
-    "ws": "^8.8.1",
+    "winston": "^3.8.2",
+    "ws": "^8.11.0",
     "zeromq": "^5.2.8"
   }
 }

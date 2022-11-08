@@ -1,7 +1,7 @@
-const { Bip32 } = require('../src/Bip32');
-const { PrivateKey } = require('../src/CryptoTypes');
-const { hexToUint8 } = require('../src/utils/converter');
-const { expect } = require('chai');
+import Bip32 from '../src/Bip32.js';
+import { PrivateKey } from '../src/CryptoTypes.js';
+import { hexToUint8 } from '../src/utils/converter.js';
+import { expect } from 'chai';
 
 const DETERIMINISTIC_SEED = hexToUint8('000102030405060708090A0B0C0D0E0F');
 const DETERIMINISTIC_MNEMONIC = 'cat swing flag economy stadium alone churn speed unique patch report train';
@@ -108,5 +108,32 @@ describe('Bip32', () => {
 		});
 	});
 
-	// endregion
+	describe('random', () => {
+		it('can create random mnemonic with default seed length', () => {
+			// Act:
+			const mnemonic1 = new Bip32().random();
+			const mnemonic2 = new Bip32().random();
+
+			// Assert:
+			expect(mnemonic1.split(' ').length).to.equal(24);
+			expect(mnemonic2.split(' ').length).to.equal(24);
+			expect(mnemonic1).to.not.equal(mnemonic2);
+		});
+
+		it('can create random mnemonic with custom seed length', () => {
+			// Act:
+			const mnemonic1 = new Bip32().random(16);
+			const mnemonic2 = new Bip32().random(16);
+
+			// Assert:
+			expect(mnemonic1.split(' ').length).to.equal(12);
+			expect(mnemonic2.split(' ').length).to.equal(12);
+			expect(mnemonic1).to.not.equal(mnemonic2);
+		});
+
+		it('cannot create random mnemonic with invalid seed length', () => {
+			// Act + Assert:
+			expect(() => { new Bip32().random(18); }).to.throw('Invalid Argument: ENT Documentation');
+		});
+	});
 });

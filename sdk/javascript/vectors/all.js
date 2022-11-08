@@ -1,14 +1,23 @@
-const { Bip32 } = require('../src/Bip32');
-const { PrivateKey, PublicKey, Signature } = require('../src/CryptoTypes');
-const { NetworkLocator } = require('../src/Network');
-const { generateMosaicId } = require('../src/symbol/idGenerator');
-const { hexToUint8 } = require('../src/utils/converter');
-const yargs = require('yargs');
-const fs = require('fs');
-const path = require('path');
+import Bip32 from '../src/Bip32.js';
+import { AesCbcCipher, AesGcmCipher } from '../src/Cipher.js';
+import {
+	PrivateKey, PublicKey, SharedKey256, Signature
+} from '../src/CryptoTypes.js';
+import { NetworkLocator } from '../src/Network.js';
+import NemFacade from '../src/facade/NemFacade.js';
+import SymbolFacade from '../src/facade/SymbolFacade.js';
+import { Network as NemNetwork } from '../src/nem/Network.js';
+import { deriveSharedKeyDeprecated } from '../src/nem/SharedKey.js'; // eslint-disable-line import/no-deprecated
+import { Network as SymbolNetwork } from '../src/symbol/Network.js';
+import VotingKeysGenerator from '../src/symbol/VotingKeysGenerator.js';
+import { generateMosaicId } from '../src/symbol/idGenerator.js';
+import { hexToUint8 } from '../src/utils/converter.js';
+import yargs from 'yargs';
+import fs from 'fs';
+import path from 'path';
 
 (() => {
-	// region TestSuites
+	// region VectorsTestSuite, KeyConversionTester, AddressConversionTester
 
 	class VectorsTestSuite {
 		constructor(identifier, filename, description) {
@@ -68,6 +77,10 @@ const path = require('path');
 		}
 	}
 
+	// endregion
+
+	// region SignTester, VerifyTester
+
 	class SignTester extends VectorsTestSuite {
 		constructor(classLocator) {
 			super(2, 'test-sign', 'sign');
@@ -108,6 +121,113 @@ const path = require('path');
 		}
 	}
 
+	// endregion
+
+	// region DeriveDeprecatedTester, DeriveTester, CipherDeprecatedTester, CipherTester
+
+	class DeriveDeprecatedTester extends VectorsTestSuite {
+		constructor(classLocator) {
+			super(3, 'test-derive-deprecated', 'derive-deprecated');
+			this.classLocator = classLocator;
+		}
+
+		process(testVector) {
+			// Arrange:
+			const otherPublicKey = new PublicKey(testVector.otherPublicKey);
+			const keyPair = new this.classLocator.Facade.KeyPair(new PrivateKey(testVector.privateKey));
+			const salt = hexToUint8(testVector.salt);
+
+			// Act:
+			const sharedKey = deriveSharedKeyDeprecated(keyPair, otherPublicKey, salt); // eslint-disable-line import/no-deprecated
+
+			// Assert:
+			return [[new SharedKey256(testVector.sharedKey), sharedKey]];
+		}
+	}
+
+	class DeriveTester extends VectorsTestSuite {
+		constructor(classLocator) {
+			super(3, 'test-derive-hkdf', 'derive');
+			this.classLocator = classLocator;
+		}
+
+		process(testVector) {
+			// Arrange:
+			const otherPublicKey = new PublicKey(testVector.otherPublicKey);
+			const keyPair = new this.classLocator.Facade.KeyPair(new PrivateKey(testVector.privateKey));
+
+			// Act:
+			const sharedKey = this.classLocator.Facade.deriveSharedKey(keyPair, otherPublicKey);
+
+			// Assert:
+			return [[new SharedKey256(testVector.sharedKey), sharedKey]];
+		}
+	}
+
+	class CipherDeprecatedTester extends VectorsTestSuite {
+		constructor(classLocator) {
+			super(4, 'test-cipher-deprecated', 'cipher-deprecated');
+			this.classLocator = classLocator;
+		}
+
+		process(testVector) {
+			// Arrange:
+			const otherPublicKey = new PublicKey(testVector.otherPublicKey);
+			const keyPair = new this.classLocator.Facade.KeyPair(new PrivateKey(testVector.privateKey));
+			const salt = hexToUint8(testVector.salt);
+			const sharedKey = deriveSharedKeyDeprecated(keyPair, otherPublicKey, salt); // eslint-disable-line import/no-deprecated
+
+			const iv = hexToUint8(testVector.iv);
+			const cipherText = hexToUint8(testVector.cipherText);
+			const clearText = hexToUint8(testVector.clearText);
+
+			// Act:
+			const cipher = new AesCbcCipher(sharedKey);
+			const resultCipherText = cipher.encrypt(clearText, iv);
+			const resultClearText = cipher.decrypt(cipherText, iv);
+
+			// Assert:
+			return [
+				[cipherText, resultCipherText],
+				[clearText, resultClearText]
+			];
+		}
+	}
+
+	class CipherTester extends VectorsTestSuite {
+		constructor(classLocator) {
+			super(4, 'test-cipher', 'cipher');
+			this.classLocator = classLocator;
+		}
+
+		process(testVector) {
+			// Arrange:
+			const otherPublicKey = new PublicKey(testVector.otherPublicKey);
+			const keyPair = new this.classLocator.Facade.KeyPair(new PrivateKey(testVector.privateKey));
+			const sharedKey = this.classLocator.Facade.deriveSharedKey(keyPair, otherPublicKey);
+
+			const iv = hexToUint8(testVector.iv);
+			const tag = hexToUint8(testVector.tag);
+			const cipherText = hexToUint8(testVector.cipherText);
+			const clearText = hexToUint8(testVector.clearText);
+
+			// Act:
+			const cipher = new AesGcmCipher(sharedKey);
+			const resultCipherText = cipher.encrypt(clearText, iv);
+			const resultClearText = cipher.decrypt(Uint8Array.of(...cipherText, ...tag), iv);
+
+			// Assert:
+			return [
+				[Uint8Array.of(...cipherText, ...tag), resultCipherText],
+				[clearText, resultClearText]
+			];
+		}
+	}
+
+	// endregion
+
+	// region MosaicIdDerivationTester
+
 	class MosaicIdDerivationTester extends VectorsTestSuite {
 		constructor(classLocator) {
 			super(5, 'test-mosaic-id', 'mosaic id derivation');
@@ -134,6 +254,10 @@ const path = require('path');
 			return mosaicIdPairs;
 		}
 	}
+
+	// endregion
+
+	// region Bip32DerivationTester, Bip39DerivationTester
 
 	class Bip32DerivationTester extends VectorsTestSuite {
 		constructor(classLocator) {
@@ -189,17 +313,84 @@ const path = require('path');
 
 	// endregion
 
-	const loadClassLocator = blockchain => {
-		if ('symbol' === blockchain) {
-			const { SymbolFacade } = require('../src/facade/SymbolFacade'); // eslint-disable-line global-require
-			const { Network } = require('../src/symbol/Network'); // eslint-disable-line global-require
-			return { Facade: SymbolFacade, Network };
+	// region VotingKeysGenerationTester
+
+	class SeededPrivateKeyGenerator {
+		constructor(values) {
+			this.values = values;
+			this.nextIndex = 0;
 		}
 
-		const { NemFacade } = require('../src/facade/NemFacade'); // eslint-disable-line global-require
-		const { Network } = require('../src/nem/Network'); // eslint-disable-line global-require
-		return { Facade: NemFacade, Network };
-	};
+		generate() {
+			this.nextIndex += 1;
+			return this.values[this.nextIndex - 1];
+		}
+	}
+
+	class FibPrivateKeyGenerator {
+		constructor(fillPrivateKey = false) {
+			this.fillPrivateKey = fillPrivateKey;
+			this.value1 = 1;
+			this.value2 = 2;
+		}
+
+		generate() {
+			const nextValue = this.value1 + this.value2;
+			this.value1 = this.value2;
+			this.value2 = nextValue;
+
+			const seedValue = nextValue % 256;
+
+			const privateKeyBuffer = new Uint8Array(PrivateKey.SIZE);
+			if (this.fillPrivateKey) {
+				for (let i = 0; i < PrivateKey.SIZE; ++i)
+					privateKeyBuffer[i] = (seedValue + i) % 256;
+			} else {
+				privateKeyBuffer[PrivateKey.SIZE - 1] = seedValue;
+			}
+
+			return new PrivateKey(privateKeyBuffer);
+		}
+	}
+
+	class VotingKeysGenerationTester extends VectorsTestSuite {
+		constructor(classLocator) {
+			super(7, 'test-voting-keys-generation', 'voting keys generation');
+			this.classLocator = classLocator;
+		}
+
+		process(testVector) {
+			// Arrange:
+			const privateKeyGenerator = {
+				test_vector_1: new FibPrivateKeyGenerator(),
+				test_vector_2: new FibPrivateKeyGenerator(true),
+				test_vector_3: new SeededPrivateKeyGenerator([
+					new PrivateKey('12F98B7CB64A6D840931A2B624FB1EACAFA2C25C3EF0018CD67E8D470A248B2F'),
+					new PrivateKey('B5593870940F28DAEE262B26367B69143AD85E43048D23E624F4ED8008C0427F'),
+					new PrivateKey('6CFC879ABCCA78F5A4C9739852C7C643AEC3990E93BF4C6F685EB58224B16A59')
+				])
+			}[testVector.name];
+
+			const rootPrivateKey = new PrivateKey(testVector.rootPrivateKey);
+			const votingKeysGenerator = new VotingKeysGenerator(
+				new this.classLocator.Facade.KeyPair(rootPrivateKey),
+				() => privateKeyGenerator.generate()
+			);
+
+			// Act:
+			const votingKeysBuffer = votingKeysGenerator.generate(BigInt(testVector.startEpoch), BigInt(testVector.endEpoch));
+
+			// Assert:
+			const expectedVotingKeysBuffer = hexToUint8(testVector.expectedFileHex);
+			return [[expectedVotingKeysBuffer, votingKeysBuffer]];
+		}
+	}
+
+	// endregion
+
+	const loadClassLocator = blockchain => ('symbol' === blockchain
+		? { Facade: SymbolFacade, Network: SymbolNetwork }
+		: { Facade: NemFacade, Network: NemNetwork });
 
 	const loadTestSuites = blockchain => {
 		const classLocator = loadClassLocator(blockchain);
@@ -208,12 +399,16 @@ const path = require('path');
 			new AddressConversionTester(classLocator),
 			new SignTester(classLocator),
 			new VerifyTester(classLocator),
+			new DeriveTester(classLocator),
+			new CipherTester(classLocator),
 			new Bip32DerivationTester(classLocator),
 			new Bip39DerivationTester(classLocator)
 		];
 
 		if ('symbol' === blockchain)
-			testSuites.push(new MosaicIdDerivationTester(classLocator));
+			[MosaicIdDerivationTester, VotingKeysGenerationTester].forEach(TesterClass => testSuites.push(new TesterClass(classLocator)));
+		else
+			[DeriveDeprecatedTester, CipherDeprecatedTester].forEach(TesterClass => testSuites.push(new TesterClass(classLocator)));
 
 		return testSuites;
 	};
@@ -251,7 +446,7 @@ const path = require('path');
 		})
 		.option('tests', {
 			describe: 'identifiers of tests to include',
-			choices: [0, 1, 2, 3, 4, 5, 6],
+			choices: [0, 1, 2, 3, 4, 5, 6, 7],
 			array: true
 		})
 		.argv;

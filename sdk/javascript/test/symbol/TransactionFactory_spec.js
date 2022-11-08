@@ -1,12 +1,12 @@
-const { Hash256, PublicKey } = require('../../src/CryptoTypes');
-const { Address, Network } = require('../../src/symbol/Network');
-const { TransactionFactory } = require('../../src/symbol/TransactionFactory');
-const { generateMosaicId, generateNamespaceId } = require('../../src/symbol/idGenerator');
-const sc = require('../../src/symbol/models');
-const { uint8ToHex } = require('../../src/utils/converter');
-const { runBasicTransactionFactoryTests } = require('../test/basicTransactionFactoryTests');
-const { expect } = require('chai');
-const crypto = require('crypto');
+import { Hash256, PublicKey } from '../../src/CryptoTypes.js';
+import { Address, Network } from '../../src/symbol/Network.js';
+import TransactionFactory from '../../src/symbol/TransactionFactory.js';
+import { generateMosaicId, generateNamespaceId } from '../../src/symbol/idGenerator.js';
+import * as sc from '../../src/symbol/models.js';
+import { uint8ToHex } from '../../src/utils/converter.js';
+import { runBasicTransactionFactoryTests } from '../test/basicTransactionFactoryTests.js';
+import { expect } from 'chai';
+import crypto from 'crypto';
 
 describe('transaction factory (Symbol)', () => {
 	const TEST_SIGNER_PUBLIC_KEY = new PublicKey(crypto.randomBytes(PublicKey.SIZE));
@@ -59,7 +59,7 @@ describe('transaction factory (Symbol)', () => {
 
 			// Act:
 			const transaction = testDescriptor.createTransaction(factory)({
-				type: 'hash_lock_transaction',
+				type: 'hash_lock_transaction_v1',
 				signerPublicKey: 'signerName',
 				hash: 'not really',
 				duration: 'fake duration',
@@ -89,7 +89,7 @@ describe('transaction factory (Symbol)', () => {
 
 			// Act:
 			const transaction = testDescriptor.createTransaction(factory)({
-				type: 'account_address_restriction_transaction',
+				type: 'account_address_restriction_transaction_v1',
 				signerPublicKey: TEST_SIGNER_PUBLIC_KEY,
 				restrictionAdditions: [
 					new Address('AEBAGBAFAYDQQCIKBMGA2DQPCAIREEYUCULBOGA'),
@@ -106,6 +106,51 @@ describe('transaction factory (Symbol)', () => {
 
 		// endregion
 
+		// region sorting
+
+		const createUnorderedDescriptor = () => ({
+			type: 'transfer_transaction_v1',
+			signerPublicKey: TEST_SIGNER_PUBLIC_KEY,
+			mosaics: [
+				{
+					mosaicId: 15358872602548358953n,
+					amount: 1n
+				},
+				{
+					mosaicId: 95442763262823n,
+					amount: 100n
+				}
+			]
+		});
+
+		it('can create transaction with out of order array when autosort is enabled', () => {
+			// Arrange:
+			const factory = testDescriptor.createFactory();
+
+			// Act:
+			const transaction = testDescriptor.createTransaction(factory)(createUnorderedDescriptor());
+
+			// Assert: mosaics were reordered
+			expect(transaction.mosaics[0].mosaicId).to.deep.equal(new sc.UnresolvedMosaicId(95442763262823n));
+			expect(transaction.mosaics[1].mosaicId).to.deep.equal(new sc.UnresolvedMosaicId(15358872602548358953n));
+		});
+
+		it('cannot create transaction with out of order array when autosort is disabled', () => {
+			// Arrange:
+			const factory = testDescriptor.createFactory();
+
+			// Act:
+			const transaction = testDescriptor.createTransaction(factory)(createUnorderedDescriptor(), false);
+
+			// Assert: mosaics were NOT reordered (serialization will fail)
+			expect(transaction.mosaics[0].mosaicId).to.deep.equal(new sc.UnresolvedMosaicId(15358872602548358953n));
+			expect(transaction.mosaics[1].mosaicId).to.deep.equal(new sc.UnresolvedMosaicId(95442763262823n));
+
+			expect(() => transaction.serialize()).to.throw(RangeError);
+		});
+
+		// endregion
+
 		// region id autogeneration
 
 		it('can autogenerate namespace registration root id', () => {
@@ -114,7 +159,7 @@ describe('transaction factory (Symbol)', () => {
 
 			// Act:
 			const transaction = testDescriptor.createTransaction(factory)({
-				type: 'namespace_registration_transaction',
+				type: 'namespace_registration_transaction_v1',
 				signerPublicKey: TEST_SIGNER_PUBLIC_KEY,
 				registrationType: 'root',
 				duration: 123n,
@@ -132,7 +177,7 @@ describe('transaction factory (Symbol)', () => {
 
 			// Act:
 			const transaction = testDescriptor.createTransaction(factory)({
-				type: 'namespace_registration_transaction',
+				type: 'namespace_registration_transaction_v1',
 				signerPublicKey: TEST_SIGNER_PUBLIC_KEY,
 				registrationType: 'child',
 				parentId: generateNamespaceId('roger'),
@@ -150,7 +195,7 @@ describe('transaction factory (Symbol)', () => {
 
 			// Act:
 			const transaction = testDescriptor.createTransaction(factory)({
-				type: 'mosaic_definition_transaction',
+				type: 'mosaic_definition_transaction_v1',
 				signerPublicKey: TEST_SIGNER_PUBLIC_KEY,
 				nonce: 123
 			});
@@ -167,7 +212,7 @@ describe('transaction factory (Symbol)', () => {
 		const testDescriptor = {
 			name: 'Transaction',
 			createFactory: typeRuleOverrides => new TransactionFactory(Network.TESTNET, typeRuleOverrides),
-			createTransaction: factory => (descriptor => factory.create(descriptor)),
+			createTransaction: factory => ((descriptor, autosort = true) => factory.create(descriptor, autosort)),
 			assertTransaction: assertTransfer,
 			assertSignature: (transaction, signature, signedTransactionPayload) => {
 				const transactionHex = uint8ToHex(transaction.serialize());
@@ -183,7 +228,7 @@ describe('transaction factory (Symbol)', () => {
 		const testDescriptor = {
 			name: 'EmbeddedTransaction',
 			createFactory: typeRuleOverrides => new TransactionFactory(Network.TESTNET, typeRuleOverrides),
-			createTransaction: factory => (descriptor => factory.createEmbedded(descriptor)),
+			createTransaction: factory => ((descriptor, autosort = true) => factory.createEmbedded(descriptor, autosort)),
 			assertTransaction: assertTransfer
 		};
 		runBasicTransactionFactoryTests(testDescriptor, false);

@@ -1,10 +1,10 @@
-const { ByteArray } = require('./ByteArray');
-const crypto = require('crypto');
+import ByteArray from './ByteArray.js';
+import crypto from 'crypto';
 
 /**
  *  Represents a 256-bit hash.
  */
-class Hash256 extends ByteArray {
+export class Hash256 extends ByteArray {
 	static SIZE = 32;
 
 	/**
@@ -27,7 +27,7 @@ class Hash256 extends ByteArray {
 /**
  *  Represents a private key.
  */
-class PrivateKey extends ByteArray {
+export class PrivateKey extends ByteArray {
 	static SIZE = 32;
 
 	/**
@@ -50,7 +50,7 @@ class PrivateKey extends ByteArray {
 /**
  *  Represents a public key.
  */
-class PublicKey extends ByteArray {
+export class PublicKey extends ByteArray {
 	static SIZE = 32;
 
 	/**
@@ -63,9 +63,24 @@ class PublicKey extends ByteArray {
 }
 
 /**
+ *  Represents a 256-bit symmetric encryption key.
+ */
+export class SharedKey256 extends ByteArray {
+	static SIZE = 32;
+
+	/**
+	 * Creates a key from bytes or a hex string.
+	 * @param {Uint8Array|string} sharedKey Input string or byte array.
+	 */
+	constructor(sharedKey) {
+		super(SharedKey256.SIZE, sharedKey);
+	}
+}
+
+/**
  *  Represents a signature.
  */
-class Signature extends ByteArray {
+export class Signature extends ByteArray {
 	static SIZE = 64;
 
 	/**
@@ -84,7 +99,3 @@ class Signature extends ByteArray {
 		return new Signature(new Uint8Array(Signature.SIZE));
 	}
 }
-
-module.exports = {
-	Hash256, PrivateKey, PublicKey, Signature
-};

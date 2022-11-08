@@ -1,17 +1,18 @@
-const { Bip32 } = require('../../src/Bip32');
-const {
+import Bip32 from '../../src/Bip32.js';
+import {
 	Hash256, PrivateKey, PublicKey, Signature
-} = require('../../src/CryptoTypes');
-const { SymbolFacade } = require('../../src/facade/SymbolFacade');
-const { Network } = require('../../src/symbol/Network');
-const { expect } = require('chai');
-const crypto = require('crypto');
+} from '../../src/CryptoTypes.js';
+import SymbolFacade from '../../src/facade/SymbolFacade.js';
+import { Network } from '../../src/symbol/Network.js';
+import * as sc from '../../src/symbol/models.js';
+import { expect } from 'chai';
+import crypto from 'crypto';
 
 describe('Symbol Facade', () => {
 	// region real transactions
 
 	const createRealTransfer = facade => facade.transactionFactory.create({
-		type: 'transfer_transaction',
+		type: 'transfer_transaction_v1',
 		signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 		fee: 1000000n,
 		deadline: 41998024783n,
@@ -23,14 +24,14 @@ describe('Symbol Facade', () => {
 
 	const createRealAggregate = facade => {
 		const aggregate = facade.transactionFactory.create({
-			type: 'aggregate_complete_transaction',
+			type: 'aggregate_complete_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			fee: 2000000n,
 			deadline: 42238390163n,
 			transactionsHash: '71554638F578358B1D3FC4369AC625DB491AD5E5D4424D6DBED9FFC7411A37FE'
 		});
 		const transfer = facade.transactionFactory.createEmbedded({
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			recipientAddress: 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 			mosaics: [
@@ -43,7 +44,7 @@ describe('Symbol Facade', () => {
 
 	const createRealEmbeddedTransactions = facade => [
 		{
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			recipientAddress: 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 			mosaics: [
@@ -51,7 +52,7 @@ describe('Symbol Facade', () => {
 			]
 		},
 		{
-			type: 'secret_proof_transaction',
+			type: 'secret_proof_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			recipientAddress: 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 			secret: 'BE254D2744329BBE20F9CF6DA61043B4CEF8C2BC000000000000000000000000',
@@ -59,13 +60,39 @@ describe('Symbol Facade', () => {
 			proof: '41FB'
 		},
 		{
-			type: 'address_alias_transaction',
+			type: 'address_alias_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			namespaceId: 0xA95F1F8A96159516n,
 			address: 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 			aliasAction: 'link'
 		}
 	].map(descriptor => facade.transactionFactory.createEmbedded(descriptor));
+
+	const createRealAggregateSwap = facade => facade.transactionFactory.create({
+		type: 'aggregate_complete_transaction_v1',
+		signerPublicKey: '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+		fee: 36000n,
+		deadline: 26443750218n,
+		transactionsHash: '641CB7E431F1D44094A43E1CE8265E6BD1DF1C3B0B64797CDDAA0A375FCD3C08',
+		transactions: [
+			facade.transactionFactory.createEmbedded({
+				type: 'transfer_transaction_v1',
+				signerPublicKey: '29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3',
+				recipientAddress: 'TBEZ3VKFBMKQSW7APBVL5NWNBEU7RR466PRRTDQ',
+				mosaics: [
+					{ mosaicId: 0xE74B99BA41F4AFEEn, amount: 20000000n }
+				]
+			}),
+			facade.transactionFactory.createEmbedded({
+				type: 'transfer_transaction_v1',
+				signerPublicKey: '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+				recipientAddress: 'TDFR3Q3H5W4OPOSHALVDY3RF4ZQNH44LIUIHYTQ',
+				mosaics: [
+					{ mosaicId: 0x798A29F48E927C83n, amount: 100n }
+				]
+			})
+		]
+	});
 
 	// endregion
 
@@ -108,7 +135,7 @@ describe('Symbol Facade', () => {
 		// Act:
 		const facade = new SymbolFacade('testnet');
 		const transaction = facade.transactionFactory.create({
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: new Uint32Array(PublicKey.SIZE)
 		});
 
@@ -133,7 +160,7 @@ describe('Symbol Facade', () => {
 		// Act:
 		const facade = new SymbolFacade(network);
 		const transaction = facade.transactionFactory.create({
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: new Uint32Array(PublicKey.SIZE)
 		});
 
@@ -166,11 +193,11 @@ describe('Symbol Facade', () => {
 	};
 
 	it('can hash transaction', () => {
-		assertCanHashTransaction(createRealTransfer, new Hash256('600D0CF8C95CDEEB1BC81EFEB9D50BB853F474AC2226E1BEB83E235716C8E16E'));
+		assertCanHashTransaction(createRealTransfer, new Hash256('86E006F0D400A781A15D0293DFC15897078351A2F7731D49A865A63C2010DE44'));
 	});
 
 	it('can hash aggregate transaction', () => {
-		assertCanHashTransaction(createRealAggregate, new Hash256('194578BACECBE33A18EE6D1BE02D61B1CC86F57D57C4D22F7783D27EB33FF225'));
+		assertCanHashTransaction(createRealAggregate, new Hash256('D074716D62F4CDF1CE219D7E0580DC2C030102E216ECE2037FA28A3BC5726BD0'));
 	});
 
 	const assertCanSignTransaction = (transactionFactory, expectedSignature) => {
@@ -192,15 +219,15 @@ describe('Symbol Facade', () => {
 
 	it('can sign transaction', () => {
 		assertCanSignTransaction(createRealTransfer, new Signature([
-			'5BF0C9DC0D97FDE7FF6F99F1EFADF50DD77C1FA54CFC704FB23295C8F6908B6D',
-			'1F9BA1FB2DB267543805F14C83B7A9D4255D8AECC6046DDBE225115A6DF16002'
+			'24A3788AFD0223083D47ED14F17A2499A7939CD62C4B3288C40CF2736B13F404',
+			'8486680DD574C9F7DB56F453464058CB22349ACBFAECAE16A31EF0725FFF6104'
 		].join('')));
 	});
 
 	it('can sign aggregate transaction', () => {
 		assertCanSignTransaction(createRealAggregate, new Signature([
-			'116BA7B83280BC1752440A5CFBF71612385DFDFA0363A5B220E20C0CA0C6307A',
-			'35C979BB120BAB85E58B1C880DDFB7A96A922D1A2828B5C6CC9556C27571190C'
+			'40C5C9F0BAF74E64877982C411D0D16665E18D463B66204081D846564FC6CAE1',
+			'3F1F75C688CBD2D34263DA166537A90B4F371C1B38DDF00414AB0F5D78C3CD0F'
 		].join('')));
 	});
 
@@ -228,6 +255,54 @@ describe('Symbol Facade', () => {
 
 	it('can verify aggregate transaction', () => {
 		assertCanVerifyTransaction(createRealAggregate);
+	});
+
+	// endregion
+
+	// region cosignTransaction
+
+	describe('can cosign transactions', () => {
+		const assertCanCosignTransaction = detached => {
+			// Arrange:
+			const signerPrivateKey = new PrivateKey('F4BC233E183E8CEA08D0A604A3DC67FF3261D1E6EBF84D233488BC53D89C50B7');
+			const cosignerPrivateKey = new PrivateKey('BE7B98F835A896136ADDAF04220F28CB4925D24F0675A21421BF213C180BEF86');
+			const facade = new SymbolFacade('testnet');
+
+			const transaction = createRealAggregateSwap(facade);
+			const signature = facade.signTransaction(new SymbolFacade.KeyPair(signerPrivateKey), transaction);
+			facade.transactionFactory.constructor.attachSignature(transaction, signature);
+
+			// Act:
+			const cosignature = facade.cosignTransaction(new SymbolFacade.KeyPair(cosignerPrivateKey), transaction, detached);
+
+			// Assert: check common fields
+			expect(cosignature.version).to.equal(0n);
+			expect(cosignature.signerPublicKey)
+				.to.deep.equal(new sc.PublicKey('29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3'));
+			expect(cosignature.signature)
+				.to.deep.equal(new sc.Signature('204BD2C4F86B66313E5C5F817FD650B108826D53EDEFC8BDFF936E4D6AA07E38'
+					+ '5F819CF0BF22D14D4AA2011AD07BC0FE6023E2CB48DC5D82A6A1FF1348FA3E0B'));
+			return cosignature;
+		};
+
+		it('as attached cosignature', () => {
+			// Act:
+			const cosignature = assertCanCosignTransaction();
+
+			// Assert: cosignature should be suitable for attaching to an aggregate
+			expect(cosignature.size).to.equal(104);
+			expect(cosignature.parentHash).to.equal(undefined);
+		});
+
+		it('as detached cosignature', () => {
+			// Act:
+			const cosignature = assertCanCosignTransaction(true);
+
+			// Assert: cosignature should be detached
+			expect(cosignature.size).to.equal(136);
+			expect(cosignature.parentHash)
+				.to.deep.equal(new sc.Hash256('214DFF47469D462E1D9A03232C2582C7E44DE026A287F98529CC74DE9BD69641'));
+		});
 	});
 
 	// endregion

@@ -1,6 +1,6 @@
-const { ByteArray, CryptoTypes } = require('../../src/index');
+import symbolSdk from '../../src/index.js';
 
-const descriptorFactory = () => {
+export default () => {
 	const sampleAddress = 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y';
 	const sampleMosaicId = 0x7EDCBA90FEDCBA90n;
 	const secret = 'C849C5A5F6BCA84EF1829B2A84C0BAC9D765383D000000000000000000000000';
@@ -8,14 +8,14 @@ const descriptorFactory = () => {
 	return [
 		// note: only network currency can be used as a mosaic in hash lock
 		{
-			type: 'hash_lock_transaction',
+			type: 'hash_lock_transaction_v1',
 			mosaic: { mosaicId: sampleMosaicId, amount: 123_000000n },
 			duration: 123n,
-			hash: CryptoTypes.Hash256.zero()
+			hash: symbolSdk.Hash256.zero()
 		},
 
 		{
-			type: 'secret_lock_transaction',
+			type: 'secret_lock_transaction_v1',
 			mosaic: { mosaicId: sampleMosaicId, amount: 123_000000n },
 			duration: 123n,
 			recipientAddress: sampleAddress,
@@ -24,13 +24,11 @@ const descriptorFactory = () => {
 		},
 
 		{
-			type: 'secret_proof_transaction',
+			type: 'secret_proof_transaction_v1',
 			recipientAddress: sampleAddress,
 			secret,
 			hashAlgorithm: 'hash_160',
-			proof: (new ByteArray(4, 'C1ECFDFC')).bytes
+			proof: (new symbolSdk.ByteArray(4, 'C1ECFDFC')).bytes
 		}
 	];
 };
-
-module.exports = { descriptorFactory };

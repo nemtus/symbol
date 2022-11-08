@@ -1,5 +1,6 @@
 import unittest
 
+from symbolchain import sc
 from symbolchain.AccountDescriptorRepository import AccountDescriptorRepository
 from symbolchain.Bip32 import Bip32
 from symbolchain.CryptoTypes import Hash256, PrivateKey, PublicKey, Signature
@@ -17,12 +18,14 @@ YAML_INPUT = '''
 
 
 class SymbolFacadeTest(unittest.TestCase):
+	# pylint: disable=too-many-public-methods
+
 	# region real transactions
 
 	@staticmethod
 	def _create_real_transfer(facade):
 		return facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': 'TEST',
 			'fee': 1000000,
 			'deadline': 41998024783,
@@ -35,14 +38,14 @@ class SymbolFacadeTest(unittest.TestCase):
 	@staticmethod
 	def _create_real_aggregate(facade):
 		aggregate = facade.transaction_factory.create({
-			'type': 'aggregate_complete_transaction',
+			'type': 'aggregate_complete_transaction_v1',
 			'signer_public_key': 'TEST',
 			'fee': 2000000,
 			'deadline': 42238390163,
 			'transactions_hash': '71554638F578358B1D3FC4369AC625DB491AD5E5D4424D6DBED9FFC7411A37FE'
 		})
 		transfer = facade.transaction_factory.create_embedded({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': 'TEST',
 			'recipient_address': 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 			'mosaics': [
@@ -56,7 +59,7 @@ class SymbolFacadeTest(unittest.TestCase):
 	def _create_real_embedded_transactions(facade):
 		return list(map(facade.transaction_factory.create_embedded, [
 			{
-				'type': 'transfer_transaction',
+				'type': 'transfer_transaction_v1',
 				'signer_public_key': 'TEST',
 				'recipient_address': 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 				'mosaics': [
@@ -64,7 +67,7 @@ class SymbolFacadeTest(unittest.TestCase):
 				]
 			},
 			{
-				'type': 'secret_proof_transaction',
+				'type': 'secret_proof_transaction_v1',
 				'signer_public_key': 'TEST',
 				'recipient_address': 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 				'secret': 'BE254D2744329BBE20F9CF6DA61043B4CEF8C2BC000000000000000000000000',
@@ -72,13 +75,41 @@ class SymbolFacadeTest(unittest.TestCase):
 				'proof': '41FB'
 			},
 			{
-				'type': 'address_alias_transaction',
+				'type': 'address_alias_transaction_v1',
 				'signer_public_key': 'TEST',
 				'namespace_id': 0xA95F1F8A96159516,
 				'address': 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 				'alias_action': 'link'
 			}
 		]))
+
+	@staticmethod
+	def _create_real_aggregate_swap(facade):
+		return facade.transaction_factory.create({
+			'type': 'aggregate_complete_transaction_v1',
+			'signer_public_key': '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+			'fee': 36000,
+			'deadline': 26443750218,
+			'transactions_hash': '641CB7E431F1D44094A43E1CE8265E6BD1DF1C3B0B64797CDDAA0A375FCD3C08',
+			'transactions': [
+				facade.transaction_factory.create_embedded({
+					'type': 'transfer_transaction_v1',
+					'signer_public_key': '29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3',
+					'recipient_address': 'TBEZ3VKFBMKQSW7APBVL5NWNBEU7RR466PRRTDQ',
+					'mosaics': [
+						{'mosaic_id': 0xE74B99BA41F4AFEE, 'amount': 20000000}
+					]
+				}),
+				facade.transaction_factory.create_embedded({
+					'type': 'transfer_transaction_v1',
+					'signer_public_key': '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+					'recipient_address': 'TDFR3Q3H5W4OPOSHALVDY3RF4ZQNH44LIUIHYTQ',
+					'mosaics': [
+						{'mosaic_id': 0x798A29F48E927C83, 'amount': 100}
+					]
+				})
+			]
+		})
 
 	# endregion
 
@@ -118,7 +149,7 @@ class SymbolFacadeTest(unittest.TestCase):
 		# Act:
 		facade = SymbolFacade('testnet')
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': bytes(PublicKey.SIZE)
 		})
 
@@ -140,7 +171,7 @@ class SymbolFacadeTest(unittest.TestCase):
 		# Act:
 		facade = SymbolFacade(network)
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': bytes(PublicKey.SIZE)
 		})
 
@@ -155,7 +186,7 @@ class SymbolFacadeTest(unittest.TestCase):
 		# Act:
 		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': 'TEST',
 			'recipient_address': 'SYMBOL'
 		})
@@ -194,12 +225,12 @@ class SymbolFacadeTest(unittest.TestCase):
 	def test_can_hash_transaction(self):
 		self._assert_can_hash_transaction(
 			self._create_real_transfer,
-			Hash256('600D0CF8C95CDEEB1BC81EFEB9D50BB853F474AC2226E1BEB83E235716C8E16E'))
+			Hash256('86E006F0D400A781A15D0293DFC15897078351A2F7731D49A865A63C2010DE44'))
 
 	def test_can_hash_aggregate_transaction(self):
 		self._assert_can_hash_transaction(
 			self._create_real_aggregate,
-			Hash256('194578BACECBE33A18EE6D1BE02D61B1CC86F57D57C4D22F7783D27EB33FF225'))
+			Hash256('D074716D62F4CDF1CE219D7E0580DC2C030102E216ECE2037FA28A3BC5726BD0'))
 
 	def _assert_can_sign_transaction(self, transaction_factory, expected_signature):
 		# Arrange:
@@ -219,14 +250,14 @@ class SymbolFacadeTest(unittest.TestCase):
 
 	def test_can_sign_transaction(self):
 		self._assert_can_sign_transaction(self._create_real_transfer, Signature(''.join([
-			'5BF0C9DC0D97FDE7FF6F99F1EFADF50DD77C1FA54CFC704FB23295C8F6908B6D',
-			'1F9BA1FB2DB267543805F14C83B7A9D4255D8AECC6046DDBE225115A6DF16002'
+			'24A3788AFD0223083D47ED14F17A2499A7939CD62C4B3288C40CF2736B13F404',
+			'8486680DD574C9F7DB56F453464058CB22349ACBFAECAE16A31EF0725FFF6104'
 		])))
 
 	def test_can_sign_aggregate_transaction(self):
 		self._assert_can_sign_transaction(self._create_real_aggregate, Signature(''.join([
-			'116BA7B83280BC1752440A5CFBF71612385DFDFA0363A5B220E20C0CA0C6307A',
-			'35C979BB120BAB85E58B1C880DDFB7A96A922D1A2828B5C6CC9556C27571190C'
+			'40C5C9F0BAF74E64877982C411D0D16665E18D463B66204081D846564FC6CAE1',
+			'3F1F75C688CBD2D34263DA166537A90B4F371C1B38DDF00414AB0F5D78C3CD0F'
 		])))
 
 	def _assert_can_verify_transaction(self, transaction_factory):
@@ -251,6 +282,49 @@ class SymbolFacadeTest(unittest.TestCase):
 
 	def test_can_verify_aggregate_transaction(self):
 		self._assert_can_verify_transaction(self._create_real_aggregate)
+
+	# endregion
+
+	# region cosign_transaction
+
+	def _assert_can_cosign_transaction(self, detached=False):
+		# Arrange:
+		signer_private_key = PrivateKey('F4BC233E183E8CEA08D0A604A3DC67FF3261D1E6EBF84D233488BC53D89C50B7')
+		cosigner_private_key = PrivateKey('BE7B98F835A896136ADDAF04220F28CB4925D24F0675A21421BF213C180BEF86')
+		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
+
+		transaction = self._create_real_aggregate_swap(facade)
+		signature = facade.sign_transaction(SymbolFacade.KeyPair(signer_private_key), transaction)
+		facade.transaction_factory.attach_signature(transaction, signature)
+
+		# Act:
+		cosignature = facade.cosign_transaction(SymbolFacade.KeyPair(cosigner_private_key), transaction, detached)
+
+		# Assert: check common fields
+		self.assertEqual(0, cosignature.version)
+		self.assertEqual(sc.PublicKey('29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3'), cosignature.signer_public_key)
+		self.assertEqual(
+			sc.Signature('204BD2C4F86B66313E5C5F817FD650B108826D53EDEFC8BDFF936E4D6AA07E38' + (
+				'5F819CF0BF22D14D4AA2011AD07BC0FE6023E2CB48DC5D82A6A1FF1348FA3E0B'
+			)),
+			cosignature.signature)
+		return cosignature
+
+	def test_can_cosign_transaction(self):
+		# Act:
+		cosignature = self._assert_can_cosign_transaction()
+
+		# Assert: cosignature should be suitable for attaching to an aggregate
+		self.assertEqual(104, cosignature.size)
+		self.assertFalse(hasattr(cosignature, 'parent_hash'))
+
+	def test_can_cosign_transaction_detached(self):
+		# Act:
+		cosignature = self._assert_can_cosign_transaction(True)
+
+		# Assert: cosignature should be detached
+		self.assertEqual(136, cosignature.size)
+		self.assertEqual(sc.Hash256('214DFF47469D462E1D9A03232C2582C7E44DE026A287F98529CC74DE9BD69641'), cosignature.parent_hash)
 
 	# endregion
 

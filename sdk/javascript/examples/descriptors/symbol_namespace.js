@@ -1,19 +1,19 @@
-const { generateNamespaceId } = require('../../src/index').symbol;
+import symbolSdk from '../../src/index.js';
 
-const descriptorFactory = () => ([
+const { symbol } = symbolSdk;
+
+export default () => ([
 	{
-		type: 'namespace_registration_transaction',
+		type: 'namespace_registration_transaction_v1',
 		registrationType: 'root',
 		duration: 123n,
 		name: 'roger'
 	},
 
 	{
-		type: 'namespace_registration_transaction',
+		type: 'namespace_registration_transaction_v1',
 		registrationType: 'child',
-		parentId: generateNamespaceId('roger'),
+		parentId: symbol.generateNamespaceId('roger'),
 		name: 'charlie'
 	}
 ]);
-
-module.exports = { descriptorFactory };

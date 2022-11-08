@@ -209,6 +209,9 @@ class Transaction:
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 
+	def sort(self) -> None:
+		pass
+
 	@property
 	def type_(self) -> TransactionType:
 		return self._type_
@@ -379,6 +382,9 @@ class NonVerifiableTransaction:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 
+	def sort(self) -> None:
+		pass
+
 	@property
 	def type_(self) -> TransactionType:
 		return self._type_
@@ -528,7 +534,7 @@ class LinkAction(Enum):
 		return buffer
 
 
-class AccountKeyLinkTransaction:
+class AccountKeyLinkTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_KEY_LINK
 	TYPE_HINTS = {
@@ -544,8 +550,8 @@ class AccountKeyLinkTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = AccountKeyLinkTransaction.TRANSACTION_TYPE
-		self._version = AccountKeyLinkTransaction.TRANSACTION_VERSION
+		self._type_ = AccountKeyLinkTransactionV1.TRANSACTION_TYPE
+		self._version = AccountKeyLinkTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -558,6 +564,9 @@ class AccountKeyLinkTransaction:
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 		self._remote_public_key_size = 32  # reserved field
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def type_(self) -> TransactionType:
@@ -659,7 +668,7 @@ class AccountKeyLinkTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountKeyLinkTransaction:
+	def deserialize(cls, payload: ByteString) -> AccountKeyLinkTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -694,7 +703,7 @@ class AccountKeyLinkTransaction:
 		remote_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[remote_public_key.size:]
 
-		instance = AccountKeyLinkTransaction()
+		instance = AccountKeyLinkTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -741,7 +750,7 @@ class AccountKeyLinkTransaction:
 		return result
 
 
-class NonVerifiableAccountKeyLinkTransaction:
+class NonVerifiableAccountKeyLinkTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_KEY_LINK
 	TYPE_HINTS = {
@@ -756,8 +765,8 @@ class NonVerifiableAccountKeyLinkTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NonVerifiableAccountKeyLinkTransaction.TRANSACTION_TYPE
-		self._version = NonVerifiableAccountKeyLinkTransaction.TRANSACTION_VERSION
+		self._type_ = NonVerifiableAccountKeyLinkTransactionV1.TRANSACTION_TYPE
+		self._version = NonVerifiableAccountKeyLinkTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -768,6 +777,9 @@ class NonVerifiableAccountKeyLinkTransaction:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._remote_public_key_size = 32  # reserved field
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def type_(self) -> TransactionType:
@@ -859,7 +871,7 @@ class NonVerifiableAccountKeyLinkTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NonVerifiableAccountKeyLinkTransaction:
+	def deserialize(cls, payload: ByteString) -> NonVerifiableAccountKeyLinkTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -889,7 +901,7 @@ class NonVerifiableAccountKeyLinkTransaction:
 		remote_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[remote_public_key.size:]
 
-		instance = NonVerifiableAccountKeyLinkTransaction()
+		instance = NonVerifiableAccountKeyLinkTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -940,6 +952,9 @@ class NamespaceId:
 	def __init__(self):
 		self._name = bytes()
 
+	def sort(self) -> None:
+		pass
+
 	@property
 	def name(self) -> bytes:
 		return self._name
@@ -989,6 +1004,9 @@ class MosaicId:
 	def __init__(self):
 		self._namespace_id = NamespaceId()
 		self._name = bytes()
+
+	def sort(self) -> None:
+		self._namespace_id.sort()
 
 	@property
 	def namespace_id(self) -> NamespaceId:
@@ -1054,6 +1072,9 @@ class Mosaic:
 		self._mosaic_id = MosaicId()
 		self._amount = Amount()
 
+	def sort(self) -> None:
+		self._mosaic_id.sort()
+
 	@property
 	def mosaic_id(self) -> MosaicId:
 		return self._mosaic_id
@@ -1116,6 +1137,9 @@ class SizePrefixedMosaic:
 
 	def __init__(self):
 		self._mosaic = Mosaic()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def mosaic(self) -> Mosaic:
@@ -1191,6 +1215,9 @@ class MosaicLevy:
 		self._mosaic_id = MosaicId()
 		self._fee = Amount()
 		self._recipient_address_size = 40  # reserved field
+
+	def sort(self) -> None:
+		self._mosaic_id.sort()
 
 	@property
 	def transfer_fee_type(self) -> MosaicTransferFeeType:
@@ -1290,6 +1317,9 @@ class MosaicProperty:
 		self._name = bytes()
 		self._value = bytes()
 
+	def sort(self) -> None:
+		pass
+
 	@property
 	def name(self) -> bytes:
 		return self._name
@@ -1356,6 +1386,9 @@ class SizePrefixedMosaicProperty:
 	def __init__(self):
 		self._property_ = MosaicProperty()
 
+	def sort(self) -> None:
+		self._property_.sort()
+
 	@property
 	def property_(self) -> MosaicProperty:
 		return self._property_
@@ -1411,9 +1444,13 @@ class MosaicDefinition:
 		self._id = MosaicId()
 		self._description = bytes()
 		self._properties = []
-		self._levy_size = 0
-		self._levy = MosaicLevy()
+		self._levy = None
 		self._owner_public_key_size = 32  # reserved field
+
+	def sort(self) -> None:
+		self._id.sort()
+		if 0 != self.levy_size_computed:
+			self._levy.sort()
 
 	@property
 	def owner_public_key(self) -> PublicKey:
@@ -1432,12 +1469,12 @@ class MosaicDefinition:
 		return self._properties
 
 	@property
-	def levy_size(self) -> int:
-		return self._levy_size
-
-	@property
 	def levy(self) -> MosaicLevy:
 		return self._levy
+
+	@property
+	def levy_size_computed(self) -> int:
+		return 0 if not self.levy else self.levy.size + 4
 
 	@owner_public_key.setter
 	def owner_public_key(self, value: PublicKey):
@@ -1455,10 +1492,6 @@ class MosaicDefinition:
 	def properties(self, value: List[SizePrefixedMosaicProperty]):
 		self._properties = value
 
-	@levy_size.setter
-	def levy_size(self, value: int):
-		self._levy_size = value
-
 	@levy.setter
 	def levy(self, value: MosaicLevy):
 		self._levy = value
@@ -1475,7 +1508,7 @@ class MosaicDefinition:
 		size += 4
 		size += ArrayHelpers.size(self.properties)
 		size += 4
-		if 0 != self.levy_size:
+		if 0 != self.levy_size_computed:
 			size += self.levy.size
 		return size
 
@@ -1512,7 +1545,6 @@ class MosaicDefinition:
 		instance._id = id
 		instance._description = description
 		instance._properties = properties
-		instance._levy_size = levy_size
 		instance._levy = levy
 		return instance
 
@@ -1526,8 +1558,8 @@ class MosaicDefinition:
 		buffer += self._description
 		buffer += len(self._properties).to_bytes(4, byteorder='little', signed=False)  # properties_count
 		buffer += ArrayHelpers.write_array(self._properties)
-		buffer += self._levy_size.to_bytes(4, byteorder='little', signed=False)
-		if 0 != self.levy_size:
+		buffer += self.levy_size_computed.to_bytes(4, byteorder='little', signed=False)
+		if 0 != self.levy_size_computed:
 			buffer += self._levy.serialize()
 		return buffer
 
@@ -1537,14 +1569,13 @@ class MosaicDefinition:
 		result += f'id: {self._id.__str__()}, '
 		result += f'description: {hexlify(self._description).decode("utf8")}, '
 		result += f'properties: {list(map(str, self._properties))}, '
-		result += f'levy_size: 0x{self._levy_size:X}, '
-		if 0 != self.levy_size:
+		if 0 != self.levy_size_computed:
 			result += f'levy: {self._levy.__str__()}, '
 		result += ')'
 		return result
 
 
-class MosaicDefinitionTransaction:
+class MosaicDefinitionTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_DEFINITION
 	TYPE_HINTS = {
@@ -1561,8 +1592,8 @@ class MosaicDefinitionTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = MosaicDefinitionTransaction.TRANSACTION_TYPE
-		self._version = MosaicDefinitionTransaction.TRANSACTION_VERSION
+		self._type_ = MosaicDefinitionTransactionV1.TRANSACTION_TYPE
+		self._version = MosaicDefinitionTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -1576,6 +1607,9 @@ class MosaicDefinitionTransaction:
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 		self._rental_fee_sink_size = 40  # reserved field
+
+	def sort(self) -> None:
+		self._mosaic_definition.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -1687,7 +1721,7 @@ class MosaicDefinitionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicDefinitionTransaction:
+	def deserialize(cls, payload: ByteString) -> MosaicDefinitionTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -1727,7 +1761,7 @@ class MosaicDefinitionTransaction:
 		rental_fee = Amount.deserialize(buffer)
 		buffer = buffer[rental_fee.size:]
 
-		instance = MosaicDefinitionTransaction()
+		instance = MosaicDefinitionTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -1778,7 +1812,7 @@ class MosaicDefinitionTransaction:
 		return result
 
 
-class NonVerifiableMosaicDefinitionTransaction:
+class NonVerifiableMosaicDefinitionTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_DEFINITION
 	TYPE_HINTS = {
@@ -1794,8 +1828,8 @@ class NonVerifiableMosaicDefinitionTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NonVerifiableMosaicDefinitionTransaction.TRANSACTION_TYPE
-		self._version = NonVerifiableMosaicDefinitionTransaction.TRANSACTION_VERSION
+		self._type_ = NonVerifiableMosaicDefinitionTransactionV1.TRANSACTION_TYPE
+		self._version = NonVerifiableMosaicDefinitionTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -1807,6 +1841,9 @@ class NonVerifiableMosaicDefinitionTransaction:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._rental_fee_sink_size = 40  # reserved field
+
+	def sort(self) -> None:
+		self._mosaic_definition.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -1908,7 +1945,7 @@ class NonVerifiableMosaicDefinitionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NonVerifiableMosaicDefinitionTransaction:
+	def deserialize(cls, payload: ByteString) -> NonVerifiableMosaicDefinitionTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -1943,7 +1980,7 @@ class NonVerifiableMosaicDefinitionTransaction:
 		rental_fee = Amount.deserialize(buffer)
 		buffer = buffer[rental_fee.size:]
 
-		instance = NonVerifiableMosaicDefinitionTransaction()
+		instance = NonVerifiableMosaicDefinitionTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -2009,7 +2046,7 @@ class MosaicSupplyChangeAction(Enum):
 		return buffer
 
 
-class MosaicSupplyChangeTransaction:
+class MosaicSupplyChangeTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_SUPPLY_CHANGE
 	TYPE_HINTS = {
@@ -2026,8 +2063,8 @@ class MosaicSupplyChangeTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = MosaicSupplyChangeTransaction.TRANSACTION_TYPE
-		self._version = MosaicSupplyChangeTransaction.TRANSACTION_VERSION
+		self._type_ = MosaicSupplyChangeTransactionV1.TRANSACTION_TYPE
+		self._version = MosaicSupplyChangeTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -2040,6 +2077,9 @@ class MosaicSupplyChangeTransaction:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
+
+	def sort(self) -> None:
+		self._mosaic_id.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -2150,7 +2190,7 @@ class MosaicSupplyChangeTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicSupplyChangeTransaction:
+	def deserialize(cls, payload: ByteString) -> MosaicSupplyChangeTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -2187,7 +2227,7 @@ class MosaicSupplyChangeTransaction:
 		delta = Amount.deserialize(buffer)
 		buffer = buffer[delta.size:]
 
-		instance = MosaicSupplyChangeTransaction()
+		instance = MosaicSupplyChangeTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -2237,7 +2277,7 @@ class MosaicSupplyChangeTransaction:
 		return result
 
 
-class NonVerifiableMosaicSupplyChangeTransaction:
+class NonVerifiableMosaicSupplyChangeTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_SUPPLY_CHANGE
 	TYPE_HINTS = {
@@ -2253,8 +2293,8 @@ class NonVerifiableMosaicSupplyChangeTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NonVerifiableMosaicSupplyChangeTransaction.TRANSACTION_TYPE
-		self._version = NonVerifiableMosaicSupplyChangeTransaction.TRANSACTION_VERSION
+		self._type_ = NonVerifiableMosaicSupplyChangeTransactionV1.TRANSACTION_TYPE
+		self._version = NonVerifiableMosaicSupplyChangeTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -2265,6 +2305,9 @@ class NonVerifiableMosaicSupplyChangeTransaction:
 		self._delta = Amount()
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
+
+	def sort(self) -> None:
+		self._mosaic_id.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -2365,7 +2408,7 @@ class NonVerifiableMosaicSupplyChangeTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NonVerifiableMosaicSupplyChangeTransaction:
+	def deserialize(cls, payload: ByteString) -> NonVerifiableMosaicSupplyChangeTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -2397,7 +2440,7 @@ class NonVerifiableMosaicSupplyChangeTransaction:
 		delta = Amount.deserialize(buffer)
 		buffer = buffer[delta.size:]
 
-		instance = NonVerifiableMosaicSupplyChangeTransaction()
+		instance = NonVerifiableMosaicSupplyChangeTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -2473,6 +2516,17 @@ class MultisigAccountModification:
 		self._cosignatory_public_key = PublicKey()
 		self._cosignatory_public_key_size = 32  # reserved field
 
+	def comparer(self) -> tuple:
+		from ..Transforms import ripemd_keccak_256  # pylint: disable=import-outside-toplevel
+
+		return (
+			self.modification_type if not isinstance(self.modification_type, Enum) else self.modification_type.value,
+			ripemd_keccak_256(self.cosignatory_public_key.bytes),
+		)
+
+	def sort(self) -> None:
+		pass
+
 	@property
 	def modification_type(self) -> MultisigAccountModificationType:
 		return self._modification_type
@@ -2535,6 +2589,9 @@ class SizePrefixedMultisigAccountModification:
 
 	def __init__(self):
 		self._modification = MultisigAccountModification()
+
+	def sort(self) -> None:
+		self._modification.sort()
 
 	@property
 	def modification(self) -> MultisigAccountModification:
@@ -2604,6 +2661,9 @@ class MultisigAccountModificationTransactionV1:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
+
+	def sort(self) -> None:
+		self._modifications = sorted(self._modifications, key=lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 
 	@property
 	def type_(self) -> TransactionType:
@@ -2725,7 +2785,7 @@ class MultisigAccountModificationTransactionV1:
 		buffer = buffer[deadline.size:]
 		modifications_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
-		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count)
+		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		buffer = buffer[ArrayHelpers.size(modifications):]
 
 		instance = MultisigAccountModificationTransactionV1()
@@ -2754,7 +2814,7 @@ class MultisigAccountModificationTransactionV1:
 		buffer += self._fee.serialize()
 		buffer += self._deadline.serialize()
 		buffer += len(self._modifications).to_bytes(4, byteorder='little', signed=False)  # modifications_count
-		buffer += ArrayHelpers.write_array(self._modifications)
+		buffer += ArrayHelpers.write_array(self._modifications, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		return buffer
 
 	def __str__(self) -> str:
@@ -2796,6 +2856,9 @@ class NonVerifiableMultisigAccountModificationTransactionV1:
 		self._modifications = []
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
+
+	def sort(self) -> None:
+		self._modifications = sorted(self._modifications, key=lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 
 	@property
 	def type_(self) -> TransactionType:
@@ -2902,7 +2965,7 @@ class NonVerifiableMultisigAccountModificationTransactionV1:
 		buffer = buffer[deadline.size:]
 		modifications_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
-		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count)
+		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		buffer = buffer[ArrayHelpers.size(modifications):]
 
 		instance = NonVerifiableMultisigAccountModificationTransactionV1()
@@ -2928,7 +2991,7 @@ class NonVerifiableMultisigAccountModificationTransactionV1:
 		buffer += self._fee.serialize()
 		buffer += self._deadline.serialize()
 		buffer += len(self._modifications).to_bytes(4, byteorder='little', signed=False)  # modifications_count
-		buffer += ArrayHelpers.write_array(self._modifications)
+		buffer += ArrayHelpers.write_array(self._modifications, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		return buffer
 
 	def __str__(self) -> str:
@@ -2945,7 +3008,7 @@ class NonVerifiableMultisigAccountModificationTransactionV1:
 		return result
 
 
-class MultisigAccountModificationTransaction:
+class MultisigAccountModificationTransactionV2:
 	TRANSACTION_VERSION: int = 2
 	TRANSACTION_TYPE: TransactionType = TransactionType.MULTISIG_ACCOUNT_MODIFICATION
 	TYPE_HINTS = {
@@ -2960,8 +3023,8 @@ class MultisigAccountModificationTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = MultisigAccountModificationTransaction.TRANSACTION_TYPE
-		self._version = MultisigAccountModificationTransaction.TRANSACTION_VERSION
+		self._type_ = MultisigAccountModificationTransactionV2.TRANSACTION_TYPE
+		self._version = MultisigAccountModificationTransactionV2.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -2974,6 +3037,9 @@ class MultisigAccountModificationTransaction:
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 		self._min_approval_delta_size = 4  # reserved field
+
+	def sort(self) -> None:
+		self._modifications = sorted(self._modifications, key=lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 
 	@property
 	def type_(self) -> TransactionType:
@@ -3076,7 +3142,7 @@ class MultisigAccountModificationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MultisigAccountModificationTransaction:
+	def deserialize(cls, payload: ByteString) -> MultisigAccountModificationTransactionV2:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -3105,7 +3171,7 @@ class MultisigAccountModificationTransaction:
 		buffer = buffer[deadline.size:]
 		modifications_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
-		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count)
+		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		buffer = buffer[ArrayHelpers.size(modifications):]
 		min_approval_delta_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
@@ -3113,7 +3179,7 @@ class MultisigAccountModificationTransaction:
 		min_approval_delta = int.from_bytes(buffer[:4], byteorder='little', signed=True)
 		buffer = buffer[4:]
 
-		instance = MultisigAccountModificationTransaction()
+		instance = MultisigAccountModificationTransactionV2()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -3140,7 +3206,7 @@ class MultisigAccountModificationTransaction:
 		buffer += self._fee.serialize()
 		buffer += self._deadline.serialize()
 		buffer += len(self._modifications).to_bytes(4, byteorder='little', signed=False)  # modifications_count
-		buffer += ArrayHelpers.write_array(self._modifications)
+		buffer += ArrayHelpers.write_array(self._modifications, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		buffer += self._min_approval_delta_size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._min_approval_delta.to_bytes(4, byteorder='little', signed=True)
 		return buffer
@@ -3161,7 +3227,7 @@ class MultisigAccountModificationTransaction:
 		return result
 
 
-class NonVerifiableMultisigAccountModificationTransaction:
+class NonVerifiableMultisigAccountModificationTransactionV2:
 	TRANSACTION_VERSION: int = 2
 	TRANSACTION_TYPE: TransactionType = TransactionType.MULTISIG_ACCOUNT_MODIFICATION
 	TYPE_HINTS = {
@@ -3175,8 +3241,8 @@ class NonVerifiableMultisigAccountModificationTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NonVerifiableMultisigAccountModificationTransaction.TRANSACTION_TYPE
-		self._version = NonVerifiableMultisigAccountModificationTransaction.TRANSACTION_VERSION
+		self._type_ = NonVerifiableMultisigAccountModificationTransactionV2.TRANSACTION_TYPE
+		self._version = NonVerifiableMultisigAccountModificationTransactionV2.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -3187,6 +3253,9 @@ class NonVerifiableMultisigAccountModificationTransaction:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._min_approval_delta_size = 4  # reserved field
+
+	def sort(self) -> None:
+		self._modifications = sorted(self._modifications, key=lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 
 	@property
 	def type_(self) -> TransactionType:
@@ -3279,7 +3348,7 @@ class NonVerifiableMultisigAccountModificationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NonVerifiableMultisigAccountModificationTransaction:
+	def deserialize(cls, payload: ByteString) -> NonVerifiableMultisigAccountModificationTransactionV2:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -3303,7 +3372,7 @@ class NonVerifiableMultisigAccountModificationTransaction:
 		buffer = buffer[deadline.size:]
 		modifications_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
-		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count)
+		modifications = ArrayHelpers.read_array_count(buffer, SizePrefixedMultisigAccountModification, modifications_count, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		buffer = buffer[ArrayHelpers.size(modifications):]
 		min_approval_delta_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
@@ -3311,7 +3380,7 @@ class NonVerifiableMultisigAccountModificationTransaction:
 		min_approval_delta = int.from_bytes(buffer[:4], byteorder='little', signed=True)
 		buffer = buffer[4:]
 
-		instance = NonVerifiableMultisigAccountModificationTransaction()
+		instance = NonVerifiableMultisigAccountModificationTransactionV2()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -3335,7 +3404,7 @@ class NonVerifiableMultisigAccountModificationTransaction:
 		buffer += self._fee.serialize()
 		buffer += self._deadline.serialize()
 		buffer += len(self._modifications).to_bytes(4, byteorder='little', signed=False)  # modifications_count
-		buffer += ArrayHelpers.write_array(self._modifications)
+		buffer += ArrayHelpers.write_array(self._modifications, lambda e: e.modification.comparer() if hasattr(e.modification, 'comparer') else e.modification)
 		buffer += self._min_approval_delta_size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._min_approval_delta.to_bytes(4, byteorder='little', signed=True)
 		return buffer
@@ -3387,6 +3456,9 @@ class Cosignature:
 		self._multisig_transaction_hash_outer_size = 36  # reserved field
 		self._multisig_transaction_hash_size = 32  # reserved field
 		self._multisig_account_address_size = 40  # reserved field
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def type_(self) -> TransactionType:
@@ -3588,6 +3660,9 @@ class SizePrefixedCosignature:
 	def __init__(self):
 		self._cosignature = Cosignature()
 
+	def sort(self) -> None:
+		self._cosignature.sort()
+
 	@property
 	def cosignature(self) -> Cosignature:
 		return self._cosignature
@@ -3629,7 +3704,7 @@ class SizePrefixedCosignature:
 		return result
 
 
-class MultisigTransaction:
+class MultisigTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MULTISIG_TRANSACTION
 	TYPE_HINTS = {
@@ -3645,8 +3720,8 @@ class MultisigTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = MultisigTransaction.TRANSACTION_TYPE
-		self._version = MultisigTransaction.TRANSACTION_VERSION
+		self._type_ = MultisigTransactionV1.TRANSACTION_TYPE
+		self._version = MultisigTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -3658,6 +3733,9 @@ class MultisigTransaction:
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
+
+	def sort(self) -> None:
+		self._inner_transaction.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -3760,7 +3838,7 @@ class MultisigTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MultisigTransaction:
+	def deserialize(cls, payload: ByteString) -> MultisigTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -3797,7 +3875,7 @@ class MultisigTransaction:
 		cosignatures = ArrayHelpers.read_array_count(buffer, SizePrefixedCosignature, cosignatures_count)
 		buffer = buffer[ArrayHelpers.size(cosignatures):]
 
-		instance = MultisigTransaction()
+		instance = MultisigTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -3845,7 +3923,7 @@ class MultisigTransaction:
 		return result
 
 
-class NamespaceRegistrationTransaction:
+class NamespaceRegistrationTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NAMESPACE_REGISTRATION
 	TYPE_HINTS = {
@@ -3863,8 +3941,8 @@ class NamespaceRegistrationTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NamespaceRegistrationTransaction.TRANSACTION_TYPE
-		self._version = NamespaceRegistrationTransaction.TRANSACTION_VERSION
+		self._type_ = NamespaceRegistrationTransactionV1.TRANSACTION_TYPE
+		self._version = NamespaceRegistrationTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -3874,11 +3952,14 @@ class NamespaceRegistrationTransaction:
 		self._rental_fee_sink = Address()
 		self._rental_fee = Amount()
 		self._name = bytes()
-		self._parent_name = bytes()
+		self._parent_name = None
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 		self._rental_fee_sink_size = 40  # reserved field
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def type_(self) -> TransactionType:
@@ -4001,7 +4082,7 @@ class NamespaceRegistrationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NamespaceRegistrationTransaction:
+	def deserialize(cls, payload: ByteString) -> NamespaceRegistrationTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -4046,7 +4127,7 @@ class NamespaceRegistrationTransaction:
 			parent_name = ArrayHelpers.get_bytes(buffer, parent_name_size)
 			buffer = buffer[parent_name_size:]
 
-		instance = NamespaceRegistrationTransaction()
+		instance = NamespaceRegistrationTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -4103,7 +4184,7 @@ class NamespaceRegistrationTransaction:
 		return result
 
 
-class NonVerifiableNamespaceRegistrationTransaction:
+class NonVerifiableNamespaceRegistrationTransactionV1:
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NAMESPACE_REGISTRATION
 	TYPE_HINTS = {
@@ -4120,8 +4201,8 @@ class NonVerifiableNamespaceRegistrationTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NonVerifiableNamespaceRegistrationTransaction.TRANSACTION_TYPE
-		self._version = NonVerifiableNamespaceRegistrationTransaction.TRANSACTION_VERSION
+		self._type_ = NonVerifiableNamespaceRegistrationTransactionV1.TRANSACTION_TYPE
+		self._version = NonVerifiableNamespaceRegistrationTransactionV1.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -4130,10 +4211,13 @@ class NonVerifiableNamespaceRegistrationTransaction:
 		self._rental_fee_sink = Address()
 		self._rental_fee = Amount()
 		self._name = bytes()
-		self._parent_name = bytes()
+		self._parent_name = None
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._rental_fee_sink_size = 40  # reserved field
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def type_(self) -> TransactionType:
@@ -4246,7 +4330,7 @@ class NonVerifiableNamespaceRegistrationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NonVerifiableNamespaceRegistrationTransaction:
+	def deserialize(cls, payload: ByteString) -> NonVerifiableNamespaceRegistrationTransactionV1:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -4286,7 +4370,7 @@ class NonVerifiableNamespaceRegistrationTransaction:
 			parent_name = ArrayHelpers.get_bytes(buffer, parent_name_size)
 			buffer = buffer[parent_name_size:]
 
-		instance = NonVerifiableNamespaceRegistrationTransaction()
+		instance = NonVerifiableNamespaceRegistrationTransactionV1()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -4367,6 +4451,9 @@ class Message:
 	def __init__(self):
 		self._message_type = MessageType.PLAIN
 		self._message = bytes()
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def message_type(self) -> MessageType:
@@ -4449,12 +4536,15 @@ class TransferTransactionV1:
 		self._deadline = Timestamp()
 		self._recipient_address = Address()
 		self._amount = Amount()
-		self._message_envelope_size = 0
-		self._message = Message()
+		self._message = None
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 		self._recipient_address_size = 40  # reserved field
+
+	def sort(self) -> None:
+		if 0 != self.message_envelope_size_computed:
+			self._message.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -4497,12 +4587,12 @@ class TransferTransactionV1:
 		return self._amount
 
 	@property
-	def message_envelope_size(self) -> int:
-		return self._message_envelope_size
-
-	@property
 	def message(self) -> Message:
 		return self._message
+
+	@property
+	def message_envelope_size_computed(self) -> int:
+		return 0 if not self.message else self.message.size + 4
 
 	@type_.setter
 	def type_(self, value: TransactionType):
@@ -4544,10 +4634,6 @@ class TransferTransactionV1:
 	def amount(self, value: Amount):
 		self._amount = value
 
-	@message_envelope_size.setter
-	def message_envelope_size(self, value: int):
-		self._message_envelope_size = value
-
 	@message.setter
 	def message(self, value: Message):
 		self._message = value
@@ -4570,7 +4656,7 @@ class TransferTransactionV1:
 		size += self.recipient_address.size
 		size += self.amount.size
 		size += 4
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			size += self.message.size
 		return size
 
@@ -4627,7 +4713,6 @@ class TransferTransactionV1:
 		instance._deadline = deadline
 		instance._recipient_address = recipient_address
 		instance._amount = amount
-		instance._message_envelope_size = message_envelope_size
 		instance._message = message
 		return instance
 
@@ -4647,8 +4732,8 @@ class TransferTransactionV1:
 		buffer += self._recipient_address_size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._recipient_address.serialize()
 		buffer += self._amount.serialize()
-		buffer += self._message_envelope_size.to_bytes(4, byteorder='little', signed=False)
-		if 0 != self.message_envelope_size:
+		buffer += self.message_envelope_size_computed.to_bytes(4, byteorder='little', signed=False)
+		if 0 != self.message_envelope_size_computed:
 			buffer += self._message.serialize()
 		return buffer
 
@@ -4664,8 +4749,7 @@ class TransferTransactionV1:
 		result += f'deadline: {self._deadline.__str__()}, '
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'amount: {self._amount.__str__()}, '
-		result += f'message_envelope_size: 0x{self._message_envelope_size:X}, '
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			result += f'message: {self._message.__str__()}, '
 		result += ')'
 		return result
@@ -4696,11 +4780,14 @@ class NonVerifiableTransferTransactionV1:
 		self._deadline = Timestamp()
 		self._recipient_address = Address()
 		self._amount = Amount()
-		self._message_envelope_size = 0
-		self._message = Message()
+		self._message = None
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._recipient_address_size = 40  # reserved field
+
+	def sort(self) -> None:
+		if 0 != self.message_envelope_size_computed:
+			self._message.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -4739,12 +4826,12 @@ class NonVerifiableTransferTransactionV1:
 		return self._amount
 
 	@property
-	def message_envelope_size(self) -> int:
-		return self._message_envelope_size
-
-	@property
 	def message(self) -> Message:
 		return self._message
+
+	@property
+	def message_envelope_size_computed(self) -> int:
+		return 0 if not self.message else self.message.size + 4
 
 	@type_.setter
 	def type_(self, value: TransactionType):
@@ -4782,10 +4869,6 @@ class NonVerifiableTransferTransactionV1:
 	def amount(self, value: Amount):
 		self._amount = value
 
-	@message_envelope_size.setter
-	def message_envelope_size(self, value: int):
-		self._message_envelope_size = value
-
 	@message.setter
 	def message(self, value: Message):
 		self._message = value
@@ -4806,7 +4889,7 @@ class NonVerifiableTransferTransactionV1:
 		size += self.recipient_address.size
 		size += self.amount.size
 		size += 4
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			size += self.message.size
 		return size
 
@@ -4857,7 +4940,6 @@ class NonVerifiableTransferTransactionV1:
 		instance._deadline = deadline
 		instance._recipient_address = recipient_address
 		instance._amount = amount
-		instance._message_envelope_size = message_envelope_size
 		instance._message = message
 		return instance
 
@@ -4875,8 +4957,8 @@ class NonVerifiableTransferTransactionV1:
 		buffer += self._recipient_address_size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._recipient_address.serialize()
 		buffer += self._amount.serialize()
-		buffer += self._message_envelope_size.to_bytes(4, byteorder='little', signed=False)
-		if 0 != self.message_envelope_size:
+		buffer += self.message_envelope_size_computed.to_bytes(4, byteorder='little', signed=False)
+		if 0 != self.message_envelope_size_computed:
 			buffer += self._message.serialize()
 		return buffer
 
@@ -4891,14 +4973,13 @@ class NonVerifiableTransferTransactionV1:
 		result += f'deadline: {self._deadline.__str__()}, '
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'amount: {self._amount.__str__()}, '
-		result += f'message_envelope_size: 0x{self._message_envelope_size:X}, '
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			result += f'message: {self._message.__str__()}, '
 		result += ')'
 		return result
 
 
-class TransferTransaction:
+class TransferTransactionV2:
 	TRANSACTION_VERSION: int = 2
 	TRANSACTION_TYPE: TransactionType = TransactionType.TRANSFER
 	TYPE_HINTS = {
@@ -4916,8 +4997,8 @@ class TransferTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = TransferTransaction.TRANSACTION_TYPE
-		self._version = TransferTransaction.TRANSACTION_VERSION
+		self._type_ = TransferTransactionV2.TRANSACTION_TYPE
+		self._version = TransferTransactionV2.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -4926,13 +5007,16 @@ class TransferTransaction:
 		self._deadline = Timestamp()
 		self._recipient_address = Address()
 		self._amount = Amount()
-		self._message_envelope_size = 0
-		self._message = Message()
+		self._message = None
 		self._mosaics = []
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._signature_size = 64  # reserved field
 		self._recipient_address_size = 40  # reserved field
+
+	def sort(self) -> None:
+		if 0 != self.message_envelope_size_computed:
+			self._message.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -4975,16 +5059,16 @@ class TransferTransaction:
 		return self._amount
 
 	@property
-	def message_envelope_size(self) -> int:
-		return self._message_envelope_size
-
-	@property
 	def message(self) -> Message:
 		return self._message
 
 	@property
 	def mosaics(self) -> List[SizePrefixedMosaic]:
 		return self._mosaics
+
+	@property
+	def message_envelope_size_computed(self) -> int:
+		return 0 if not self.message else self.message.size + 4
 
 	@type_.setter
 	def type_(self, value: TransactionType):
@@ -5026,10 +5110,6 @@ class TransferTransaction:
 	def amount(self, value: Amount):
 		self._amount = value
 
-	@message_envelope_size.setter
-	def message_envelope_size(self, value: int):
-		self._message_envelope_size = value
-
 	@message.setter
 	def message(self, value: Message):
 		self._message = value
@@ -5056,14 +5136,14 @@ class TransferTransaction:
 		size += self.recipient_address.size
 		size += self.amount.size
 		size += 4
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			size += self.message.size
 		size += 4
 		size += ArrayHelpers.size(self.mosaics)
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> TransferTransaction:
+	def deserialize(cls, payload: ByteString) -> TransferTransactionV2:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -5108,7 +5188,7 @@ class TransferTransaction:
 		mosaics = ArrayHelpers.read_array_count(buffer, SizePrefixedMosaic, mosaics_count)
 		buffer = buffer[ArrayHelpers.size(mosaics):]
 
-		instance = TransferTransaction()
+		instance = TransferTransactionV2()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -5119,7 +5199,6 @@ class TransferTransaction:
 		instance._deadline = deadline
 		instance._recipient_address = recipient_address
 		instance._amount = amount
-		instance._message_envelope_size = message_envelope_size
 		instance._message = message
 		instance._mosaics = mosaics
 		return instance
@@ -5140,8 +5219,8 @@ class TransferTransaction:
 		buffer += self._recipient_address_size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._recipient_address.serialize()
 		buffer += self._amount.serialize()
-		buffer += self._message_envelope_size.to_bytes(4, byteorder='little', signed=False)
-		if 0 != self.message_envelope_size:
+		buffer += self.message_envelope_size_computed.to_bytes(4, byteorder='little', signed=False)
+		if 0 != self.message_envelope_size_computed:
 			buffer += self._message.serialize()
 		buffer += len(self._mosaics).to_bytes(4, byteorder='little', signed=False)  # mosaics_count
 		buffer += ArrayHelpers.write_array(self._mosaics)
@@ -5159,15 +5238,14 @@ class TransferTransaction:
 		result += f'deadline: {self._deadline.__str__()}, '
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'amount: {self._amount.__str__()}, '
-		result += f'message_envelope_size: 0x{self._message_envelope_size:X}, '
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			result += f'message: {self._message.__str__()}, '
 		result += f'mosaics: {list(map(str, self._mosaics))}, '
 		result += ')'
 		return result
 
 
-class NonVerifiableTransferTransaction:
+class NonVerifiableTransferTransactionV2:
 	TRANSACTION_VERSION: int = 2
 	TRANSACTION_TYPE: TransactionType = TransactionType.TRANSFER
 	TYPE_HINTS = {
@@ -5184,8 +5262,8 @@ class NonVerifiableTransferTransaction:
 	}
 
 	def __init__(self):
-		self._type_ = NonVerifiableTransferTransaction.TRANSACTION_TYPE
-		self._version = NonVerifiableTransferTransaction.TRANSACTION_VERSION
+		self._type_ = NonVerifiableTransferTransactionV2.TRANSACTION_TYPE
+		self._version = NonVerifiableTransferTransactionV2.TRANSACTION_VERSION
 		self._network = NetworkType.MAINNET
 		self._timestamp = Timestamp()
 		self._signer_public_key = PublicKey()
@@ -5193,12 +5271,15 @@ class NonVerifiableTransferTransaction:
 		self._deadline = Timestamp()
 		self._recipient_address = Address()
 		self._amount = Amount()
-		self._message_envelope_size = 0
-		self._message = Message()
+		self._message = None
 		self._mosaics = []
 		self._entity_body_reserved_1 = 0  # reserved field
 		self._signer_public_key_size = 32  # reserved field
 		self._recipient_address_size = 40  # reserved field
+
+	def sort(self) -> None:
+		if 0 != self.message_envelope_size_computed:
+			self._message.sort()
 
 	@property
 	def type_(self) -> TransactionType:
@@ -5237,16 +5318,16 @@ class NonVerifiableTransferTransaction:
 		return self._amount
 
 	@property
-	def message_envelope_size(self) -> int:
-		return self._message_envelope_size
-
-	@property
 	def message(self) -> Message:
 		return self._message
 
 	@property
 	def mosaics(self) -> List[SizePrefixedMosaic]:
 		return self._mosaics
+
+	@property
+	def message_envelope_size_computed(self) -> int:
+		return 0 if not self.message else self.message.size + 4
 
 	@type_.setter
 	def type_(self, value: TransactionType):
@@ -5284,10 +5365,6 @@ class NonVerifiableTransferTransaction:
 	def amount(self, value: Amount):
 		self._amount = value
 
-	@message_envelope_size.setter
-	def message_envelope_size(self, value: int):
-		self._message_envelope_size = value
-
 	@message.setter
 	def message(self, value: Message):
 		self._message = value
@@ -5312,14 +5389,14 @@ class NonVerifiableTransferTransaction:
 		size += self.recipient_address.size
 		size += self.amount.size
 		size += 4
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			size += self.message.size
 		size += 4
 		size += ArrayHelpers.size(self.mosaics)
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NonVerifiableTransferTransaction:
+	def deserialize(cls, payload: ByteString) -> NonVerifiableTransferTransactionV2:
 		buffer = memoryview(payload)
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
@@ -5359,7 +5436,7 @@ class NonVerifiableTransferTransaction:
 		mosaics = ArrayHelpers.read_array_count(buffer, SizePrefixedMosaic, mosaics_count)
 		buffer = buffer[ArrayHelpers.size(mosaics):]
 
-		instance = NonVerifiableTransferTransaction()
+		instance = NonVerifiableTransferTransactionV2()
 		instance._type_ = type_
 		instance._version = version
 		instance._network = network
@@ -5369,7 +5446,6 @@ class NonVerifiableTransferTransaction:
 		instance._deadline = deadline
 		instance._recipient_address = recipient_address
 		instance._amount = amount
-		instance._message_envelope_size = message_envelope_size
 		instance._message = message
 		instance._mosaics = mosaics
 		return instance
@@ -5388,8 +5464,8 @@ class NonVerifiableTransferTransaction:
 		buffer += self._recipient_address_size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._recipient_address.serialize()
 		buffer += self._amount.serialize()
-		buffer += self._message_envelope_size.to_bytes(4, byteorder='little', signed=False)
-		if 0 != self.message_envelope_size:
+		buffer += self.message_envelope_size_computed.to_bytes(4, byteorder='little', signed=False)
+		if 0 != self.message_envelope_size_computed:
 			buffer += self._message.serialize()
 		buffer += len(self._mosaics).to_bytes(4, byteorder='little', signed=False)  # mosaics_count
 		buffer += ArrayHelpers.write_array(self._mosaics)
@@ -5406,8 +5482,7 @@ class NonVerifiableTransferTransaction:
 		result += f'deadline: {self._deadline.__str__()}, '
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'amount: {self._amount.__str__()}, '
-		result += f'message_envelope_size: 0x{self._message_envelope_size:X}, '
-		if 0 != self.message_envelope_size:
+		if 0 != self.message_envelope_size_computed:
 			result += f'message: {self._message.__str__()}, '
 		result += f'mosaics: {list(map(str, self._mosaics))}, '
 		result += ')'
@@ -5420,16 +5495,16 @@ class TransactionFactory:
 		buffer = bytes(payload)
 		parent = Transaction.deserialize(buffer)
 		mapping = {
-			(AccountKeyLinkTransaction.TRANSACTION_TYPE, AccountKeyLinkTransaction.TRANSACTION_VERSION): AccountKeyLinkTransaction,
-			(MosaicDefinitionTransaction.TRANSACTION_TYPE, MosaicDefinitionTransaction.TRANSACTION_VERSION): MosaicDefinitionTransaction,
-			(MosaicSupplyChangeTransaction.TRANSACTION_TYPE, MosaicSupplyChangeTransaction.TRANSACTION_VERSION): MosaicSupplyChangeTransaction,
+			(AccountKeyLinkTransactionV1.TRANSACTION_TYPE, AccountKeyLinkTransactionV1.TRANSACTION_VERSION): AccountKeyLinkTransactionV1,
+			(MosaicDefinitionTransactionV1.TRANSACTION_TYPE, MosaicDefinitionTransactionV1.TRANSACTION_VERSION): MosaicDefinitionTransactionV1,
+			(MosaicSupplyChangeTransactionV1.TRANSACTION_TYPE, MosaicSupplyChangeTransactionV1.TRANSACTION_VERSION): MosaicSupplyChangeTransactionV1,
 			(MultisigAccountModificationTransactionV1.TRANSACTION_TYPE, MultisigAccountModificationTransactionV1.TRANSACTION_VERSION): MultisigAccountModificationTransactionV1,
-			(MultisigAccountModificationTransaction.TRANSACTION_TYPE, MultisigAccountModificationTransaction.TRANSACTION_VERSION): MultisigAccountModificationTransaction,
+			(MultisigAccountModificationTransactionV2.TRANSACTION_TYPE, MultisigAccountModificationTransactionV2.TRANSACTION_VERSION): MultisigAccountModificationTransactionV2,
 			(Cosignature.TRANSACTION_TYPE, Cosignature.TRANSACTION_VERSION): Cosignature,
-			(MultisigTransaction.TRANSACTION_TYPE, MultisigTransaction.TRANSACTION_VERSION): MultisigTransaction,
-			(NamespaceRegistrationTransaction.TRANSACTION_TYPE, NamespaceRegistrationTransaction.TRANSACTION_VERSION): NamespaceRegistrationTransaction,
+			(MultisigTransactionV1.TRANSACTION_TYPE, MultisigTransactionV1.TRANSACTION_VERSION): MultisigTransactionV1,
+			(NamespaceRegistrationTransactionV1.TRANSACTION_TYPE, NamespaceRegistrationTransactionV1.TRANSACTION_VERSION): NamespaceRegistrationTransactionV1,
 			(TransferTransactionV1.TRANSACTION_TYPE, TransferTransactionV1.TRANSACTION_VERSION): TransferTransactionV1,
-			(TransferTransaction.TRANSACTION_TYPE, TransferTransaction.TRANSACTION_VERSION): TransferTransaction
+			(TransferTransactionV2.TRANSACTION_TYPE, TransferTransactionV2.TRANSACTION_VERSION): TransferTransactionV2
 		}
 		discriminator = (parent.type_, parent.version)
 		factory_class = mapping[discriminator]
@@ -5438,20 +5513,20 @@ class TransactionFactory:
 	@classmethod
 	def create_by_name(cls, entity_name: str) -> Transaction:
 		mapping = {
-			'account_key_link_transaction': AccountKeyLinkTransaction,
-			'mosaic_definition_transaction': MosaicDefinitionTransaction,
-			'mosaic_supply_change_transaction': MosaicSupplyChangeTransaction,
+			'account_key_link_transaction_v1': AccountKeyLinkTransactionV1,
+			'mosaic_definition_transaction_v1': MosaicDefinitionTransactionV1,
+			'mosaic_supply_change_transaction_v1': MosaicSupplyChangeTransactionV1,
 			'multisig_account_modification_transaction_v1': MultisigAccountModificationTransactionV1,
-			'multisig_account_modification_transaction': MultisigAccountModificationTransaction,
+			'multisig_account_modification_transaction_v2': MultisigAccountModificationTransactionV2,
 			'cosignature': Cosignature,
-			'multisig_transaction': MultisigTransaction,
-			'namespace_registration_transaction': NamespaceRegistrationTransaction,
+			'multisig_transaction_v1': MultisigTransactionV1,
+			'namespace_registration_transaction_v1': NamespaceRegistrationTransactionV1,
 			'transfer_transaction_v1': TransferTransactionV1,
-			'transfer_transaction': TransferTransaction
+			'transfer_transaction_v2': TransferTransactionV2
 		}
 
 		if entity_name not in mapping:
-			raise ValueError('unknown Transaction type')
+			raise ValueError(f'unknown Transaction type {entity_name}')
 
 		return mapping[entity_name]()
 
@@ -5462,14 +5537,14 @@ class NonVerifiableTransactionFactory:
 		buffer = bytes(payload)
 		parent = NonVerifiableTransaction.deserialize(buffer)
 		mapping = {
-			(NonVerifiableAccountKeyLinkTransaction.TRANSACTION_TYPE, NonVerifiableAccountKeyLinkTransaction.TRANSACTION_VERSION): NonVerifiableAccountKeyLinkTransaction,
-			(NonVerifiableMosaicDefinitionTransaction.TRANSACTION_TYPE, NonVerifiableMosaicDefinitionTransaction.TRANSACTION_VERSION): NonVerifiableMosaicDefinitionTransaction,
-			(NonVerifiableMosaicSupplyChangeTransaction.TRANSACTION_TYPE, NonVerifiableMosaicSupplyChangeTransaction.TRANSACTION_VERSION): NonVerifiableMosaicSupplyChangeTransaction,
+			(NonVerifiableAccountKeyLinkTransactionV1.TRANSACTION_TYPE, NonVerifiableAccountKeyLinkTransactionV1.TRANSACTION_VERSION): NonVerifiableAccountKeyLinkTransactionV1,
+			(NonVerifiableMosaicDefinitionTransactionV1.TRANSACTION_TYPE, NonVerifiableMosaicDefinitionTransactionV1.TRANSACTION_VERSION): NonVerifiableMosaicDefinitionTransactionV1,
+			(NonVerifiableMosaicSupplyChangeTransactionV1.TRANSACTION_TYPE, NonVerifiableMosaicSupplyChangeTransactionV1.TRANSACTION_VERSION): NonVerifiableMosaicSupplyChangeTransactionV1,
 			(NonVerifiableMultisigAccountModificationTransactionV1.TRANSACTION_TYPE, NonVerifiableMultisigAccountModificationTransactionV1.TRANSACTION_VERSION): NonVerifiableMultisigAccountModificationTransactionV1,
-			(NonVerifiableMultisigAccountModificationTransaction.TRANSACTION_TYPE, NonVerifiableMultisigAccountModificationTransaction.TRANSACTION_VERSION): NonVerifiableMultisigAccountModificationTransaction,
-			(NonVerifiableNamespaceRegistrationTransaction.TRANSACTION_TYPE, NonVerifiableNamespaceRegistrationTransaction.TRANSACTION_VERSION): NonVerifiableNamespaceRegistrationTransaction,
+			(NonVerifiableMultisigAccountModificationTransactionV2.TRANSACTION_TYPE, NonVerifiableMultisigAccountModificationTransactionV2.TRANSACTION_VERSION): NonVerifiableMultisigAccountModificationTransactionV2,
+			(NonVerifiableNamespaceRegistrationTransactionV1.TRANSACTION_TYPE, NonVerifiableNamespaceRegistrationTransactionV1.TRANSACTION_VERSION): NonVerifiableNamespaceRegistrationTransactionV1,
 			(NonVerifiableTransferTransactionV1.TRANSACTION_TYPE, NonVerifiableTransferTransactionV1.TRANSACTION_VERSION): NonVerifiableTransferTransactionV1,
-			(NonVerifiableTransferTransaction.TRANSACTION_TYPE, NonVerifiableTransferTransaction.TRANSACTION_VERSION): NonVerifiableTransferTransaction
+			(NonVerifiableTransferTransactionV2.TRANSACTION_TYPE, NonVerifiableTransferTransactionV2.TRANSACTION_VERSION): NonVerifiableTransferTransactionV2
 		}
 		discriminator = (parent.type_, parent.version)
 		factory_class = mapping[discriminator]
@@ -5478,17 +5553,17 @@ class NonVerifiableTransactionFactory:
 	@classmethod
 	def create_by_name(cls, entity_name: str) -> NonVerifiableTransaction:
 		mapping = {
-			'non_verifiable_account_key_link_transaction': NonVerifiableAccountKeyLinkTransaction,
-			'non_verifiable_mosaic_definition_transaction': NonVerifiableMosaicDefinitionTransaction,
-			'non_verifiable_mosaic_supply_change_transaction': NonVerifiableMosaicSupplyChangeTransaction,
+			'non_verifiable_account_key_link_transaction_v1': NonVerifiableAccountKeyLinkTransactionV1,
+			'non_verifiable_mosaic_definition_transaction_v1': NonVerifiableMosaicDefinitionTransactionV1,
+			'non_verifiable_mosaic_supply_change_transaction_v1': NonVerifiableMosaicSupplyChangeTransactionV1,
 			'non_verifiable_multisig_account_modification_transaction_v1': NonVerifiableMultisigAccountModificationTransactionV1,
-			'non_verifiable_multisig_account_modification_transaction': NonVerifiableMultisigAccountModificationTransaction,
-			'non_verifiable_namespace_registration_transaction': NonVerifiableNamespaceRegistrationTransaction,
+			'non_verifiable_multisig_account_modification_transaction_v2': NonVerifiableMultisigAccountModificationTransactionV2,
+			'non_verifiable_namespace_registration_transaction_v1': NonVerifiableNamespaceRegistrationTransactionV1,
 			'non_verifiable_transfer_transaction_v1': NonVerifiableTransferTransactionV1,
-			'non_verifiable_transfer_transaction': NonVerifiableTransferTransaction
+			'non_verifiable_transfer_transaction_v2': NonVerifiableTransferTransactionV2
 		}
 
 		if entity_name not in mapping:
-			raise ValueError('unknown NonVerifiableTransaction type')
+			raise ValueError(f'unknown NonVerifiableTransaction type {entity_name}')
 
 		return mapping[entity_name]()

@@ -1,7 +1,7 @@
 /**
  * Processes and looks up transaction descriptor properties.
  */
-class TransactionDescriptorProcessor {
+export default class TransactionDescriptorProcessor {
 	/**
 	 * Creates a transaction descriptor processor.
 	 * @param {object} transactionDescriptor Transaction descriptor.
@@ -49,6 +49,9 @@ class TransactionDescriptorProcessor {
 			if (ignoreKeys && -1 !== ignoreKeys.indexOf(key))
 				return;
 
+			if (key.endsWith('Computed'))
+				throw RangeError(`cannot explicitly set computed field ${key}`);
+
 			if (undefined === transaction[key])
 				throw RangeError(`transaction does not have attribute ${key}`);
 
@@ -65,5 +68,3 @@ class TransactionDescriptorProcessor {
 		this.typeHints = typeHints || {};
 	}
 }
-
-module.exports = { TransactionDescriptorProcessor };

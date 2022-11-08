@@ -32,7 +32,7 @@ class SymbolTransactionFactoryTest(AbstractBasicTransactionFactoryExSignatureTes
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'hash_lock_transaction',
+			'type': 'hash_lock_transaction_v1',
 			'signer_public_key': 'signer_name',
 			'hash': 'not really',
 			'duration': 'fake duration',
@@ -60,7 +60,7 @@ class SymbolTransactionFactoryTest(AbstractBasicTransactionFactoryExSignatureTes
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'account_address_restriction_transaction',
+			'type': 'account_address_restriction_transaction_v1',
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
 			'restriction_additions': [
 				Address('AEBAGBAFAYDQQCIKBMGA2DQPCAIREEYUCULBOGA'),
@@ -75,6 +75,52 @@ class SymbolTransactionFactoryTest(AbstractBasicTransactionFactoryExSignatureTes
 
 	# endregion
 
+	# region sorting
+
+	@staticmethod
+	def _create_unordered_descriptor():
+		return {
+			'type': 'transfer_transaction_v1',
+			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
+			'mosaics': [
+				{
+					'mosaic_id': 15358872602548358953,
+					'amount': 1
+				},
+				{
+					'mosaic_id': 95442763262823,
+					'amount': 100
+				}
+			]
+		}
+
+	def test_can_create_transaction_with_out_of_order_array_when_autosort_is_enabled(self):
+		# Arrange:
+		factory = self.create_factory()
+
+		# Act:
+		transaction = self.create_transaction(factory)(self._create_unordered_descriptor())
+
+		# Assert: mosaics were reordered
+		self.assertEqual(sc.UnresolvedMosaicId(95442763262823), transaction.mosaics[0].mosaic_id)
+		self.assertEqual(sc.UnresolvedMosaicId(15358872602548358953), transaction.mosaics[1].mosaic_id)
+
+	def test_cannot_create_transaction_with_out_of_order_array_when_autosort_is_disabled(self):
+		# Arrange:
+		factory = self.create_factory()
+
+		# Act:
+		transaction = self.create_transaction(factory)(self._create_unordered_descriptor(), autosort=False)
+
+		# Assert: mosaics were NOT reordered (serialization will fail)
+		self.assertEqual(sc.UnresolvedMosaicId(15358872602548358953), transaction.mosaics[0].mosaic_id)
+		self.assertEqual(sc.UnresolvedMosaicId(95442763262823), transaction.mosaics[1].mosaic_id)
+
+		with self.assertRaises(ValueError):
+			transaction.serialize()
+
+	# endregion
+
 	# region id autogeneration
 
 	def test_can_autogenerate_namespace_registration_root_id(self):
@@ -83,7 +129,7 @@ class SymbolTransactionFactoryTest(AbstractBasicTransactionFactoryExSignatureTes
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'namespace_registration_transaction',
+			'type': 'namespace_registration_transaction_v1',
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
 			'registration_type': 'root',
 			'duration': 123,
@@ -100,7 +146,7 @@ class SymbolTransactionFactoryTest(AbstractBasicTransactionFactoryExSignatureTes
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'namespace_registration_transaction',
+			'type': 'namespace_registration_transaction_v1',
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
 			'registration_type': 'child',
 			'parent_id': generate_namespace_id('roger'),
@@ -117,7 +163,7 @@ class SymbolTransactionFactoryTest(AbstractBasicTransactionFactoryExSignatureTes
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY,
 			'nonce': 123
 		})

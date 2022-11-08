@@ -40,6 +40,9 @@ class Address(ByteArray):
 	def __str__(self):
 		return base64.b32encode(self.bytes + bytes(0)).decode('utf8')[0:-1]
 
+	def __repr__(self):
+		return f'Address(\'{str(self)}\')'
+
 
 class Network(BasicNetwork):
 	"""Represents a Symbol network."""
@@ -65,5 +68,5 @@ Network.TESTNET = Network(
 	'testnet',
 	0x98,
 	datetime.datetime(2021, 11, 25, 14, 0, 47, tzinfo=datetime.timezone.utc),
-	Hash256('7FCCD304802016BEBBCD342A332F91FF1F3BB5E902988B352697BE245F48E836'))
+	Hash256('49D6E1CE276A85B70EAFE52349AACCA389302E7A9754BCF1221E79494FC665A4'))
 Network.NETWORKS = [Network.MAINNET, Network.TESTNET]

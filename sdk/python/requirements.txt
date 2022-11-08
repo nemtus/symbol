@@ -1,7 +1,9 @@
-cryptography==37.0.4
+cryptography==38.0.3
 mnemonic==0.20
-Pillow==9.2.0
+Pillow==9.3.0
+pynacl==1.5.0
 pysha3==1.0.2
 PyYAML==6.0
 pyzbar==0.1.9
+ripemd-hash==1.0.0
 qrcode==7.3.1

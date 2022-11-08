@@ -1,12 +1,14 @@
-const { NemFacade } = require('../src/facade/NemFacade');
-const { SymbolFacade } = require('../src/facade/SymbolFacade');
-const nc = require('../src/nem/models');
-const sc = require('../src/symbol/models');
-const converter = require('../src/utils/converter');
-const { expect } = require('chai');
-const JSONBigInt = require('json-bigint')({ alwaysParseAsBig: true, useNativeBigInt: true });
-const fs = require('fs');
-const path = require('path');
+import NemFacade from '../src/facade/NemFacade.js';
+import SymbolFacade from '../src/facade/SymbolFacade.js';
+import * as nc from '../src/nem/models.js';
+import * as sc from '../src/symbol/models.js';
+import * as converter from '../src/utils/converter.js';
+import { expect } from 'chai';
+import JSONBigIntLib from 'json-bigint';
+import fs from 'fs';
+import path from 'path';
+
+const JSONBigInt = JSONBigIntLib({ alwaysParseAsBig: true, useNativeBigInt: true });
 
 describe('catbuffer vectors', () => {
 	// region common test utils
@@ -63,7 +65,7 @@ describe('catbuffer vectors', () => {
 		if (bigIntPropertyNames.some(name => key.includes(name)))
 			return false;
 
-		if ('delta' === key && 'mosaic_supply_change_transaction' === type)
+		if ('delta' === key && 'mosaic_supply_change_transaction_v1' === type)
 			return false;
 
 		return 0xFFFFFFFFn >= value;
@@ -79,7 +81,7 @@ describe('catbuffer vectors', () => {
 			} else if (Array.isArray(value)) {
 				value = value.map(valueItem => {
 					if ('bigint' === typeof (valueItem))
-						return 'account_mosaic_restriction_transaction' === source.type ? valueItem : Number(valueItem);
+						return 'account_mosaic_restriction_transaction_v1' === source.type ? valueItem : Number(valueItem);
 
 					if ('object' === typeof (valueItem))
 						return jsify(valueItem);
@@ -104,7 +106,7 @@ describe('catbuffer vectors', () => {
 		const fixupDescriptorCommon = (descriptor, module) => {
 			Object.getOwnPropertyNames(descriptor).forEach(key => {
 				// skip false positive due to ABC123 value that should be treated as plain string
-				if ('value' === key && 'namespace_metadata_transaction' === descriptor.type)
+				if ('value' === key && 'namespace_metadata_transaction_v1' === descriptor.type)
 					return;
 
 				const value = descriptor[key];
@@ -202,6 +204,44 @@ describe('catbuffer vectors', () => {
 			prepareTestCases('symbol').forEach(item => {
 				it(`can create from descriptor ${item.test_name}`, () => {
 					assertCreateFromDescriptor(item, sc, SymbolFacade, fixupDescriptorSymbol);
+				});
+			});
+		});
+	});
+
+	// endregion
+
+	// region create from constructor
+
+	describe('create from constructor', () => {
+		const assertCreateFromConstructor = (schemaName, module) => {
+			// Arrange:
+			const SchemaClass = module[schemaName];
+
+			// Act:
+			const transaction = new SchemaClass();
+
+			const { size } = transaction;
+			const transactionBuffer = transaction.serialize();
+
+			// Assert:
+			expect(size).to.not.equal(0);
+			expect(transactionBuffer.length).to.not.equal(0);
+			expect(size).to.equal(transactionBuffer.length);
+		};
+
+		describe('NEM', () => {
+			new Set(prepareTestCases('nem').map(item => item.schema_name)).forEach(schemaName => {
+				it(`can create from constructor ${schemaName}`, () => {
+					assertCreateFromConstructor(schemaName, nc);
+				});
+			});
+		});
+
+		describe('Symbol', () => {
+			new Set(prepareTestCases('symbol').map(item => item.schema_name)).forEach(schemaName => {
+				it(`can create from constructor ${schemaName}`, () => {
+					assertCreateFromConstructor(schemaName, sc);
 				});
 			});
 		});
