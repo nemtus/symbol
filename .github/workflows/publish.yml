@@ -3,7 +3,12 @@ name: publish @nemtus/symbol-sdk
 # Single, trusted publish path for the scoped mirror package.
 # Publishing uses npm Trusted Publishing (OIDC) — NO long-lived NPM_TOKEN.
 # The `npm-production` environment carries a required-reviewers protection rule,
-# so every publish (manual or triggered by mirror-sync) pauses for approval.
+# so every publish pauses for manual approval.
+#
+# Triggers:
+#   - push to dev touching sdk/javascript/package.json (i.e. a merged mirror-sync
+#     PR that bumped the upstream version) -> auto-publish, gated by approval
+#   - manual workflow_dispatch
 #
 # npmjs.com Trusted Publisher config must match:
 #   repository: nemtus/symbol
@@ -11,11 +16,43 @@ name: publish @nemtus/symbol-sdk
 #   environment: npm-production
 
 on:
+  push:
+    branches: [dev]
+    paths:
+      - 'sdk/javascript/package.json'
   workflow_dispatch:
-  workflow_call:
 
 jobs:
+  # Decide whether the version on dev differs from what is already on npm.
+  # Kept separate so the npm-production approval prompt only appears when we
+  # actually intend to publish.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Compare dev version with npm
+        id: decide
+        run: |
+          version="$(node -p "require('./sdk/javascript/package.json').version")"
+          npm_version="$(npm view @nemtus/symbol-sdk version 2>/dev/null || echo '0.0.0')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${version}" != "${npm_version}" ]; then
+            echo "npm ${npm_version} -> ${version}: will publish."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm already at ${npm_version}: nothing to publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     environment: npm-production
     permissions:
@@ -38,6 +75,8 @@ jobs:
       - name: Upgrade npm to OIDC-capable version
         run: npm install -g npm@latest
 
+      # Idempotent safety net: ensures the @nemtus/symbol-sdk name is set even on
+      # a manual dispatch from a not-yet-patched tree.
       - name: Apply nemtus rename layer (@nemtus/symbol-sdk)
         run: bash ../../.github/scripts/apply-nemtus-patch.sh
 

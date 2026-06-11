@@ -1,9 +1,13 @@
 name: mirror-sync (upstream symbol/symbol)
 
-# Mirrors upstream symbol/symbol@dev onto this repo's dev branch, re-applies the
-# nemtus rename layer, and (only when the upstream version is newer than what is
-# on npm) calls publish.yml. mirror-sync itself never publishes — publishing is
-# centralized in publish.yml so npm's Trusted Publisher config has a single match.
+# Tracks upstream symbol/symbol@dev WITHOUT force-pushing dev.
+# Each run merges new upstream commits into a fresh sync branch, re-applies the
+# @nemtus rename layer, and opens a pull request into dev. A human (or auto-merge)
+# reviews and merges it; publishing then happens via publish.yml when the merged
+# package.json version differs from npm.
+#
+# Requires repo setting: Settings -> Actions -> General ->
+#   "Allow GitHub Actions to create and approve pull requests" = enabled.
 
 on:
   schedule:
@@ -11,15 +15,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write    # force-push the mirror to dev
-  id-token: write    # inherited by the called publish.yml (OIDC)
+  contents: write        # push the sync branch
+  pull-requests: write   # open the PR
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    outputs:
-      should_publish: ${{ steps.diff.outputs.should_publish }}
-      upstream_version: ${{ steps.diff.outputs.upstream_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,58 +28,51 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Stash nemtus assets (survive the hard reset)
-        run: |
-          mkdir -p /tmp/nemtus
-          cp -r .github/scripts /tmp/nemtus/scripts
-          cp .github/workflows/publish.yml /tmp/nemtus/publish.yml
-          cp .github/workflows/mirror-sync.yml /tmp/nemtus/mirror-sync.yml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
 
-      - name: Hard-reset dev to upstream/dev
+      - name: Fetch upstream
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git remote add upstream https://github.com/symbol/symbol.git
           git fetch upstream dev
-          git reset --hard upstream/dev
-          echo "UPSTREAM_SHA=$(git rev-parse --short upstream/dev)" >> "$GITHUB_ENV"
 
-      - name: Restore nemtus assets and apply rename layer
+      - name: Stop if already up to date
+        id: check
         run: |
-          mkdir -p .github/scripts .github/workflows
-          cp -r /tmp/nemtus/scripts/. .github/scripts/
-          cp /tmp/nemtus/publish.yml .github/workflows/publish.yml
-          cp /tmp/nemtus/mirror-sync.yml .github/workflows/mirror-sync.yml
+          if git merge-base --is-ancestor upstream/dev HEAD; then
+            echo "dev already contains upstream/dev; nothing to sync."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "upstream_sha=$(git rev-parse --short upstream/dev)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build sync branch (merge upstream + re-apply rename layer)
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          branch="sync/upstream-${{ steps.check.outputs.upstream_sha }}"
+          echo "SYNC_BRANCH=${branch}" >> "$GITHUB_ENV"
+          git checkout -B "${branch}"
+          # Prefer upstream on any conflict; the rename layer is restored next.
+          git merge -X theirs --no-edit --no-commit upstream/dev || true
           bash .github/scripts/apply-nemtus-patch.sh
-
-      - name: Commit and force-push mirror
-        run: |
           git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to push."
-          else
-            git commit -m "chore: sync upstream ${UPSTREAM_SHA} + nemtus republish layer"
-            git push --force-with-lease origin dev
-          fi
+          git commit --no-edit -m "chore: sync upstream ${{ steps.check.outputs.upstream_sha }} + nemtus republish layer"
 
-      - name: Decide whether to publish
-        id: diff
+      - name: Push sync branch and open PR
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          upstream_version="$(node -p "require('./sdk/javascript/package.json').version")"
-          npm_version="$(npm view @nemtus/symbol-sdk version 2>/dev/null || echo '0.0.0')"
-          echo "upstream_version=${upstream_version}" >> "$GITHUB_OUTPUT"
-          if [ "${upstream_version}" != "${npm_version}" ]; then
-            echo "New version: ${npm_version} -> ${upstream_version}; will publish."
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          git push -u origin "${SYNC_BRANCH}" --force-with-lease
+          open_count="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${SYNC_BRANCH}" --state open --json number --jq 'length')"
+          if [ "${open_count}" != "0" ]; then
+            echo "PR already open for ${SYNC_BRANCH}."
           else
-            echo "npm already at ${npm_version}; nothing to publish."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            gh pr create --repo "${GITHUB_REPOSITORY}" --base dev --head "${SYNC_BRANCH}" \
+              --title "Sync upstream symbol/symbol@${{ steps.check.outputs.upstream_sha }}" \
+              --body "Automated mirror sync. Merges upstream symbol/symbol@dev and re-applies the @nemtus/symbol-sdk rename layer. After merge, publish.yml publishes if the version changed."
           fi
-
-  publish:
-    needs: sync
-    if: needs.sync.outputs.should_publish == 'true'
-    uses: ./.github/workflows/publish.yml
-    permissions:
-      id-token: write
-      contents: read
