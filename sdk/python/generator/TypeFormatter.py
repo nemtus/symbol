@@ -20,7 +20,7 @@ class ClassFormatter(ABC):
 
 		annotations = '\n'.join(method_descriptor.annotations + [''])
 
-		is_void = annotations.endswith('setter\n') or method_descriptor.method_name == '__init__'
+		is_void = annotations.endswith('setter\n') or method_descriptor.method_name == '__init__' or not method_descriptor.result
 		method_result = '' if is_void else f' -> {method_descriptor.result}'
 		body = indent(method_descriptor.body)
 		return f'{annotations}def {method_descriptor.method_name}({arguments}){method_result}:\n{body}'
@@ -53,6 +53,13 @@ class ClassFormatter(ABC):
 		return self.generate_output()
 
 
+def _append_if_not_none(methods, descriptor):
+	if not descriptor:
+		return
+
+	methods.append(descriptor)
+
+
 class TypeFormatter(ClassFormatter):
 	def generate_ctor(self):
 		method_descriptor = self.provider.get_ctor_descriptor()
@@ -62,12 +69,39 @@ class TypeFormatter(ClassFormatter):
 		method_descriptor.method_name = '__init__'
 		return self.generate_method(method_descriptor)
 
+	def generate_comparer(self):
+		method_descriptor = self.provider.get_comparer_descriptor()
+		if not method_descriptor:
+			return None
+
+		method_descriptor.method_name = 'comparer'
+		method_descriptor.arguments = []
+		method_descriptor.result = 'tuple'
+		return self.generate_method(method_descriptor)
+
+	def generate_sort(self):
+		method_descriptor = self.provider.get_sort_descriptor()
+		if not method_descriptor:
+			return None
+
+		method_descriptor.method_name = 'sort'
+		method_descriptor.arguments = []
+		method_descriptor.result = 'None'
+		return self.generate_method(method_descriptor)
+
 	def generate_deserializer(self):
-		# 'deserialize'
 		method_descriptor = self.provider.get_deserialize_descriptor()
-		method_descriptor.method_name = 'deserialize'
-		method_descriptor.arguments = ['payload: ByteString']
-		method_descriptor.result = self.provider.typename
+
+		prefix = '_' if self.provider.is_type_abstract else ''
+		method_descriptor.method_name = f'{prefix}deserialize'
+
+		if self.provider.is_type_abstract:
+			method_descriptor.arguments = ['buffer: memoryview', 'instance']
+			method_descriptor.result = '(int, int)'
+		else:
+			method_descriptor.arguments = ['payload: bytes | bytearray | memoryview']
+			method_descriptor.result = self.provider.typename
+
 		method_descriptor.annotations = ['@classmethod']
 		return self.generate_method(method_descriptor)
 
@@ -75,6 +109,15 @@ class TypeFormatter(ClassFormatter):
 		method_descriptor = self.provider.get_serialize_descriptor()
 		method_descriptor.method_name = 'serialize'
 		method_descriptor.result = 'bytes'
+		return self.generate_method(method_descriptor)
+
+	def generate_serializer_protected(self):
+		method_descriptor = self.provider.get_serialize_protected_descriptor()
+		if not method_descriptor:
+			return None
+
+		method_descriptor.method_name = '_serialize'
+		method_descriptor.arguments = ['buffer: memoryview']
 		return self.generate_method(method_descriptor)
 
 	def generate_size(self):
@@ -103,28 +146,35 @@ class TypeFormatter(ClassFormatter):
 		method_descriptor.result = 'str'
 		return self.generate_method(method_descriptor)
 
+	def generate_json(self):
+		method_descriptor = self.provider.get_json_descriptor()
+		if not method_descriptor:
+			return None
+
+		method_descriptor.method_name = 'to_json'
+		return self.generate_method(method_descriptor)
+
 	def generate_methods(self):
 		methods = []
 
-		ctor = self.generate_ctor()
-		if ctor:
-			methods.append(ctor)
+		_append_if_not_none(methods, self.generate_ctor())
+		_append_if_not_none(methods, self.generate_comparer())
+		_append_if_not_none(methods, self.generate_sort())
 
 		getters = self.generate_getters()
 		methods.extend(getters)
 		setters = self.generate_setters()
 		methods.extend(setters)
 
-		size_method = self.generate_size()
-		if size_method:
-			methods.append(size_method)
+		_append_if_not_none(methods, self.generate_size())
 
 		methods.append(self.generate_deserializer())
 		methods.append(self.generate_serializer())
+		_append_if_not_none(methods, self.generate_serializer_protected())
 
-		representation = self.generate_representation()
-		if representation:
-			methods.append(representation)
+		_append_if_not_none(methods, self.generate_representation())
+		_append_if_not_none(methods, self.generate_json())
+
 		return methods
 
 	def __str__(self):

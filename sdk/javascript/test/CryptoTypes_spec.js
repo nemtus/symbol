@@ -1,8 +1,8 @@
-const {
-	Hash256, PrivateKey, PublicKey, Signature
-} = require('../src/CryptoTypes');
-const { expect } = require('chai');
-const crypto = require('crypto');
+import {
+	Hash256, PrivateKey, PublicKey, SharedKey256, Signature
+} from '../src/CryptoTypes.js';
+import { expect } from 'chai';
+import crypto from 'crypto';
 
 describe('CryptoTypes', () => {
 	// region test utils
@@ -16,6 +16,10 @@ describe('CryptoTypes', () => {
 
 		// Assert:
 		expect(byteArray.bytes).to.deep.equal(rawBytes);
+
+		// - check constants
+		expect(ByteArrayClass.NAME).to.deep.equal(byteArray.constructor.name);
+		expect(ByteArrayClass.SIZE).to.deep.equal(size);
 	};
 
 	const assertCannotCreateByteArrayWithIncorrectNumberOfBytes = (ByteArrayClass, requiredSize) => {
@@ -87,6 +91,16 @@ describe('CryptoTypes', () => {
 
 			// Assert:
 			expect(byteArray.bytes).to.deep.equal(rawBytes);
+		});
+	});
+
+	describe('SharedKey256', () => {
+		it('can create shared key with correct number of bytes', () => {
+			assertCanCreateByteArrayWithCorrectNumberOfBytes(SharedKey256, 32);
+		});
+
+		it('cannot create shared key with incorrect number of bytes', () => {
+			assertCannotCreateByteArrayWithIncorrectNumberOfBytes(SharedKey256, 32);
 		});
 	});
 

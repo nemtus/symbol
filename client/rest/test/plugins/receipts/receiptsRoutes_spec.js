@@ -19,14 +19,12 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const catapult = require('../../../src/catapult-sdk/index');
-const receiptsRoutes = require('../../../src/plugins/receipts/receiptsRoutes');
-const routeUtils = require('../../../src/routes/routeUtils');
-const { MockServer } = require('../../routes/utils/routeTestUtils');
-const { expect } = require('chai');
-const sinon = require('sinon');
-
-const { address } = catapult.model;
+import receiptsRoutes from '../../../src/plugins/receipts/receiptsRoutes.js';
+import routeUtils from '../../../src/routes/routeUtils.js';
+import MockServer from '../../routes/utils/MockServer.js';
+import { expect } from 'chai';
+import sinon from 'sinon';
+import { Address } from 'symbol-sdk/symbol';
 
 describe('receipts routes', () => {
 	describe('transaction statements', () => {
@@ -114,7 +112,7 @@ describe('receipts routes', () => {
 		};
 
 		const dbTransactionStatementsFake = sinon.fake(filters => {
-			if (filters.height && 666 === filters.height[0])
+			if (654n === filters.height)
 				return Promise.resolve(emptyPageSample);
 
 			return Promise.resolve(pageSample);
@@ -176,7 +174,7 @@ describe('receipts routes', () => {
 
 			it('returns empty page if no statements found', () => {
 				// Arrange:
-				const req = { params: { height: '666' } };
+				const req = { params: { height: '654' } };
 
 				// Act:
 				return mockServer.callRoute(route, req).then(() => {
@@ -188,7 +186,7 @@ describe('receipts routes', () => {
 						type: 'transactionStatement',
 						structure: 'page'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -200,9 +198,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
-					expect(dbTransactionStatementsFake.firstCall.args[0].height).to.deep.equal([123, 0]);
+					expect(dbTransactionStatementsFake.firstCall.args[0].height).to.deep.equal(123n);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -214,9 +212,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
-					expect(dbTransactionStatementsFake.firstCall.args[0].fromHeight).to.deep.equal([123, 0]);
+					expect(dbTransactionStatementsFake.firstCall.args[0].fromHeight).to.deep.equal(123n);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -228,9 +226,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
-					expect(dbTransactionStatementsFake.firstCall.args[0].toHeight).to.deep.equal([123, 0]);
+					expect(dbTransactionStatementsFake.firstCall.args[0].toHeight).to.deep.equal(123n);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -245,7 +243,7 @@ describe('receipts routes', () => {
 						expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
 						expect(dbTransactionStatementsFake.firstCall.args[0].receiptType).to.deep.equal([456]);
 
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -259,7 +257,7 @@ describe('receipts routes', () => {
 						expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
 						expect(dbTransactionStatementsFake.firstCall.args[0].receiptType).to.deep.equal([456, 457]);
 
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 			});
@@ -273,9 +271,9 @@ describe('receipts routes', () => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
 					expect(dbTransactionStatementsFake.firstCall.args[0].recipientAddress)
-						.to.deep.equal(address.stringToAddress(testAddress));
+						.to.deep.equal(new Address(testAddress).bytes);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -287,9 +285,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
-					expect(dbTransactionStatementsFake.firstCall.args[0].senderAddress).to.deep.equal(address.stringToAddress(testAddress));
+					expect(dbTransactionStatementsFake.firstCall.args[0].senderAddress).to.deep.equal(new Address(testAddress).bytes);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -301,9 +299,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
-					expect(dbTransactionStatementsFake.firstCall.args[0].targetAddress).to.deep.equal(address.stringToAddress(testAddress));
+					expect(dbTransactionStatementsFake.firstCall.args[0].targetAddress).to.deep.equal(new Address(testAddress).bytes);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -315,9 +313,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbTransactionStatementsFake.calledOnce).to.equal(true);
-					expect(dbTransactionStatementsFake.firstCall.args[0].artifactId).to.deep.equal([0x1CAD29E3, 0x0DC67FBE]);
+					expect(dbTransactionStatementsFake.firstCall.args[0].artifactId).to.deep.equal(0x0DC67FBE1CAD29E3n);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -335,7 +333,7 @@ describe('receipts routes', () => {
 						type: 'transactionStatement',
 						structure: 'page'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 		});
@@ -392,7 +390,7 @@ describe('receipts routes', () => {
 		};
 
 		const dbArtifactStatementsFake = sinon.fake(height => {
-			if (height && 666 === height[0])
+			if (654n === height)
 				return Promise.resolve(emptyPageSample);
 
 			return Promise.resolve(pageSample);
@@ -454,7 +452,7 @@ describe('receipts routes', () => {
 
 			it('returns empty address statements page if no statements found', () => {
 				// Arrange:
-				const req = { params: { artifact: 'address', height: '666' } };
+				const req = { params: { artifact: 'address', height: '654' } };
 
 				// Act:
 				return mockServer.callRoute(route, req).then(() => {
@@ -466,13 +464,13 @@ describe('receipts routes', () => {
 						type: 'addressResolutionStatement',
 						structure: 'page'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
 			it('returns empty mosaic statements page if no statements found', () => {
 				// Arrange:
-				const req = { params: { artifact: 'mosaic', height: '666' } };
+				const req = { params: { artifact: 'mosaic', height: '654' } };
 
 				// Act:
 				return mockServer.callRoute(route, req).then(() => {
@@ -484,7 +482,7 @@ describe('receipts routes', () => {
 						type: 'mosaicResolutionStatement',
 						structure: 'page'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -496,9 +494,9 @@ describe('receipts routes', () => {
 				return mockServer.callRoute(route, req).then(() => {
 					// Assert:
 					expect(dbArtifactStatementsFake.calledOnce).to.equal(true);
-					expect(dbArtifactStatementsFake.firstCall.args[0]).to.deep.equal([123, 0]);
+					expect(dbArtifactStatementsFake.firstCall.args[0]).to.deep.equal(123n);
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -512,7 +510,7 @@ describe('receipts routes', () => {
 					expect(dbArtifactStatementsFake.calledOnce).to.equal(true);
 					expect(dbArtifactStatementsFake.firstCall.args[1]).to.equal('address');
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -526,7 +524,7 @@ describe('receipts routes', () => {
 					expect(dbArtifactStatementsFake.calledOnce).to.equal(true);
 					expect(dbArtifactStatementsFake.firstCall.args[1]).to.equal('mosaic');
 
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -535,11 +533,11 @@ describe('receipts routes', () => {
 				const req = { params: { artifact: 'namespace' } };
 
 				// Act:
-				mockServer.callRoute(route, req);
-
-				// Assert:
-				expect(mockServer.next.calledOnce).to.equal(true);
-				expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+				return mockServer.callRoute(route, req).then(() => {
+					// Assert:
+					expect(mockServer.done.calledOnce).to.equal(true);
+					expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
+				});
 			});
 
 			it('fails if no artifact provided', () => {
@@ -547,11 +545,11 @@ describe('receipts routes', () => {
 				const req = { params: {} };
 
 				// Act:
-				mockServer.callRoute(route, req);
-
-				// Assert:
-				expect(mockServer.next.calledOnce).to.equal(true);
-				expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+				return mockServer.callRoute(route, req).then(() => {
+					// Assert:
+					expect(mockServer.done.calledOnce).to.equal(true);
+					expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
+				});
 			});
 
 			it('returns page with results', () => {
@@ -569,7 +567,7 @@ describe('receipts routes', () => {
 						type: 'addressResolutionStatement',
 						structure: 'page'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 		});

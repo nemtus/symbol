@@ -1,4 +1,5 @@
-FROM debian:11.4
+ARG FROM_IMAGE=debian:13
+FROM ${FROM_IMAGE}
 
 RUN apt-get update >/dev/null && \
 	apt-get install -y \
@@ -14,3 +15,10 @@ RUN apt-get update >/dev/null && \
 	gcc g++ \
 	>/dev/null && \
 	rm -rf /var/lib/apt/lists/*
+
+# add ubuntu user (used by jenkins)
+ARG HOME_DIR=/home/ubuntu
+RUN groupadd -g 1000 ubuntu && \
+	useradd -m -u 1000 -g ubuntu -d ${HOME_DIR} ubuntu
+USER ubuntu
+WORKDIR ${HOME_DIR}

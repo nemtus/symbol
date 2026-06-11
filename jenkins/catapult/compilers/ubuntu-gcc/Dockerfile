@@ -1,4 +1,5 @@
-FROM ubuntu:22.04
+# use Ubuntu 25.10 to get gcc 14/15 with latest verion.
+FROM ubuntu:25.10
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -13,7 +14,7 @@ RUN apt-get update >/dev/null && \
 	>/dev/null 
 	
 # Use the latest gcc version.
-ARG COMPILER_VERSION=12
+ARG COMPILER_VERSION=15
 RUN apt-get update >/dev/null && \
 	apt-get install -y \
 	gcc-${COMPILER_VERSION} g++-${COMPILER_VERSION} >/dev/null && \
@@ -21,4 +22,12 @@ RUN apt-get update >/dev/null && \
 	update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${COMPILER_VERSION} 100 && \
 	update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 100 && \
 	update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 100 && \
+	update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-${COMPILER_VERSION} 100 && \
+	update-alternatives --install /usr/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-${COMPILER_VERSION} 100 && \
+	update-alternatives --install /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-${COMPILER_VERSION} 100 && \
 	rm -rf /var/lib/apt/lists/*
+
+# set default user (used by jenkins)
+ARG HOME_DIR=/home/ubuntu
+USER ubuntu
+WORKDIR ${HOME_DIR}

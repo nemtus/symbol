@@ -19,12 +19,223 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const catapult = require('../../src/catapult-sdk/index');
-const MessageChannelBuilder = require('../../src/connection/MessageChannelBuilder');
-const { createZmqConnectionService } = require('../../src/connection/zmqService');
-const test = require('../testUtils');
-const { expect } = require('chai');
-const zmq = require('zeromq');
+import MessageChannelBuilder from '../../src/connection/MessageChannelBuilder.js';
+import createZmqConnectionService, { ZmqSocketWrapper } from '../../src/connection/zmqService.js';
+import test from '../testUtils.js';
+import { expect } from 'chai';
+import { Address } from 'symbol-sdk/symbol';
+import zmq from 'zeromq';
+
+describe('ZmqSocketWrapper', () => {
+	const createMockSubscriber = () => {
+		const eventsPendingResolvers = [];
+		const receivePendingResolvers = [];
+
+		const subscriber = {
+			linger: undefined,
+			closed: false,
+			connectCalls: [],
+			subscribeCalls: [],
+			numCloseCalls: 0,
+			events: {
+				receive: () => new Promise((resolve, reject) => {
+					eventsPendingResolvers.push({ resolve, reject });
+				})
+			},
+			receive: () => new Promise((resolve, reject) => {
+				receivePendingResolvers.push({ resolve, reject });
+			}),
+			connect: url => { subscriber.connectCalls.push(url); },
+			subscribe: filter => { subscriber.subscribeCalls.push(filter); },
+			close: () => {
+				++subscriber.numCloseCalls;
+				subscriber.closed = true;
+				eventsPendingResolvers.splice(0).forEach(({ reject }) => reject(new Error('socket closed')));
+				receivePendingResolvers.splice(0).forEach(({ reject }) => reject(new Error('socket closed')));
+			},
+			rejectEvent: err => {
+				const pending = eventsPendingResolvers.shift();
+				if (pending)
+					pending.reject(err);
+			},
+			pushFrames: frames => {
+				const pending = receivePendingResolvers.shift();
+				if (pending)
+					pending.resolve(frames);
+			}
+		};
+		return subscriber;
+	};
+
+	const createWrapper = (key, subscriber) => new ZmqSocketWrapper(key, () => subscriber);
+
+	let subscriber;
+	let wrapper;
+
+	beforeEach(() => {
+		// Arrange:
+		subscriber = createMockSubscriber();
+		wrapper = createWrapper('test-key', subscriber);
+	});
+
+	afterEach(() => {
+		if (!wrapper.innerSocket.closed)
+			wrapper.close();
+	});
+
+	describe('constructor', () => {
+		it('stores key and initializes inner socket with linger 0', () => {
+			// Act: in the before each hook
+
+			// Assert:
+			expect(wrapper.eventsLoopActive).to.equal(false);
+			expect(wrapper.innerSocket.linger).to.equal(0);
+			expect(wrapper.key).to.equal('test-key');
+		});
+	});
+
+	describe('connect', () => {
+		it('delegates to inner socket', () => {
+			// Act:
+			wrapper.connect('tcp://127.0.0.1:7654');
+
+			// Assert:
+			expect(wrapper.innerSocket.connectCalls).to.deep.equal(['tcp://127.0.0.1:7654']);
+		});
+	});
+
+	describe('subscribe', () => {
+		it('delegates to inner socket', () => {
+			// Arrange:
+			const filter = Buffer.of(0x01, 0x02);
+
+			// Act:
+			wrapper.subscribe(filter);
+
+			// Assert:
+			expect(wrapper.innerSocket.subscribeCalls).to.deep.equal([filter]);
+		});
+	});
+
+	describe('monitor', () => {
+		it('emits error event when events loop throws while active', () => {
+			// Arrange:
+			wrapper.monitor();
+
+			// Act:
+			return new Promise(resolve => {
+				wrapper.once('monitor:error', err => {
+					// Assert:
+					expect(err.message).to.equal('events loop error');
+					resolve();
+				});
+				subscriber.rejectEvent(new Error('events loop error'));
+			});
+		});
+
+		it('suppresses error event when events loop throws after unmonitor', async () => {
+			// Arrange:
+			wrapper.monitor();
+
+			// Act: stop monitoring before the error arrives
+			wrapper.unmonitor();
+			const emittedErrors = [];
+			wrapper.on('error', err => emittedErrors.push(err));
+			subscriber.rejectEvent(new Error('late error'));
+
+			// Wait for async processing
+			await new Promise(resolve => { setTimeout(resolve, 10); });
+
+			// Assert: no error was emitted
+			expect(emittedErrors).to.deep.equal([]);
+		});
+
+		it('stops events loop', () => {
+			// Arrange:
+			wrapper.monitor();
+
+			// Act:
+			wrapper.unmonitor();
+
+			// Assert:
+			expect(wrapper.eventsLoopActive).to.equal(false);
+		});
+	});
+
+	describe('messaging', () => {
+		const testMessageReceived = shouldSubscribe => {
+			// Arrange:
+			const receivedArgs = [];
+			const frame1 = Buffer.from('topic');
+			const frame2 = Buffer.from('data');
+			let expectedReceivedLength = 0;
+			wrapper.on('message', (...args) => receivedArgs.push(args));
+			if (shouldSubscribe) {
+				expectedReceivedLength = 1;
+				wrapper.subscribe('');
+			}
+
+			// Act:
+			return new Promise(resolve => {
+				subscriber.pushFrames([frame1, frame2]);
+				setTimeout(() => {
+					// Assert:
+					expect(receivedArgs).to.have.lengthOf(expectedReceivedLength);
+					if (shouldSubscribe)
+						expect(receivedArgs[0]).to.deep.equal([frame1, frame2]);
+					else
+						expect(receivedArgs).to.deep.equal([]);
+
+					wrapper.close();
+					resolve();
+				}, 0);
+			});
+		};
+
+		it('calls handler with spread frames for each received message', () => testMessageReceived(true));
+
+		it('handler is not called if not subscribe', () => testMessageReceived(false));
+
+		it('silently stops when inner socket is closed', async () => {
+			// Arrange:
+			let handlerCallCount = 0;
+			wrapper.subscribe('');
+			wrapper.on('message', () => { ++handlerCallCount; });
+
+			// Act: close immediately (rejects the pending receive)
+			subscriber.close();
+			subscriber.pushFrames([Buffer.from('after close')]);
+
+			// Wait for async processing
+			await new Promise(resolve => { setTimeout(resolve, 10); });
+
+			// Assert: handler was never called, no error thrown
+			expect(handlerCallCount).to.equal(0);
+		});
+	});
+
+	describe('close', () => {
+		it('closes inner socket and stops events loop', () => {
+			// Arrange:
+			wrapper.monitor();
+
+			// Act:
+			wrapper.close();
+
+			// Assert:
+			expect(wrapper.eventsLoopActive).to.equal(false);
+			expect(wrapper.innerSocket.numCloseCalls).to.equal(1);
+		});
+
+		it('ignores errors from inner socket close', () => {
+			// Arrange:
+			wrapper.innerSocket.close = () => { throw new Error('close failed'); };
+
+			// Act + Assert: should not throw
+			expect(() => wrapper.close()).not.to.throw();
+		});
+	});
+});
 
 describe('zmq service', () => {
 	const cleanupActions = [];
@@ -38,15 +249,15 @@ describe('zmq service', () => {
 
 	const createDefaultZmqConnectionService = () => {
 		const zmqConfig = {
-			host: '127.0.0.1', port: '3333', connectTimeout: 10, monitorInterval: 50
+			host: '127.0.0.1', port: '3333', connectTimeout: 10
 		};
 		const channelDescriptors = new MessageChannelBuilder().build();
-		const service = createZmqConnectionService(zmqConfig, {}, channelDescriptors, test.createMockLogger());
+		const service = createZmqConnectionService(zmqConfig, channelDescriptors, test.createMockLogger());
 		cleanupActions.push(() => service.close());
 		return service;
 	};
 
-	const createRandomAddressString = () => catapult.model.address.addressToString(test.random.address());
+	const createRandomAddressString = () => new Address(test.random.address()).toString();
 
 	describe('invalid subscription', () => {
 		const assertInvalidSubscription = (channel, error) => {
@@ -138,19 +349,7 @@ describe('zmq service', () => {
 
 	describe('subscription messages', () => {
 		const generateBlockBuffers = () => ({
-			block: Buffer.concat([
-				Buffer.of(0x97, 0x87, 0x45, 0x0E, 0xE1, 0x6C, 0xB6, 0x62), // height 8b
-				Buffer.of(0x30, 0x3A, 0x46, 0x8B, 0x15, 0x2D, 0x60, 0x54), // timestamp 8b
-				Buffer.of(0x86, 0x02, 0x75, 0x30, 0xE8, 0x50, 0x78, 0xE8), // difficulty 8b
-				Buffer.from(test.random.hash()), // previous block hash 32b
-				Buffer.from(test.random.hash()), // block transactions hash 32b
-				Buffer.from(test.random.hash()), // receiptsHashBuffer 32b
-				Buffer.from(test.random.hash()), // stateHashBuffer 32b
-				test.random.bytes(test.constants.sizes.addressDecoded), // beneficiaryAddress 24b
-				Buffer.of(0x0A, 0x00, 0x00, 0x00), // fee multiplier 4b
-				Buffer.of(0x00, 0x00, 0x00, 0x00) // reserved padding 4b
-			]),
-
+			block: test.createSampleBlock().buffer,
 			entityHash: Buffer.from(test.random.hash()),
 			generationHash: Buffer.from(test.random.hash())
 		});
@@ -158,39 +357,29 @@ describe('zmq service', () => {
 		it('forwards messages to subscribed handlers', () => {
 			// Arrange:
 			const zmqConfig = {
-				host: '127.0.0.1', port: '3333', connectTimeout: 1000, monitorInterval: 50
-			};
-			const codec = {
-				// - parsing is not being tested so just extract the entire parser contents into a buffer
-				deserialize: parser => parser.buffer(parser.numUnprocessedBytes())
+				host: '127.0.0.1', port: '3333', connectTimeout: 1000
 			};
 			const channelDescriptors = new MessageChannelBuilder().build();
-			const service = createZmqConnectionService(zmqConfig, codec, channelDescriptors, test.createLogger());
+			const service = createZmqConnectionService(zmqConfig, channelDescriptors, test.createLogger());
 			cleanupActions.push(() => service.close());
 
 			const blockBuffers = generateBlockBuffers();
-			return new Promise((resolve, reject) => {
+			return new Promise(resolve => {
 				// Arrange: create a publisher and publish a block
 				const endpoint = `tcp://${zmqConfig.host}:${zmqConfig.port}`;
-				const zsocket = zmq.socket('pub');
-				cleanupActions.push(() => {
-					zsocket.disconnect(endpoint);
-					zsocket.close();
-				});
+				const zsocket = new zmq.Publisher();
+				zsocket.linger = 0;
+				cleanupActions.push(() => { zsocket.close(); });
 
-				zsocket.bind(endpoint, err => {
-					if (err) {
-						reject(err);
-						return;
-					}
-
+				zsocket.bind(endpoint).then(() => {
 					// Arrange: subscribe to block events (this needs to be done after bind in order to avoid potential races)
 					service.on('block', message => {
 						// Assert: the parsed message is consistent with the published block message
+						//         since formatting is not configured, meta properties are raw values
 						expect(message).to.deep.equal({
 							type: 'blockHeaderWithMetadata',
 							payload: {
-								block: blockBuffers.block,
+								block: test.createSampleBlock().model,
 								meta: { hash: blockBuffers.entityHash, generationHash: blockBuffers.generationHash }
 							}
 						});
@@ -198,12 +387,9 @@ describe('zmq service', () => {
 					});
 
 					// Act: publish a single block (as a multipart message) after completion of bind callback processing
-					setTimeout(() => {
+					setTimeout(async () => {
 						const marker = Buffer.of(0x49, 0x6A, 0xCA, 0x80, 0xE4, 0xD8, 0xF2, 0x9F);
-						zsocket.send(marker, zmq.ZMQ_SNDMORE);
-						zsocket.send(blockBuffers.block, zmq.ZMQ_SNDMORE);
-						zsocket.send(blockBuffers.entityHash, zmq.ZMQ_SNDMORE);
-						zsocket.send(blockBuffers.generationHash);
+						await zsocket.send([marker, blockBuffers.block, blockBuffers.entityHash, blockBuffers.generationHash]);
 					}, 100);
 				});
 			});

@@ -15,18 +15,34 @@ class TransactionFactory:
 		self.factory = self._build_rules(type_rule_overrides)
 		self.network = network
 
-	def create(self, transaction_descriptor):
-		"""Creates a transaction from a transaction descriptor."""
+	@staticmethod
+	def lookup_transaction_name(transaction_type, transaction_version):
+		"""Looks up the friendly name for the specified transaction."""
+		return f'{str(transaction_type)[str(transaction_type).index(".") + 1:].lower()}_transaction_v{transaction_version}'
+
+	def create(self, transaction_descriptor, autosort=True):
+		"""
+		Creates a transaction from a transaction descriptor.
+		When autosort is set (default), descriptor arrays requiring ordering will be automatically sorted.
+		When unset, descriptor arrays will be presumed to be already sorted.
+		"""
 		transaction = self.factory.create_from_factory(nc.TransactionFactory.create_by_name, {
 			**transaction_descriptor,
 			'network': self.network.identifier
 		})
+		if autosort:
+			transaction.sort()
 
 		# hack: explicitly translate transfer message
-		if nc.TransactionType.TRANSFER == transaction.type_ and isinstance(transaction.message.message, str):
+		if nc.TransactionType.TRANSFER == transaction.type_ and transaction.message and isinstance(transaction.message.message, str):
 			transaction.message.message = transaction.message.message.encode('utf8')
 
 		return transaction
+
+	@staticmethod
+	def deserialize(payload):
+		"""Deserializes a transaction from a binary payload."""
+		return nc.TransactionFactory.deserialize(payload)
 
 	@staticmethod
 	def to_non_verifiable_transaction(transaction):
@@ -39,7 +55,7 @@ class TransactionFactory:
 		non_verifiable_transaction = non_verifiable_class()
 		for key in dir(non_verifiable_transaction):
 			# isupper() to quickly filter out class properties like TRANSACTION_VERSION or TYPE_HINTS
-			if key.startswith('_') or key[0].isupper() or key in ['size', 'serialize', 'deserialize']:
+			if key.startswith('_') or key[0].isupper() or key in ('size', 'serialize', 'deserialize') or key.endswith('_computed'):
 				continue
 
 			setattr(non_verifiable_transaction, key, getattr(transaction, key))
@@ -50,9 +66,13 @@ class TransactionFactory:
 	def attach_signature(transaction, signature):
 		"""Attaches a signature to a transaction."""
 		transaction.signature = nc.Signature(signature.bytes)
+		return TransactionFactory.to_json(transaction)
 
+	@staticmethod
+	def to_json(transaction):
+		"""Generates a JSON representation of transaction that can be sent to a node."""
 		transaction_hex = hexlify(TransactionFactory.to_non_verifiable_transaction(transaction).serialize()).decode('utf8').upper()
-		signature_hex = str(signature)
+		signature_hex = str(transaction.signature)
 		json_payload = f'{{"data":"{transaction_hex}", "signature":"{signature_hex}"}}'
 		return json_payload
 
@@ -70,9 +90,9 @@ class TransactionFactory:
 		factory.autodetect()
 
 		struct_names = [
-			'Cosignature', 'Message', 'NamespaceId', 'MosaicId', 'Mosaic', 'SizePrefixedMosaic', 'MosaicLevy',
+			'CosignatureV1', 'Message', 'NamespaceId', 'MosaicId', 'Mosaic', 'SizePrefixedMosaic', 'MosaicLevy',
 			'MosaicProperty', 'SizePrefixedMosaicProperty', 'MosaicDefinition',
-			'MultisigAccountModification', 'SizePrefixedMultisigAccountModification', 'SizePrefixedCosignature'
+			'MultisigAccountModification', 'SizePrefixedMultisigAccountModification', 'SizePrefixedCosignatureV1'
 		]
 		for name in struct_names:
 			factory.add_struct_parser(name)
@@ -86,7 +106,7 @@ class TransactionFactory:
 			factory.add_pod_parser(name, typename)
 
 		array_names = [
-			'SizePrefixedMosaic', 'SizePrefixedMosaicProperty', 'SizePrefixedMultisigAccountModification', 'SizePrefixedCosignature'
+			'SizePrefixedMosaic', 'SizePrefixedMosaicProperty', 'SizePrefixedMultisigAccountModification', 'SizePrefixedCosignatureV1'
 		]
 		for name in array_names:
 			factory.add_array_parser(f'struct:{name}')

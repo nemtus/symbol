@@ -102,8 +102,8 @@ namespace catapult {
 
 // Bug in boost where the trait information is missing the "catapult" namespace.
 // Boost function returns this - [with TTraits = {anonymous}::RuntimeErrorTraits]
-// For gcc 12 add the namespace manually
-#if (12 == __GNUC__)
+// For gcc 12 and greater add the namespace manually
+#if (12 <= __GNUC__)
 				oss << "catapult::";
 #endif
 
@@ -117,9 +117,27 @@ namespace catapult {
 		template<typename TException, typename TTraits>
 		void AssertExceptionInformation(const TException& ex, const ExpectedDiagnostics<TTraits>& expected) {
 			// Arrange:
+			std::string endBrace = " >";
+			std::string exceptionFqn = std::string(TTraits::Exception_Fqn);
+
+#if 15 <= __clang_major__
+			endBrace = ">";
+			std::string toSearch = "> >";
+			auto pos = exceptionFqn.find(toSearch);
+			if (std::string::npos != pos)
+				exceptionFqn.replace(pos, toSearch.size(), ">>");
+#endif
+
+// For VS 2022 and greater with Boost 1.90 no transformation is needed.
+#if (defined(_MSC_VER) && _MSC_VER >= 1930)
+			auto thrownFunctionName = expected.FunctionName;
+#else
+			auto thrownFunctionName = ConvertToExceptionFunctionName(expected.FunctionName);
+#endif
+
 			std::vector<std::string> expectedDiagLines{
-				"Throw in function " + ConvertToExceptionFunctionName(expected.FunctionName),
-				"Dynamic exception type: " STRUCTPREFIX "boost::wrapexcept<" + std::string(TTraits::Exception_Fqn) + " >",
+				"Throw in function " + thrownFunctionName,
+				"Dynamic exception type: " STRUCTPREFIX "boost::wrapexcept<" + exceptionFqn + endBrace,
 				"std::exception::what: " + expected.What
 			};
 

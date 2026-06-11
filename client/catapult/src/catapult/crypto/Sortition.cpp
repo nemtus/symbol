@@ -24,10 +24,12 @@
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable:4702) /* "unreachable code" */
+#pragma warning(disable: 4714) // function marked as __forceinline not inlined
 #endif
+
 #include <boost/math/distributions/binomial.hpp>
 #include <boost/math/policies/policy.hpp>
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

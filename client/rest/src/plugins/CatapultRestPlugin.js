@@ -37,7 +37,7 @@
  * Adds rest support for a particular subsystem.
  * @interface
  */
-module.exports = {
+export default {
 	/**
 	 * Creates a plugin specific database.
 	 * @instance
@@ -48,7 +48,7 @@ module.exports = {
 	/**
 	 * Registers transaction state descriptors.
 	 * @instance
-	 * @param {array<module:plugins/CatapultRestPlugin~TransactionStateDescriptor>} states Transaction state descriptors.
+	 * @param {Array<module:plugins/CatapultRestPlugin~TransactionStateDescriptor>} states Transaction state descriptors.
 	 */
 	registerTransactionStates: states => {},
 

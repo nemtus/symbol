@@ -19,7 +19,7 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { expect } = require('chai');
+import { expect } from 'chai';
 
 const wrapCreateDbTest = (resultName, action) => {
 	describe('create db', () => {
@@ -27,25 +27,32 @@ const wrapCreateDbTest = (resultName, action) => {
 	});
 };
 
-module.exports = {
+export default {
 	assertThat: {
-		pluginDoesNotCreateDb: plugin => {
+		pluginDoesNotCreateDb: (plugin, options = undefined) => {
 			wrapCreateDbTest('undefined', () => {
+				// Arrange:
+				const catapultDb = {};
+
 				// Act:
-				const db = plugin.createDb();
+				const db = plugin.createDb(catapultDb);
 
 				// Assert:
-				expect(db).to.equal(undefined);
+				expect(db).to.equal((options || {}).shouldForwardDb ? catapultDb : undefined);
 			});
 		},
 
 		pluginCreatesDb: (plugin, expectedDbType) => {
 			wrapCreateDbTest('db', () => {
+				// Arrange:
+				const catapultDb = {};
+
 				// Act:
-				const db = plugin.createDb();
+				const db = plugin.createDb(catapultDb);
 
 				// Assert:
 				expect(db).to.be.instanceOf(expectedDbType);
+				expect(db.catapultDb).to.equal(catapultDb);
 			});
 		},
 

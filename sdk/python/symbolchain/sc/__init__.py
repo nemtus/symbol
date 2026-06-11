@@ -4,13 +4,13 @@
 #
 # pylint: disable=line-too-long, invalid-name, redefined-builtin
 # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-locals, too-many-statements, too-many-public-methods
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, superfluous-parens
 
 from __future__ import annotations
 
 from binascii import hexlify
 from enum import Enum, Flag
-from typing import ByteString, List, TypeVar
+from typing import List, TypeVar
 
 from ..ArrayHelpers import ArrayHelpers
 from ..BaseValue import BaseValue
@@ -27,7 +27,7 @@ class Amount(BaseValue):
 		super().__init__(self.SIZE, amount, Amount)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Amount:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Amount:
 		buffer = memoryview(payload)
 		return Amount(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -42,7 +42,7 @@ class BlockDuration(BaseValue):
 		super().__init__(self.SIZE, block_duration, BlockDuration)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> BlockDuration:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> BlockDuration:
 		buffer = memoryview(payload)
 		return BlockDuration(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -57,7 +57,7 @@ class BlockFeeMultiplier(BaseValue):
 		super().__init__(self.SIZE, block_fee_multiplier, BlockFeeMultiplier)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> BlockFeeMultiplier:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> BlockFeeMultiplier:
 		buffer = memoryview(payload)
 		return BlockFeeMultiplier(int.from_bytes(buffer[:4], byteorder='little', signed=False))
 
@@ -72,7 +72,7 @@ class Difficulty(BaseValue):
 		super().__init__(self.SIZE, difficulty, Difficulty)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Difficulty:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Difficulty:
 		buffer = memoryview(payload)
 		return Difficulty(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -87,7 +87,7 @@ class FinalizationEpoch(BaseValue):
 		super().__init__(self.SIZE, finalization_epoch, FinalizationEpoch)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> FinalizationEpoch:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> FinalizationEpoch:
 		buffer = memoryview(payload)
 		return FinalizationEpoch(int.from_bytes(buffer[:4], byteorder='little', signed=False))
 
@@ -102,7 +102,7 @@ class FinalizationPoint(BaseValue):
 		super().__init__(self.SIZE, finalization_point, FinalizationPoint)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> FinalizationPoint:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> FinalizationPoint:
 		buffer = memoryview(payload)
 		return FinalizationPoint(int.from_bytes(buffer[:4], byteorder='little', signed=False))
 
@@ -117,7 +117,7 @@ class Height(BaseValue):
 		super().__init__(self.SIZE, height, Height)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Height:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Height:
 		buffer = memoryview(payload)
 		return Height(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -132,7 +132,7 @@ class Importance(BaseValue):
 		super().__init__(self.SIZE, importance, Importance)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Importance:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Importance:
 		buffer = memoryview(payload)
 		return Importance(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -147,7 +147,7 @@ class ImportanceHeight(BaseValue):
 		super().__init__(self.SIZE, importance_height, ImportanceHeight)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> ImportanceHeight:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ImportanceHeight:
 		buffer = memoryview(payload)
 		return ImportanceHeight(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -162,7 +162,7 @@ class UnresolvedMosaicId(BaseValue):
 		super().__init__(self.SIZE, unresolved_mosaic_id, UnresolvedMosaicId)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> UnresolvedMosaicId:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> UnresolvedMosaicId:
 		buffer = memoryview(payload)
 		return UnresolvedMosaicId(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -177,7 +177,7 @@ class MosaicId(BaseValue):
 		super().__init__(self.SIZE, mosaic_id, MosaicId)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicId:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicId:
 		buffer = memoryview(payload)
 		return MosaicId(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -192,7 +192,7 @@ class Timestamp(BaseValue):
 		super().__init__(self.SIZE, timestamp, Timestamp)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Timestamp:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Timestamp:
 		buffer = memoryview(payload)
 		return Timestamp(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -211,7 +211,7 @@ class UnresolvedAddress(ByteArray):
 		return 24
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> UnresolvedAddress:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> UnresolvedAddress:
 		buffer = memoryview(payload)
 		return UnresolvedAddress(ArrayHelpers.get_bytes(buffer, 24))
 
@@ -230,7 +230,7 @@ class Address(ByteArray):
 		return 24
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Address:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Address:
 		buffer = memoryview(payload)
 		return Address(ArrayHelpers.get_bytes(buffer, 24))
 
@@ -249,7 +249,7 @@ class Hash256(ByteArray):
 		return 32
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Hash256:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Hash256:
 		buffer = memoryview(payload)
 		return Hash256(ArrayHelpers.get_bytes(buffer, 32))
 
@@ -268,7 +268,7 @@ class Hash512(ByteArray):
 		return 64
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Hash512:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Hash512:
 		buffer = memoryview(payload)
 		return Hash512(ArrayHelpers.get_bytes(buffer, 64))
 
@@ -287,7 +287,7 @@ class PublicKey(ByteArray):
 		return 32
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> PublicKey:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> PublicKey:
 		buffer = memoryview(payload)
 		return PublicKey(ArrayHelpers.get_bytes(buffer, 32))
 
@@ -306,7 +306,7 @@ class VotingPublicKey(ByteArray):
 		return 32
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> VotingPublicKey:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> VotingPublicKey:
 		buffer = memoryview(payload)
 		return VotingPublicKey(ArrayHelpers.get_bytes(buffer, 32))
 
@@ -325,7 +325,7 @@ class Signature(ByteArray):
 		return 64
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Signature:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Signature:
 		buffer = memoryview(payload)
 		return Signature(ArrayHelpers.get_bytes(buffer, 64))
 
@@ -342,6 +342,9 @@ class Mosaic:
 	def __init__(self):
 		self._mosaic_id = MosaicId()
 		self._amount = Amount()
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> MosaicId:
@@ -367,20 +370,21 @@ class Mosaic:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Mosaic:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Mosaic:
 		buffer = memoryview(payload)
+		instance = Mosaic()
 		mosaic_id = MosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		amount = Amount.deserialize(buffer)
 		buffer = buffer[amount.size:]
 
-		instance = Mosaic()
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._amount = amount
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self._mosaic_id.serialize()
 		buffer += self._amount.serialize()
 		return buffer
@@ -390,6 +394,12 @@ class Mosaic:
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'amount: {self._amount.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['amount'] = self._amount.to_json()
 		return result
 
 
@@ -402,6 +412,9 @@ class UnresolvedMosaic:
 	def __init__(self):
 		self._mosaic_id = UnresolvedMosaicId()
 		self._amount = Amount()
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -427,20 +440,21 @@ class UnresolvedMosaic:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> UnresolvedMosaic:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> UnresolvedMosaic:
 		buffer = memoryview(payload)
+		instance = UnresolvedMosaic()
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		amount = Amount.deserialize(buffer)
 		buffer = buffer[amount.size:]
 
-		instance = UnresolvedMosaic()
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._amount = amount
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self._mosaic_id.serialize()
 		buffer += self._amount.serialize()
 		return buffer
@@ -450,6 +464,12 @@ class UnresolvedMosaic:
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'amount: {self._amount.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['amount'] = self._amount.to_json()
 		return result
 
 
@@ -462,14 +482,17 @@ class LinkAction(Enum):
 		return 1
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> LinkAction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LinkAction:
 		buffer = memoryview(payload)
 		return LinkAction(int.from_bytes(buffer[:1], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
 		return buffer
+
+	def to_json(self):
+		return self.value
 
 
 class NetworkType(Enum):
@@ -481,14 +504,17 @@ class NetworkType(Enum):
 		return 1
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NetworkType:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NetworkType:
 		buffer = memoryview(payload)
 		return NetworkType(int.from_bytes(buffer[:1], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
 		return buffer
+
+	def to_json(self):
+		return self.value
 
 
 class TransactionType(Enum):
@@ -523,14 +549,17 @@ class TransactionType(Enum):
 		return 2
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> TransactionType:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> TransactionType:
 		buffer = memoryview(payload)
 		return TransactionType(int.from_bytes(buffer[:2], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(2, byteorder='little', signed=False)
 		return buffer
+
+	def to_json(self):
+		return self.value
 
 
 class Transaction:
@@ -554,6 +583,9 @@ class Transaction:
 		self._verifiable_entity_header_reserved_1 = 0  # reserved field
 		self._entity_body_reserved_1 = 0  # reserved field
 
+	def sort(self) -> None:
+		pass
+
 	@property
 	def signature(self) -> Signature:
 		return self._signature
@@ -626,12 +658,9 @@ class Transaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Transaction:
-		buffer = memoryview(payload)
+	def _deserialize(cls, buffer: memoryview, instance) -> (int, int):
 		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
+		buffer = buffer[4:size_]
 		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
 		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
@@ -653,7 +682,7 @@ class Transaction:
 		deadline = Timestamp.deserialize(buffer)
 		buffer = buffer[deadline.size:]
 
-		instance = Transaction()
+		# pylint: disable=protected-access
 		instance._signature = signature
 		instance._signer_public_key = signer_public_key
 		instance._version = version
@@ -661,10 +690,14 @@ class Transaction:
 		instance._type_ = type_
 		instance._fee = fee
 		instance._deadline = deadline
-		return instance
+		return (size_ - len(buffer), size_)
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
+		self._serialize(buffer)
+		return buffer
+
+	def _serialize(self, buffer: memoryview):
 		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._signature.serialize()
@@ -675,7 +708,6 @@ class Transaction:
 		buffer += self._type_.serialize()
 		buffer += self._fee.serialize()
 		buffer += self._deadline.serialize()
-		return buffer
 
 	def __str__(self) -> str:
 		result = '('
@@ -683,10 +715,21 @@ class Transaction:
 		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
 		result += f'version: 0x{self._version:X}, '
 		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += f'type: {self._type_.__str__()}, '
 		result += f'fee: {self._fee.__str__()}, '
 		result += f'deadline: {self._deadline.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['signature'] = self._signature.to_json()
+		result['signer_public_key'] = self._signer_public_key.to_json()
+		result['version'] = self._version
+		result['network'] = self._network.to_json()
+		result['type'] = self._type_.to_json()
+		result['fee'] = self._fee.to_json()
+		result['deadline'] = self._deadline.to_json()
 		return result
 
 
@@ -705,6 +748,9 @@ class EmbeddedTransaction:
 		self._embedded_transaction_header_reserved_1 = 0  # reserved field
 		self._entity_body_reserved_1 = 0  # reserved field
 
+	def sort(self) -> None:
+		pass
+
 	@property
 	def signer_public_key(self) -> PublicKey:
 		return self._signer_public_key
@@ -750,12 +796,9 @@ class EmbeddedTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedTransaction:
-		buffer = memoryview(payload)
+	def _deserialize(cls, buffer: memoryview, instance) -> (int, int):
 		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
+		buffer = buffer[4:size_]
 		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
 		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
@@ -771,15 +814,19 @@ class EmbeddedTransaction:
 		type_ = TransactionType.deserialize(buffer)
 		buffer = buffer[type_.size:]
 
-		instance = EmbeddedTransaction()
+		# pylint: disable=protected-access
 		instance._signer_public_key = signer_public_key
 		instance._version = version
 		instance._network = network
 		instance._type_ = type_
-		return instance
+		return (size_ - len(buffer), size_)
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
+		self._serialize(buffer)
+		return buffer
+
+	def _serialize(self, buffer: memoryview):
 		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._signer_public_key.serialize()
@@ -787,44 +834,231 @@ class EmbeddedTransaction:
 		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
 		buffer += self._network.serialize()
 		buffer += self._type_.serialize()
-		return buffer
 
 	def __str__(self) -> str:
 		result = '('
 		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
 		result += f'version: 0x{self._version:X}, '
 		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += f'type: {self._type_.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {}
+		result['signer_public_key'] = self._signer_public_key.to_json()
+		result['version'] = self._version
+		result['network'] = self._network.to_json()
+		result['type'] = self._type_.to_json()
+		return result
 
-class AccountKeyLinkTransaction:
-	TRANSACTION_VERSION: int = 1
-	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_KEY_LINK
+
+class ProofGamma(ByteArray):
+	SIZE = 32
+
+	def __init__(self, proof_gamma: StrBytes = bytes(32)):
+		super().__init__(self.SIZE, proof_gamma, ProofGamma)
+
+	@property
+	def size(self) -> int:
+		return 32
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ProofGamma:
+		buffer = memoryview(payload)
+		return ProofGamma(ArrayHelpers.get_bytes(buffer, 32))
+
+	def serialize(self) -> bytes:
+		return self.bytes
+
+
+class ProofVerificationHash(ByteArray):
+	SIZE = 16
+
+	def __init__(self, proof_verification_hash: StrBytes = bytes(16)):
+		super().__init__(self.SIZE, proof_verification_hash, ProofVerificationHash)
+
+	@property
+	def size(self) -> int:
+		return 16
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ProofVerificationHash:
+		buffer = memoryview(payload)
+		return ProofVerificationHash(ArrayHelpers.get_bytes(buffer, 16))
+
+	def serialize(self) -> bytes:
+		return self.bytes
+
+
+class ProofScalar(ByteArray):
+	SIZE = 32
+
+	def __init__(self, proof_scalar: StrBytes = bytes(32)):
+		super().__init__(self.SIZE, proof_scalar, ProofScalar)
+
+	@property
+	def size(self) -> int:
+		return 32
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ProofScalar:
+		buffer = memoryview(payload)
+		return ProofScalar(ArrayHelpers.get_bytes(buffer, 32))
+
+	def serialize(self) -> bytes:
+		return self.bytes
+
+
+class BlockType(Enum):
+	NEMESIS = 32835
+	NORMAL = 33091
+	IMPORTANCE = 33347
+
+	@property
+	def size(self) -> int:
+		return 2
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> BlockType:
+		buffer = memoryview(payload)
+		return BlockType(int.from_bytes(buffer[:2], byteorder='little', signed=False))
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self.value.to_bytes(2, byteorder='little', signed=False)
+		return buffer
+
+	def to_json(self):
+		return self.value
+
+
+class VrfProof:
+	TYPE_HINTS = {
+		'gamma': 'pod:ProofGamma',
+		'verification_hash': 'pod:ProofVerificationHash',
+		'scalar': 'pod:ProofScalar'
+	}
+
+	def __init__(self):
+		self._gamma = ProofGamma()
+		self._verification_hash = ProofVerificationHash()
+		self._scalar = ProofScalar()
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def gamma(self) -> ProofGamma:
+		return self._gamma
+
+	@property
+	def verification_hash(self) -> ProofVerificationHash:
+		return self._verification_hash
+
+	@property
+	def scalar(self) -> ProofScalar:
+		return self._scalar
+
+	@gamma.setter
+	def gamma(self, value: ProofGamma):
+		self._gamma = value
+
+	@verification_hash.setter
+	def verification_hash(self, value: ProofVerificationHash):
+		self._verification_hash = value
+
+	@scalar.setter
+	def scalar(self, value: ProofScalar):
+		self._scalar = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.gamma.size
+		size += self.verification_hash.size
+		size += self.scalar.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> VrfProof:
+		buffer = memoryview(payload)
+		instance = VrfProof()
+		gamma = ProofGamma.deserialize(buffer)
+		buffer = buffer[gamma.size:]
+		verification_hash = ProofVerificationHash.deserialize(buffer)
+		buffer = buffer[verification_hash.size:]
+		scalar = ProofScalar.deserialize(buffer)
+		buffer = buffer[scalar.size:]
+
+		# pylint: disable=protected-access
+		instance._gamma = gamma
+		instance._verification_hash = verification_hash
+		instance._scalar = scalar
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._gamma.serialize()
+		buffer += self._verification_hash.serialize()
+		buffer += self._scalar.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'gamma: {self._gamma.__str__()}, '
+		result += f'verification_hash: {self._verification_hash.__str__()}, '
+		result += f'scalar: {self._scalar.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['gamma'] = self._gamma.to_json()
+		result['verification_hash'] = self._verification_hash.to_json()
+		result['scalar'] = self._scalar.to_json()
+		return result
+
+
+class Block:
 	TYPE_HINTS = {
 		'signature': 'pod:Signature',
 		'signer_public_key': 'pod:PublicKey',
 		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
-		'linked_public_key': 'pod:PublicKey',
-		'link_action': 'enum:LinkAction'
+		'type_': 'enum:BlockType',
+		'height': 'pod:Height',
+		'timestamp': 'pod:Timestamp',
+		'difficulty': 'pod:Difficulty',
+		'generation_hash_proof': 'struct:VrfProof',
+		'previous_block_hash': 'pod:Hash256',
+		'transactions_hash': 'pod:Hash256',
+		'receipts_hash': 'pod:Hash256',
+		'state_hash': 'pod:Hash256',
+		'beneficiary_address': 'pod:Address',
+		'fee_multiplier': 'pod:BlockFeeMultiplier'
 	}
 
 	def __init__(self):
 		self._signature = Signature()
 		self._signer_public_key = PublicKey()
-		self._version = AccountKeyLinkTransaction.TRANSACTION_VERSION
+		self._version = 0
 		self._network = NetworkType.MAINNET
-		self._type_ = AccountKeyLinkTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
-		self._linked_public_key = PublicKey()
-		self._link_action = LinkAction.UNLINK
+		self._type_ = BlockType.NEMESIS
+		self._height = Height()
+		self._timestamp = Timestamp()
+		self._difficulty = Difficulty()
+		self._generation_hash_proof = VrfProof()
+		self._previous_block_hash = Hash256()
+		self._transactions_hash = Hash256()
+		self._receipts_hash = Hash256()
+		self._state_hash = Hash256()
+		self._beneficiary_address = Address()
+		self._fee_multiplier = BlockFeeMultiplier()
 		self._verifiable_entity_header_reserved_1 = 0  # reserved field
 		self._entity_body_reserved_1 = 0  # reserved field
+
+	def sort(self) -> None:
+		self._generation_hash_proof.sort()
 
 	@property
 	def signature(self) -> Signature:
@@ -843,24 +1077,48 @@ class AccountKeyLinkTransaction:
 		return self._network
 
 	@property
-	def type_(self) -> TransactionType:
+	def type_(self) -> BlockType:
 		return self._type_
 
 	@property
-	def fee(self) -> Amount:
-		return self._fee
+	def height(self) -> Height:
+		return self._height
 
 	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def timestamp(self) -> Timestamp:
+		return self._timestamp
 
 	@property
-	def linked_public_key(self) -> PublicKey:
-		return self._linked_public_key
+	def difficulty(self) -> Difficulty:
+		return self._difficulty
 
 	@property
-	def link_action(self) -> LinkAction:
-		return self._link_action
+	def generation_hash_proof(self) -> VrfProof:
+		return self._generation_hash_proof
+
+	@property
+	def previous_block_hash(self) -> Hash256:
+		return self._previous_block_hash
+
+	@property
+	def transactions_hash(self) -> Hash256:
+		return self._transactions_hash
+
+	@property
+	def receipts_hash(self) -> Hash256:
+		return self._receipts_hash
+
+	@property
+	def state_hash(self) -> Hash256:
+		return self._state_hash
+
+	@property
+	def beneficiary_address(self) -> Address:
+		return self._beneficiary_address
+
+	@property
+	def fee_multiplier(self) -> BlockFeeMultiplier:
+		return self._fee_multiplier
 
 	@signature.setter
 	def signature(self, value: Signature):
@@ -879,24 +1137,48 @@ class AccountKeyLinkTransaction:
 		self._network = value
 
 	@type_.setter
-	def type_(self, value: TransactionType):
+	def type_(self, value: BlockType):
 		self._type_ = value
 
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
+	@height.setter
+	def height(self, value: Height):
+		self._height = value
 
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
+	@timestamp.setter
+	def timestamp(self, value: Timestamp):
+		self._timestamp = value
 
-	@linked_public_key.setter
-	def linked_public_key(self, value: PublicKey):
-		self._linked_public_key = value
+	@difficulty.setter
+	def difficulty(self, value: Difficulty):
+		self._difficulty = value
 
-	@link_action.setter
-	def link_action(self, value: LinkAction):
-		self._link_action = value
+	@generation_hash_proof.setter
+	def generation_hash_proof(self, value: VrfProof):
+		self._generation_hash_proof = value
+
+	@previous_block_hash.setter
+	def previous_block_hash(self, value: Hash256):
+		self._previous_block_hash = value
+
+	@transactions_hash.setter
+	def transactions_hash(self, value: Hash256):
+		self._transactions_hash = value
+
+	@receipts_hash.setter
+	def receipts_hash(self, value: Hash256):
+		self._receipts_hash = value
+
+	@state_hash.setter
+	def state_hash(self, value: Hash256):
+		self._state_hash = value
+
+	@beneficiary_address.setter
+	def beneficiary_address(self, value: Address):
+		self._beneficiary_address = value
+
+	@fee_multiplier.setter
+	def fee_multiplier(self, value: BlockFeeMultiplier):
+		self._fee_multiplier = value
 
 	@property
 	def size(self) -> int:
@@ -909,19 +1191,22 @@ class AccountKeyLinkTransaction:
 		size += 1
 		size += self.network.size
 		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
-		size += self.linked_public_key.size
-		size += self.link_action.size
+		size += self.height.size
+		size += self.timestamp.size
+		size += self.difficulty.size
+		size += self.generation_hash_proof.size
+		size += self.previous_block_hash.size
+		size += self.transactions_hash.size
+		size += self.receipts_hash.size
+		size += self.state_hash.size
+		size += self.beneficiary_address.size
+		size += self.fee_multiplier.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountKeyLinkTransaction:
-		buffer = memoryview(payload)
+	def _deserialize(cls, buffer: memoryview, instance) -> (int, int):
 		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
+		buffer = buffer[4:size_]
 		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
 		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
@@ -936,31 +1221,53 @@ class AccountKeyLinkTransaction:
 		buffer = buffer[1:]
 		network = NetworkType.deserialize(buffer)
 		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
+		type_ = BlockType.deserialize(buffer)
 		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
-		linked_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[linked_public_key.size:]
-		link_action = LinkAction.deserialize(buffer)
-		buffer = buffer[link_action.size:]
+		height = Height.deserialize(buffer)
+		buffer = buffer[height.size:]
+		timestamp = Timestamp.deserialize(buffer)
+		buffer = buffer[timestamp.size:]
+		difficulty = Difficulty.deserialize(buffer)
+		buffer = buffer[difficulty.size:]
+		generation_hash_proof = VrfProof.deserialize(buffer)
+		buffer = buffer[generation_hash_proof.size:]
+		previous_block_hash = Hash256.deserialize(buffer)
+		buffer = buffer[previous_block_hash.size:]
+		transactions_hash = Hash256.deserialize(buffer)
+		buffer = buffer[transactions_hash.size:]
+		receipts_hash = Hash256.deserialize(buffer)
+		buffer = buffer[receipts_hash.size:]
+		state_hash = Hash256.deserialize(buffer)
+		buffer = buffer[state_hash.size:]
+		beneficiary_address = Address.deserialize(buffer)
+		buffer = buffer[beneficiary_address.size:]
+		fee_multiplier = BlockFeeMultiplier.deserialize(buffer)
+		buffer = buffer[fee_multiplier.size:]
 
-		instance = AccountKeyLinkTransaction()
+		# pylint: disable=protected-access
 		instance._signature = signature
 		instance._signer_public_key = signer_public_key
 		instance._version = version
 		instance._network = network
 		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
-		instance._linked_public_key = linked_public_key
-		instance._link_action = link_action
-		return instance
+		instance._height = height
+		instance._timestamp = timestamp
+		instance._difficulty = difficulty
+		instance._generation_hash_proof = generation_hash_proof
+		instance._previous_block_hash = previous_block_hash
+		instance._transactions_hash = transactions_hash
+		instance._receipts_hash = receipts_hash
+		instance._state_hash = state_hash
+		instance._beneficiary_address = beneficiary_address
+		instance._fee_multiplier = fee_multiplier
+		return (size_ - len(buffer), size_)
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
+		self._serialize(buffer)
+		return buffer
+
+	def _serialize(self, buffer: memoryview):
 		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
 		buffer += self._signature.serialize()
@@ -969,11 +1276,16 @@ class AccountKeyLinkTransaction:
 		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
 		buffer += self._network.serialize()
 		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
-		buffer += self._linked_public_key.serialize()
-		buffer += self._link_action.serialize()
-		return buffer
+		buffer += self._height.serialize()
+		buffer += self._timestamp.serialize()
+		buffer += self._difficulty.serialize()
+		buffer += self._generation_hash_proof.serialize()
+		buffer += self._previous_block_hash.serialize()
+		buffer += self._transactions_hash.serialize()
+		buffer += self._receipts_hash.serialize()
+		buffer += self._state_hash.serialize()
+		buffer += self._beneficiary_address.serialize()
+		buffer += self._fee_multiplier.serialize()
 
 	def __str__(self) -> str:
 		result = '('
@@ -981,51 +1293,2251 @@ class AccountKeyLinkTransaction:
 		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
 		result += f'version: 0x{self._version:X}, '
 		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
-		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
-		result += f'link_action: {self._link_action.__str__()}, '
+		result += f'type: {self._type_.__str__()}, '
+		result += f'height: {self._height.__str__()}, '
+		result += f'timestamp: {self._timestamp.__str__()}, '
+		result += f'difficulty: {self._difficulty.__str__()}, '
+		result += f'generation_hash_proof: {self._generation_hash_proof.__str__()}, '
+		result += f'previous_block_hash: {self._previous_block_hash.__str__()}, '
+		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
+		result += f'receipts_hash: {self._receipts_hash.__str__()}, '
+		result += f'state_hash: {self._state_hash.__str__()}, '
+		result += f'beneficiary_address: {self._beneficiary_address.__str__()}, '
+		result += f'fee_multiplier: {self._fee_multiplier.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {}
+		result['signature'] = self._signature.to_json()
+		result['signer_public_key'] = self._signer_public_key.to_json()
+		result['version'] = self._version
+		result['network'] = self._network.to_json()
+		result['type'] = self._type_.to_json()
+		result['height'] = self._height.to_json()
+		result['timestamp'] = self._timestamp.to_json()
+		result['difficulty'] = self._difficulty.to_json()
+		result['generation_hash_proof'] = self._generation_hash_proof.to_json()
+		result['previous_block_hash'] = self._previous_block_hash.to_json()
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['receipts_hash'] = self._receipts_hash.to_json()
+		result['state_hash'] = self._state_hash.to_json()
+		result['beneficiary_address'] = self._beneficiary_address.to_json()
+		result['fee_multiplier'] = self._fee_multiplier.to_json()
+		return result
 
-class EmbeddedAccountKeyLinkTransaction:
+
+class NemesisBlockV1(Block):
+	BLOCK_VERSION: int = 1
+	BLOCK_TYPE: BlockType = BlockType.NEMESIS
+	TYPE_HINTS = {
+		**Block.TYPE_HINTS,
+		'total_voting_balance': 'pod:Amount',
+		'previous_importance_block_hash': 'pod:Hash256',
+		'transactions': 'array[Transaction]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = NemesisBlockV1.BLOCK_VERSION
+		self._type_ = NemesisBlockV1.BLOCK_TYPE
+		self._voting_eligible_accounts_count = 0
+		self._harvesting_eligible_accounts_count = 0
+		self._total_voting_balance = Amount()
+		self._previous_importance_block_hash = Hash256()
+		self._transactions = []
+
+	def sort(self) -> None:
+		self._generation_hash_proof.sort()
+
+	@property
+	def voting_eligible_accounts_count(self) -> int:
+		return self._voting_eligible_accounts_count
+
+	@property
+	def harvesting_eligible_accounts_count(self) -> int:
+		return self._harvesting_eligible_accounts_count
+
+	@property
+	def total_voting_balance(self) -> Amount:
+		return self._total_voting_balance
+
+	@property
+	def previous_importance_block_hash(self) -> Hash256:
+		return self._previous_importance_block_hash
+
+	@property
+	def transactions(self) -> List[Transaction]:
+		return self._transactions
+
+	@voting_eligible_accounts_count.setter
+	def voting_eligible_accounts_count(self, value: int):
+		self._voting_eligible_accounts_count = value
+
+	@harvesting_eligible_accounts_count.setter
+	def harvesting_eligible_accounts_count(self, value: int):
+		self._harvesting_eligible_accounts_count = value
+
+	@total_voting_balance.setter
+	def total_voting_balance(self, value: Amount):
+		self._total_voting_balance = value
+
+	@previous_importance_block_hash.setter
+	def previous_importance_block_hash(self, value: Hash256):
+		self._previous_importance_block_hash = value
+
+	@transactions.setter
+	def transactions(self, value: List[Transaction]):
+		self._transactions = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += 4
+		size += 8
+		size += self.total_voting_balance.size
+		size += self.previous_importance_block_hash.size
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=True)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NemesisBlockV1:
+		buffer = memoryview(payload)
+		instance = NemesisBlockV1()
+		(window_start, window_end) = Block._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		voting_eligible_accounts_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		harvesting_eligible_accounts_count = int.from_bytes(buffer[:8], byteorder='little', signed=False)
+		buffer = buffer[8:]
+		total_voting_balance = Amount.deserialize(buffer)
+		buffer = buffer[total_voting_balance.size:]
+		previous_importance_block_hash = Hash256.deserialize(buffer)
+		buffer = buffer[previous_importance_block_hash.size:]
+		transactions = ArrayHelpers.read_variable_size_elements(buffer, TransactionFactory, 8, skip_last_element_padding=True)
+		buffer = buffer[ArrayHelpers.size(transactions, 8, skip_last_element_padding=True):]
+
+		# pylint: disable=protected-access
+		instance._voting_eligible_accounts_count = voting_eligible_accounts_count
+		instance._harvesting_eligible_accounts_count = harvesting_eligible_accounts_count
+		instance._total_voting_balance = total_voting_balance
+		instance._previous_importance_block_hash = previous_importance_block_hash
+		instance._transactions = transactions
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._voting_eligible_accounts_count.to_bytes(4, byteorder='little', signed=False)
+		buffer += self._harvesting_eligible_accounts_count.to_bytes(8, byteorder='little', signed=False)
+		buffer += self._total_voting_balance.serialize()
+		buffer += self._previous_importance_block_hash.serialize()
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=True)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'voting_eligible_accounts_count: 0x{self._voting_eligible_accounts_count:X}, '
+		result += f'harvesting_eligible_accounts_count: 0x{self._harvesting_eligible_accounts_count:X}, '
+		result += f'total_voting_balance: {self._total_voting_balance.__str__()}, '
+		result += f'previous_importance_block_hash: {self._previous_importance_block_hash.__str__()}, '
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['voting_eligible_accounts_count'] = self._voting_eligible_accounts_count
+		result['harvesting_eligible_accounts_count'] = str(self._harvesting_eligible_accounts_count)
+		result['total_voting_balance'] = self._total_voting_balance.to_json()
+		result['previous_importance_block_hash'] = self._previous_importance_block_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		return result
+
+
+class NormalBlockV1(Block):
+	BLOCK_VERSION: int = 1
+	BLOCK_TYPE: BlockType = BlockType.NORMAL
+	TYPE_HINTS = {
+		**Block.TYPE_HINTS,
+		'transactions': 'array[Transaction]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = NormalBlockV1.BLOCK_VERSION
+		self._type_ = NormalBlockV1.BLOCK_TYPE
+		self._transactions = []
+		self._block_header_reserved_1 = 0  # reserved field
+
+	def sort(self) -> None:
+		self._generation_hash_proof.sort()
+
+	@property
+	def transactions(self) -> List[Transaction]:
+		return self._transactions
+
+	@transactions.setter
+	def transactions(self, value: List[Transaction]):
+		self._transactions = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += 4
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=True)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NormalBlockV1:
+		buffer = memoryview(payload)
+		instance = NormalBlockV1()
+		(window_start, window_end) = Block._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		block_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		assert block_header_reserved_1 == 0, f'Invalid value of reserved field ({block_header_reserved_1})'
+		transactions = ArrayHelpers.read_variable_size_elements(buffer, TransactionFactory, 8, skip_last_element_padding=True)
+		buffer = buffer[ArrayHelpers.size(transactions, 8, skip_last_element_padding=True):]
+
+		# pylint: disable=protected-access
+		instance._transactions = transactions
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._block_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=True)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		return result
+
+
+class ImportanceBlockV1(Block):
+	BLOCK_VERSION: int = 1
+	BLOCK_TYPE: BlockType = BlockType.IMPORTANCE
+	TYPE_HINTS = {
+		**Block.TYPE_HINTS,
+		'total_voting_balance': 'pod:Amount',
+		'previous_importance_block_hash': 'pod:Hash256',
+		'transactions': 'array[Transaction]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = ImportanceBlockV1.BLOCK_VERSION
+		self._type_ = ImportanceBlockV1.BLOCK_TYPE
+		self._voting_eligible_accounts_count = 0
+		self._harvesting_eligible_accounts_count = 0
+		self._total_voting_balance = Amount()
+		self._previous_importance_block_hash = Hash256()
+		self._transactions = []
+
+	def sort(self) -> None:
+		self._generation_hash_proof.sort()
+
+	@property
+	def voting_eligible_accounts_count(self) -> int:
+		return self._voting_eligible_accounts_count
+
+	@property
+	def harvesting_eligible_accounts_count(self) -> int:
+		return self._harvesting_eligible_accounts_count
+
+	@property
+	def total_voting_balance(self) -> Amount:
+		return self._total_voting_balance
+
+	@property
+	def previous_importance_block_hash(self) -> Hash256:
+		return self._previous_importance_block_hash
+
+	@property
+	def transactions(self) -> List[Transaction]:
+		return self._transactions
+
+	@voting_eligible_accounts_count.setter
+	def voting_eligible_accounts_count(self, value: int):
+		self._voting_eligible_accounts_count = value
+
+	@harvesting_eligible_accounts_count.setter
+	def harvesting_eligible_accounts_count(self, value: int):
+		self._harvesting_eligible_accounts_count = value
+
+	@total_voting_balance.setter
+	def total_voting_balance(self, value: Amount):
+		self._total_voting_balance = value
+
+	@previous_importance_block_hash.setter
+	def previous_importance_block_hash(self, value: Hash256):
+		self._previous_importance_block_hash = value
+
+	@transactions.setter
+	def transactions(self, value: List[Transaction]):
+		self._transactions = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += 4
+		size += 8
+		size += self.total_voting_balance.size
+		size += self.previous_importance_block_hash.size
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=True)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ImportanceBlockV1:
+		buffer = memoryview(payload)
+		instance = ImportanceBlockV1()
+		(window_start, window_end) = Block._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		voting_eligible_accounts_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		harvesting_eligible_accounts_count = int.from_bytes(buffer[:8], byteorder='little', signed=False)
+		buffer = buffer[8:]
+		total_voting_balance = Amount.deserialize(buffer)
+		buffer = buffer[total_voting_balance.size:]
+		previous_importance_block_hash = Hash256.deserialize(buffer)
+		buffer = buffer[previous_importance_block_hash.size:]
+		transactions = ArrayHelpers.read_variable_size_elements(buffer, TransactionFactory, 8, skip_last_element_padding=True)
+		buffer = buffer[ArrayHelpers.size(transactions, 8, skip_last_element_padding=True):]
+
+		# pylint: disable=protected-access
+		instance._voting_eligible_accounts_count = voting_eligible_accounts_count
+		instance._harvesting_eligible_accounts_count = harvesting_eligible_accounts_count
+		instance._total_voting_balance = total_voting_balance
+		instance._previous_importance_block_hash = previous_importance_block_hash
+		instance._transactions = transactions
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._voting_eligible_accounts_count.to_bytes(4, byteorder='little', signed=False)
+		buffer += self._harvesting_eligible_accounts_count.to_bytes(8, byteorder='little', signed=False)
+		buffer += self._total_voting_balance.serialize()
+		buffer += self._previous_importance_block_hash.serialize()
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=True)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'voting_eligible_accounts_count: 0x{self._voting_eligible_accounts_count:X}, '
+		result += f'harvesting_eligible_accounts_count: 0x{self._harvesting_eligible_accounts_count:X}, '
+		result += f'total_voting_balance: {self._total_voting_balance.__str__()}, '
+		result += f'previous_importance_block_hash: {self._previous_importance_block_hash.__str__()}, '
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['voting_eligible_accounts_count'] = self._voting_eligible_accounts_count
+		result['harvesting_eligible_accounts_count'] = str(self._harvesting_eligible_accounts_count)
+		result['total_voting_balance'] = self._total_voting_balance.to_json()
+		result['previous_importance_block_hash'] = self._previous_importance_block_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		return result
+
+
+class FinalizationRound:
+	TYPE_HINTS = {
+		'epoch': 'pod:FinalizationEpoch',
+		'point': 'pod:FinalizationPoint'
+	}
+
+	def __init__(self):
+		self._epoch = FinalizationEpoch()
+		self._point = FinalizationPoint()
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def epoch(self) -> FinalizationEpoch:
+		return self._epoch
+
+	@property
+	def point(self) -> FinalizationPoint:
+		return self._point
+
+	@epoch.setter
+	def epoch(self, value: FinalizationEpoch):
+		self._epoch = value
+
+	@point.setter
+	def point(self, value: FinalizationPoint):
+		self._point = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.epoch.size
+		size += self.point.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> FinalizationRound:
+		buffer = memoryview(payload)
+		instance = FinalizationRound()
+		epoch = FinalizationEpoch.deserialize(buffer)
+		buffer = buffer[epoch.size:]
+		point = FinalizationPoint.deserialize(buffer)
+		buffer = buffer[point.size:]
+
+		# pylint: disable=protected-access
+		instance._epoch = epoch
+		instance._point = point
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._epoch.serialize()
+		buffer += self._point.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'epoch: {self._epoch.__str__()}, '
+		result += f'point: {self._point.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['epoch'] = self._epoch.to_json()
+		result['point'] = self._point.to_json()
+		return result
+
+
+class FinalizedBlockHeader:
+	TYPE_HINTS = {
+		'round': 'struct:FinalizationRound',
+		'height': 'pod:Height',
+		'hash': 'pod:Hash256'
+	}
+
+	def __init__(self):
+		self._round = FinalizationRound()
+		self._height = Height()
+		self._hash = Hash256()
+
+	def sort(self) -> None:
+		self._round.sort()
+
+	@property
+	def round(self) -> FinalizationRound:
+		return self._round
+
+	@property
+	def height(self) -> Height:
+		return self._height
+
+	@property
+	def hash(self) -> Hash256:
+		return self._hash
+
+	@round.setter
+	def round(self, value: FinalizationRound):
+		self._round = value
+
+	@height.setter
+	def height(self, value: Height):
+		self._height = value
+
+	@hash.setter
+	def hash(self, value: Hash256):
+		self._hash = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.round.size
+		size += self.height.size
+		size += self.hash.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> FinalizedBlockHeader:
+		buffer = memoryview(payload)
+		instance = FinalizedBlockHeader()
+		round = FinalizationRound.deserialize(buffer)
+		buffer = buffer[round.size:]
+		height = Height.deserialize(buffer)
+		buffer = buffer[height.size:]
+		hash = Hash256.deserialize(buffer)
+		buffer = buffer[hash.size:]
+
+		# pylint: disable=protected-access
+		instance._round = round
+		instance._height = height
+		instance._hash = hash
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._round.serialize()
+		buffer += self._height.serialize()
+		buffer += self._hash.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'round: {self._round.__str__()}, '
+		result += f'height: {self._height.__str__()}, '
+		result += f'hash: {self._hash.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['round'] = self._round.to_json()
+		result['height'] = self._height.to_json()
+		result['hash'] = self._hash.to_json()
+		return result
+
+
+class ReceiptType(Enum):
+	MOSAIC_RENTAL_FEE = 4685
+	NAMESPACE_RENTAL_FEE = 4942
+	HARVEST_FEE = 8515
+	LOCK_HASH_COMPLETED = 8776
+	LOCK_HASH_EXPIRED = 9032
+	LOCK_SECRET_COMPLETED = 8786
+	LOCK_SECRET_EXPIRED = 9042
+	LOCK_HASH_CREATED = 12616
+	LOCK_SECRET_CREATED = 12626
+	MOSAIC_EXPIRED = 16717
+	NAMESPACE_EXPIRED = 16718
+	NAMESPACE_DELETED = 16974
+	INFLATION = 20803
+	TRANSACTION_GROUP = 57667
+	ADDRESS_ALIAS_RESOLUTION = 61763
+	MOSAIC_ALIAS_RESOLUTION = 62019
+
+	@property
+	def size(self) -> int:
+		return 2
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ReceiptType:
+		buffer = memoryview(payload)
+		return ReceiptType(int.from_bytes(buffer[:2], byteorder='little', signed=False))
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self.value.to_bytes(2, byteorder='little', signed=False)
+		return buffer
+
+	def to_json(self):
+		return self.value
+
+
+class Receipt:
+	TYPE_HINTS = {
+		'type_': 'enum:ReceiptType'
+	}
+
+	def __init__(self):
+		self._version = 0
+		self._type_ = ReceiptType.MOSAIC_RENTAL_FEE
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def version(self) -> int:
+		return self._version
+
+	@property
+	def type_(self) -> ReceiptType:
+		return self._type_
+
+	@version.setter
+	def version(self, value: int):
+		self._version = value
+
+	@type_.setter
+	def type_(self, value: ReceiptType):
+		self._type_ = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += 4
+		size += 2
+		size += self.type_.size
+		return size
+
+	@classmethod
+	def _deserialize(cls, buffer: memoryview, instance) -> (int, int):
+		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:size_]
+		version = int.from_bytes(buffer[:2], byteorder='little', signed=False)
+		buffer = buffer[2:]
+		type_ = ReceiptType.deserialize(buffer)
+		buffer = buffer[type_.size:]
+
+		# pylint: disable=protected-access
+		instance._version = version
+		instance._type_ = type_
+		return (size_ - len(buffer), size_)
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		self._serialize(buffer)
+		return buffer
+
+	def _serialize(self, buffer: memoryview):
+		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
+		buffer += self._version.to_bytes(2, byteorder='little', signed=False)
+		buffer += self._type_.serialize()
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'version: 0x{self._version:X}, '
+		result += f'type: {self._type_.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['version'] = self._version
+		result['type'] = self._type_.to_json()
+		return result
+
+
+class HarvestFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.HARVEST_FEE
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = HarvestFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> HarvestFeeReceipt:
+		buffer = memoryview(payload)
+		instance = HarvestFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class InflationReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.INFLATION
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = InflationReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> InflationReceipt:
+		buffer = memoryview(payload)
+		instance = InflationReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		return result
+
+
+class LockHashCreatedFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.LOCK_HASH_CREATED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = LockHashCreatedFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockHashCreatedFeeReceipt:
+		buffer = memoryview(payload)
+		instance = LockHashCreatedFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class LockHashCompletedFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.LOCK_HASH_COMPLETED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = LockHashCompletedFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockHashCompletedFeeReceipt:
+		buffer = memoryview(payload)
+		instance = LockHashCompletedFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class LockHashExpiredFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.LOCK_HASH_EXPIRED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = LockHashExpiredFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockHashExpiredFeeReceipt:
+		buffer = memoryview(payload)
+		instance = LockHashExpiredFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class LockSecretCreatedFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.LOCK_SECRET_CREATED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = LockSecretCreatedFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockSecretCreatedFeeReceipt:
+		buffer = memoryview(payload)
+		instance = LockSecretCreatedFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class LockSecretCompletedFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.LOCK_SECRET_COMPLETED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = LockSecretCompletedFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockSecretCompletedFeeReceipt:
+		buffer = memoryview(payload)
+		instance = LockSecretCompletedFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class LockSecretExpiredFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.LOCK_SECRET_EXPIRED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'target_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = LockSecretExpiredFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._target_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def target_address(self) -> Address:
+		return self._target_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@target_address.setter
+	def target_address(self, value: Address):
+		self._target_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.target_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockSecretExpiredFeeReceipt:
+		buffer = memoryview(payload)
+		instance = LockSecretExpiredFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		target_address = Address.deserialize(buffer)
+		buffer = buffer[target_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._target_address = target_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._target_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'target_address: {self._target_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['target_address'] = self._target_address.to_json()
+		return result
+
+
+class MosaicExpiredReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.MOSAIC_EXPIRED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'artifact_id': 'pod:MosaicId'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = MosaicExpiredReceipt.RECEIPT_TYPE
+		self._artifact_id = MosaicId()
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def artifact_id(self) -> MosaicId:
+		return self._artifact_id
+
+	@artifact_id.setter
+	def artifact_id(self, value: MosaicId):
+		self._artifact_id = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.artifact_id.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicExpiredReceipt:
+		buffer = memoryview(payload)
+		instance = MosaicExpiredReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		artifact_id = MosaicId.deserialize(buffer)
+		buffer = buffer[artifact_id.size:]
+
+		# pylint: disable=protected-access
+		instance._artifact_id = artifact_id
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._artifact_id.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'artifact_id: {self._artifact_id.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['artifact_id'] = self._artifact_id.to_json()
+		return result
+
+
+class MosaicRentalFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.MOSAIC_RENTAL_FEE
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'sender_address': 'pod:Address',
+		'recipient_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = MosaicRentalFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._sender_address = Address()
+		self._recipient_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def sender_address(self) -> Address:
+		return self._sender_address
+
+	@property
+	def recipient_address(self) -> Address:
+		return self._recipient_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@sender_address.setter
+	def sender_address(self, value: Address):
+		self._sender_address = value
+
+	@recipient_address.setter
+	def recipient_address(self, value: Address):
+		self._recipient_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.sender_address.size
+		size += self.recipient_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicRentalFeeReceipt:
+		buffer = memoryview(payload)
+		instance = MosaicRentalFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		sender_address = Address.deserialize(buffer)
+		buffer = buffer[sender_address.size:]
+		recipient_address = Address.deserialize(buffer)
+		buffer = buffer[recipient_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._sender_address = sender_address
+		instance._recipient_address = recipient_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._sender_address.serialize()
+		buffer += self._recipient_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'sender_address: {self._sender_address.__str__()}, '
+		result += f'recipient_address: {self._recipient_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['sender_address'] = self._sender_address.to_json()
+		result['recipient_address'] = self._recipient_address.to_json()
+		return result
+
+
+class NamespaceId(BaseValue):
+	SIZE = 8
+
+	def __init__(self, namespace_id: int = 0):
+		super().__init__(self.SIZE, namespace_id, NamespaceId)
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceId:
+		buffer = memoryview(payload)
+		return NamespaceId(int.from_bytes(buffer[:8], byteorder='little', signed=False))
+
+	def serialize(self) -> bytes:
+		return self.value.to_bytes(8, byteorder='little', signed=False)
+
+
+class NamespaceRegistrationType(Enum):
+	ROOT = 0
+	CHILD = 1
+
+	@property
+	def size(self) -> int:
+		return 1
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceRegistrationType:
+		buffer = memoryview(payload)
+		return NamespaceRegistrationType(int.from_bytes(buffer[:1], byteorder='little', signed=False))
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
+		return buffer
+
+	def to_json(self):
+		return self.value
+
+
+class AliasAction(Enum):
+	UNLINK = 0
+	LINK = 1
+
+	@property
+	def size(self) -> int:
+		return 1
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AliasAction:
+		buffer = memoryview(payload)
+		return AliasAction(int.from_bytes(buffer[:1], byteorder='little', signed=False))
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
+		return buffer
+
+	def to_json(self):
+		return self.value
+
+
+class NamespaceExpiredReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.NAMESPACE_EXPIRED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'artifact_id': 'pod:NamespaceId'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = NamespaceExpiredReceipt.RECEIPT_TYPE
+		self._artifact_id = NamespaceId()
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def artifact_id(self) -> NamespaceId:
+		return self._artifact_id
+
+	@artifact_id.setter
+	def artifact_id(self, value: NamespaceId):
+		self._artifact_id = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.artifact_id.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceExpiredReceipt:
+		buffer = memoryview(payload)
+		instance = NamespaceExpiredReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		artifact_id = NamespaceId.deserialize(buffer)
+		buffer = buffer[artifact_id.size:]
+
+		# pylint: disable=protected-access
+		instance._artifact_id = artifact_id
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._artifact_id.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'artifact_id: {self._artifact_id.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['artifact_id'] = self._artifact_id.to_json()
+		return result
+
+
+class NamespaceDeletedReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.NAMESPACE_DELETED
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'artifact_id': 'pod:NamespaceId'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = NamespaceDeletedReceipt.RECEIPT_TYPE
+		self._artifact_id = NamespaceId()
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def artifact_id(self) -> NamespaceId:
+		return self._artifact_id
+
+	@artifact_id.setter
+	def artifact_id(self, value: NamespaceId):
+		self._artifact_id = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.artifact_id.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceDeletedReceipt:
+		buffer = memoryview(payload)
+		instance = NamespaceDeletedReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		artifact_id = NamespaceId.deserialize(buffer)
+		buffer = buffer[artifact_id.size:]
+
+		# pylint: disable=protected-access
+		instance._artifact_id = artifact_id
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._artifact_id.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'artifact_id: {self._artifact_id.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['artifact_id'] = self._artifact_id.to_json()
+		return result
+
+
+class NamespaceRentalFeeReceipt(Receipt):
+	RECEIPT_TYPE: ReceiptType = ReceiptType.NAMESPACE_RENTAL_FEE
+	TYPE_HINTS = {
+		**Receipt.TYPE_HINTS,
+		'mosaic': 'struct:Mosaic',
+		'sender_address': 'pod:Address',
+		'recipient_address': 'pod:Address'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._type_ = NamespaceRentalFeeReceipt.RECEIPT_TYPE
+		self._mosaic = Mosaic()
+		self._sender_address = Address()
+		self._recipient_address = Address()
+
+	def sort(self) -> None:
+		self._mosaic.sort()
+
+	@property
+	def mosaic(self) -> Mosaic:
+		return self._mosaic
+
+	@property
+	def sender_address(self) -> Address:
+		return self._sender_address
+
+	@property
+	def recipient_address(self) -> Address:
+		return self._recipient_address
+
+	@mosaic.setter
+	def mosaic(self, value: Mosaic):
+		self._mosaic = value
+
+	@sender_address.setter
+	def sender_address(self, value: Address):
+		self._sender_address = value
+
+	@recipient_address.setter
+	def recipient_address(self, value: Address):
+		self._recipient_address = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.mosaic.size
+		size += self.sender_address.size
+		size += self.recipient_address.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceRentalFeeReceipt:
+		buffer = memoryview(payload)
+		instance = NamespaceRentalFeeReceipt()
+		(window_start, window_end) = Receipt._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		mosaic = Mosaic.deserialize(buffer)
+		buffer = buffer[mosaic.size:]
+		sender_address = Address.deserialize(buffer)
+		buffer = buffer[sender_address.size:]
+		recipient_address = Address.deserialize(buffer)
+		buffer = buffer[recipient_address.size:]
+
+		# pylint: disable=protected-access
+		instance._mosaic = mosaic
+		instance._sender_address = sender_address
+		instance._recipient_address = recipient_address
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._mosaic.serialize()
+		buffer += self._sender_address.serialize()
+		buffer += self._recipient_address.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'mosaic: {self._mosaic.__str__()}, '
+		result += f'sender_address: {self._sender_address.__str__()}, '
+		result += f'recipient_address: {self._recipient_address.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['sender_address'] = self._sender_address.to_json()
+		result['recipient_address'] = self._recipient_address.to_json()
+		return result
+
+
+class ReceiptSource:
+	TYPE_HINTS = {
+	}
+
+	def __init__(self):
+		self._primary_id = 0
+		self._secondary_id = 0
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def primary_id(self) -> int:
+		return self._primary_id
+
+	@property
+	def secondary_id(self) -> int:
+		return self._secondary_id
+
+	@primary_id.setter
+	def primary_id(self, value: int):
+		self._primary_id = value
+
+	@secondary_id.setter
+	def secondary_id(self, value: int):
+		self._secondary_id = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += 4
+		size += 4
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> ReceiptSource:
+		buffer = memoryview(payload)
+		instance = ReceiptSource()
+		primary_id = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		secondary_id = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+
+		# pylint: disable=protected-access
+		instance._primary_id = primary_id
+		instance._secondary_id = secondary_id
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._primary_id.to_bytes(4, byteorder='little', signed=False)
+		buffer += self._secondary_id.to_bytes(4, byteorder='little', signed=False)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'primary_id: 0x{self._primary_id:X}, '
+		result += f'secondary_id: 0x{self._secondary_id:X}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['primary_id'] = self._primary_id
+		result['secondary_id'] = self._secondary_id
+		return result
+
+
+class AddressResolutionEntry:
+	TYPE_HINTS = {
+		'source': 'struct:ReceiptSource',
+		'resolved_value': 'pod:Address'
+	}
+
+	def __init__(self):
+		self._source = ReceiptSource()
+		self._resolved_value = Address()
+
+	def sort(self) -> None:
+		self._source.sort()
+
+	@property
+	def source(self) -> ReceiptSource:
+		return self._source
+
+	@property
+	def resolved_value(self) -> Address:
+		return self._resolved_value
+
+	@source.setter
+	def source(self, value: ReceiptSource):
+		self._source = value
+
+	@resolved_value.setter
+	def resolved_value(self, value: Address):
+		self._resolved_value = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.source.size
+		size += self.resolved_value.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AddressResolutionEntry:
+		buffer = memoryview(payload)
+		instance = AddressResolutionEntry()
+		source = ReceiptSource.deserialize(buffer)
+		buffer = buffer[source.size:]
+		resolved_value = Address.deserialize(buffer)
+		buffer = buffer[resolved_value.size:]
+
+		# pylint: disable=protected-access
+		instance._source = source
+		instance._resolved_value = resolved_value
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._source.serialize()
+		buffer += self._resolved_value.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'source: {self._source.__str__()}, '
+		result += f'resolved_value: {self._resolved_value.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['source'] = self._source.to_json()
+		result['resolved_value'] = self._resolved_value.to_json()
+		return result
+
+
+class AddressResolutionStatement:
+	TYPE_HINTS = {
+		'unresolved': 'pod:UnresolvedAddress',
+		'resolution_entries': 'array[AddressResolutionEntry]'
+	}
+
+	def __init__(self):
+		self._unresolved = UnresolvedAddress()
+		self._resolution_entries = []
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def unresolved(self) -> UnresolvedAddress:
+		return self._unresolved
+
+	@property
+	def resolution_entries(self) -> List[AddressResolutionEntry]:
+		return self._resolution_entries
+
+	@unresolved.setter
+	def unresolved(self, value: UnresolvedAddress):
+		self._unresolved = value
+
+	@resolution_entries.setter
+	def resolution_entries(self, value: List[AddressResolutionEntry]):
+		self._resolution_entries = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.unresolved.size
+		size += 4
+		size += ArrayHelpers.size(self.resolution_entries)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AddressResolutionStatement:
+		buffer = memoryview(payload)
+		instance = AddressResolutionStatement()
+		unresolved = UnresolvedAddress.deserialize(buffer)
+		buffer = buffer[unresolved.size:]
+		resolution_entries_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		resolution_entries = ArrayHelpers.read_array_count(buffer, AddressResolutionEntry, resolution_entries_count)
+		buffer = buffer[ArrayHelpers.size(resolution_entries):]
+
+		# pylint: disable=protected-access
+		instance._unresolved = unresolved
+		instance._resolution_entries = resolution_entries
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._unresolved.serialize()
+		buffer += len(self._resolution_entries).to_bytes(4, byteorder='little', signed=False)  # resolution_entries_count
+		buffer += ArrayHelpers.write_array(self._resolution_entries)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'unresolved: {self._unresolved.__str__()}, '
+		result += f'resolution_entries: {list(map(str, self._resolution_entries))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['unresolved'] = self._unresolved.to_json()
+		result['resolution_entries'] = [e.to_json() for e in self._resolution_entries]
+		return result
+
+
+class MosaicResolutionEntry:
+	TYPE_HINTS = {
+		'source': 'struct:ReceiptSource',
+		'resolved_value': 'pod:MosaicId'
+	}
+
+	def __init__(self):
+		self._source = ReceiptSource()
+		self._resolved_value = MosaicId()
+
+	def sort(self) -> None:
+		self._source.sort()
+
+	@property
+	def source(self) -> ReceiptSource:
+		return self._source
+
+	@property
+	def resolved_value(self) -> MosaicId:
+		return self._resolved_value
+
+	@source.setter
+	def source(self, value: ReceiptSource):
+		self._source = value
+
+	@resolved_value.setter
+	def resolved_value(self, value: MosaicId):
+		self._resolved_value = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.source.size
+		size += self.resolved_value.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicResolutionEntry:
+		buffer = memoryview(payload)
+		instance = MosaicResolutionEntry()
+		source = ReceiptSource.deserialize(buffer)
+		buffer = buffer[source.size:]
+		resolved_value = MosaicId.deserialize(buffer)
+		buffer = buffer[resolved_value.size:]
+
+		# pylint: disable=protected-access
+		instance._source = source
+		instance._resolved_value = resolved_value
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._source.serialize()
+		buffer += self._resolved_value.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'source: {self._source.__str__()}, '
+		result += f'resolved_value: {self._resolved_value.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['source'] = self._source.to_json()
+		result['resolved_value'] = self._resolved_value.to_json()
+		return result
+
+
+class MosaicResolutionStatement:
+	TYPE_HINTS = {
+		'unresolved': 'pod:UnresolvedMosaicId',
+		'resolution_entries': 'array[MosaicResolutionEntry]'
+	}
+
+	def __init__(self):
+		self._unresolved = UnresolvedMosaicId()
+		self._resolution_entries = []
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def unresolved(self) -> UnresolvedMosaicId:
+		return self._unresolved
+
+	@property
+	def resolution_entries(self) -> List[MosaicResolutionEntry]:
+		return self._resolution_entries
+
+	@unresolved.setter
+	def unresolved(self, value: UnresolvedMosaicId):
+		self._unresolved = value
+
+	@resolution_entries.setter
+	def resolution_entries(self, value: List[MosaicResolutionEntry]):
+		self._resolution_entries = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += self.unresolved.size
+		size += 4
+		size += ArrayHelpers.size(self.resolution_entries)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicResolutionStatement:
+		buffer = memoryview(payload)
+		instance = MosaicResolutionStatement()
+		unresolved = UnresolvedMosaicId.deserialize(buffer)
+		buffer = buffer[unresolved.size:]
+		resolution_entries_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		resolution_entries = ArrayHelpers.read_array_count(buffer, MosaicResolutionEntry, resolution_entries_count)
+		buffer = buffer[ArrayHelpers.size(resolution_entries):]
+
+		# pylint: disable=protected-access
+		instance._unresolved = unresolved
+		instance._resolution_entries = resolution_entries
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._unresolved.serialize()
+		buffer += len(self._resolution_entries).to_bytes(4, byteorder='little', signed=False)  # resolution_entries_count
+		buffer += ArrayHelpers.write_array(self._resolution_entries)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'unresolved: {self._unresolved.__str__()}, '
+		result += f'resolution_entries: {list(map(str, self._resolution_entries))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['unresolved'] = self._unresolved.to_json()
+		result['resolution_entries'] = [e.to_json() for e in self._resolution_entries]
+		return result
+
+
+class TransactionStatement:
+	TYPE_HINTS = {
+		'receipts': 'array[Receipt]'
+	}
+
+	def __init__(self):
+		self._primary_id = 0
+		self._secondary_id = 0
+		self._receipts = []
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def primary_id(self) -> int:
+		return self._primary_id
+
+	@property
+	def secondary_id(self) -> int:
+		return self._secondary_id
+
+	@property
+	def receipts(self) -> List[Receipt]:
+		return self._receipts
+
+	@primary_id.setter
+	def primary_id(self, value: int):
+		self._primary_id = value
+
+	@secondary_id.setter
+	def secondary_id(self, value: int):
+		self._secondary_id = value
+
+	@receipts.setter
+	def receipts(self, value: List[Receipt]):
+		self._receipts = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += 4
+		size += 4
+		size += 4
+		size += ArrayHelpers.size(self.receipts)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> TransactionStatement:
+		buffer = memoryview(payload)
+		instance = TransactionStatement()
+		primary_id = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		secondary_id = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		receipt_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		receipts = ArrayHelpers.read_array_count(buffer, ReceiptFactory, receipt_count)
+		buffer = buffer[ArrayHelpers.size(receipts):]
+
+		# pylint: disable=protected-access
+		instance._primary_id = primary_id
+		instance._secondary_id = secondary_id
+		instance._receipts = receipts
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += self._primary_id.to_bytes(4, byteorder='little', signed=False)
+		buffer += self._secondary_id.to_bytes(4, byteorder='little', signed=False)
+		buffer += len(self._receipts).to_bytes(4, byteorder='little', signed=False)  # receipt_count
+		buffer += ArrayHelpers.write_array(self._receipts)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'primary_id: 0x{self._primary_id:X}, '
+		result += f'secondary_id: 0x{self._secondary_id:X}, '
+		result += f'receipts: {list(map(str, self._receipts))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['primary_id'] = self._primary_id
+		result['secondary_id'] = self._secondary_id
+		result['receipts'] = [e.to_json() for e in self._receipts]
+		return result
+
+
+class BlockStatement:
+	TYPE_HINTS = {
+		'transaction_statements': 'array[TransactionStatement]',
+		'address_resolution_statements': 'array[AddressResolutionStatement]',
+		'mosaic_resolution_statements': 'array[MosaicResolutionStatement]'
+	}
+
+	def __init__(self):
+		self._transaction_statements = []
+		self._address_resolution_statements = []
+		self._mosaic_resolution_statements = []
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def transaction_statements(self) -> List[TransactionStatement]:
+		return self._transaction_statements
+
+	@property
+	def address_resolution_statements(self) -> List[AddressResolutionStatement]:
+		return self._address_resolution_statements
+
+	@property
+	def mosaic_resolution_statements(self) -> List[MosaicResolutionStatement]:
+		return self._mosaic_resolution_statements
+
+	@transaction_statements.setter
+	def transaction_statements(self, value: List[TransactionStatement]):
+		self._transaction_statements = value
+
+	@address_resolution_statements.setter
+	def address_resolution_statements(self, value: List[AddressResolutionStatement]):
+		self._address_resolution_statements = value
+
+	@mosaic_resolution_statements.setter
+	def mosaic_resolution_statements(self, value: List[MosaicResolutionStatement]):
+		self._mosaic_resolution_statements = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += 4
+		size += ArrayHelpers.size(self.transaction_statements)
+		size += 4
+		size += ArrayHelpers.size(self.address_resolution_statements)
+		size += 4
+		size += ArrayHelpers.size(self.mosaic_resolution_statements)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> BlockStatement:
+		buffer = memoryview(payload)
+		instance = BlockStatement()
+		transaction_statement_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		transaction_statements = ArrayHelpers.read_array_count(buffer, TransactionStatement, transaction_statement_count)
+		buffer = buffer[ArrayHelpers.size(transaction_statements):]
+		address_resolution_statement_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		address_resolution_statements = ArrayHelpers.read_array_count(buffer, AddressResolutionStatement, address_resolution_statement_count)
+		buffer = buffer[ArrayHelpers.size(address_resolution_statements):]
+		mosaic_resolution_statement_count = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		mosaic_resolution_statements = ArrayHelpers.read_array_count(buffer, MosaicResolutionStatement, mosaic_resolution_statement_count)
+		buffer = buffer[ArrayHelpers.size(mosaic_resolution_statements):]
+
+		# pylint: disable=protected-access
+		instance._transaction_statements = transaction_statements
+		instance._address_resolution_statements = address_resolution_statements
+		instance._mosaic_resolution_statements = mosaic_resolution_statements
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		buffer += len(self._transaction_statements).to_bytes(4, byteorder='little', signed=False)  # transaction_statement_count
+		buffer += ArrayHelpers.write_array(self._transaction_statements)
+		buffer += len(self._address_resolution_statements).to_bytes(4, byteorder='little', signed=False)  # address_resolution_statement_count
+		buffer += ArrayHelpers.write_array(self._address_resolution_statements)
+		buffer += len(self._mosaic_resolution_statements).to_bytes(4, byteorder='little', signed=False)  # mosaic_resolution_statement_count
+		buffer += ArrayHelpers.write_array(self._mosaic_resolution_statements)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += f'transaction_statements: {list(map(str, self._transaction_statements))}, '
+		result += f'address_resolution_statements: {list(map(str, self._address_resolution_statements))}, '
+		result += f'mosaic_resolution_statements: {list(map(str, self._mosaic_resolution_statements))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['transaction_statements'] = [e.to_json() for e in self._transaction_statements]
+		result['address_resolution_statements'] = [e.to_json() for e in self._address_resolution_statements]
+		result['mosaic_resolution_statements'] = [e.to_json() for e in self._mosaic_resolution_statements]
+		return result
+
+
+class AccountKeyLinkTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_KEY_LINK
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**Transaction.TYPE_HINTS,
 		'linked_public_key': 'pod:PublicKey',
 		'link_action': 'enum:LinkAction'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedAccountKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedAccountKeyLinkTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = AccountKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = AccountKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = PublicKey()
 		self._link_action = LinkAction.UNLINK
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> PublicKey:
@@ -1034,22 +3546,6 @@ class EmbeddedAccountKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: PublicKey):
@@ -1062,131 +3558,67 @@ class EmbeddedAccountKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.link_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedAccountKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AccountKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = AccountKeyLinkTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = EmbeddedAccountKeyLinkTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._link_action = link_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._link_action.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'link_action: {self._link_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
 
-class NodeKeyLinkTransaction:
+
+class EmbeddedAccountKeyLinkTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
-	TRANSACTION_TYPE: TransactionType = TransactionType.NODE_KEY_LINK
+	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_KEY_LINK
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'linked_public_key': 'pod:PublicKey',
 		'link_action': 'enum:LinkAction'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = NodeKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = NodeKeyLinkTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = EmbeddedAccountKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedAccountKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = PublicKey()
 		self._link_action = LinkAction.UNLINK
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> PublicKey:
@@ -1195,34 +3627,6 @@ class NodeKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: PublicKey):
@@ -1235,131 +3639,67 @@ class NodeKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.link_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NodeKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedAccountKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = EmbeddedAccountKeyLinkTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = NodeKeyLinkTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._link_action = link_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._link_action.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'link_action: {self._link_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
 
-class EmbeddedNodeKeyLinkTransaction:
+
+class NodeKeyLinkTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NODE_KEY_LINK
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**Transaction.TYPE_HINTS,
 		'linked_public_key': 'pod:PublicKey',
 		'link_action': 'enum:LinkAction'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedNodeKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedNodeKeyLinkTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = NodeKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = NodeKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = PublicKey()
 		self._link_action = LinkAction.UNLINK
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> PublicKey:
@@ -1368,22 +3708,6 @@ class EmbeddedNodeKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: PublicKey):
@@ -1396,74 +3720,127 @@ class EmbeddedNodeKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.link_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedNodeKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NodeKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = NodeKeyLinkTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = EmbeddedNodeKeyLinkTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._link_action = link_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._link_action.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'link_action: {self._link_action.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
+
+
+class EmbeddedNodeKeyLinkTransactionV1(EmbeddedTransaction):
+	TRANSACTION_VERSION: int = 1
+	TRANSACTION_TYPE: TransactionType = TransactionType.NODE_KEY_LINK
+	TYPE_HINTS = {
+		**EmbeddedTransaction.TYPE_HINTS,
+		'linked_public_key': 'pod:PublicKey',
+		'link_action': 'enum:LinkAction'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = EmbeddedNodeKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedNodeKeyLinkTransactionV1.TRANSACTION_TYPE
+		self._linked_public_key = PublicKey()
+		self._link_action = LinkAction.UNLINK
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def linked_public_key(self) -> PublicKey:
+		return self._linked_public_key
+
+	@property
+	def link_action(self) -> LinkAction:
+		return self._link_action
+
+	@linked_public_key.setter
+	def linked_public_key(self, value: PublicKey):
+		self._linked_public_key = value
+
+	@link_action.setter
+	def link_action(self, value: LinkAction):
+		self._link_action = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.linked_public_key.size
+		size += self.link_action.size
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedNodeKeyLinkTransactionV1:
+		buffer = memoryview(payload)
+		instance = EmbeddedNodeKeyLinkTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		linked_public_key = PublicKey.deserialize(buffer)
+		buffer = buffer[linked_public_key.size:]
+		link_action = LinkAction.deserialize(buffer)
+		buffer = buffer[link_action.size:]
+
+		# pylint: disable=protected-access
+		instance._linked_public_key = linked_public_key
+		instance._link_action = link_action
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._linked_public_key.serialize()
+		buffer += self._link_action.serialize()
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
+		result += f'link_action: {self._link_action.__str__()}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['link_action'] = self._link_action.to_json()
 		return result
 
 
@@ -1477,6 +3854,9 @@ class Cosignature:
 		self._version = 0
 		self._signer_public_key = PublicKey()
 		self._signature = Signature()
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def version(self) -> int:
@@ -1511,8 +3891,9 @@ class Cosignature:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> Cosignature:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> Cosignature:
 		buffer = memoryview(payload)
+		instance = Cosignature()
 		version = int.from_bytes(buffer[:8], byteorder='little', signed=False)
 		buffer = buffer[8:]
 		signer_public_key = PublicKey.deserialize(buffer)
@@ -1520,14 +3901,14 @@ class Cosignature:
 		signature = Signature.deserialize(buffer)
 		buffer = buffer[signature.size:]
 
-		instance = Cosignature()
+		# pylint: disable=protected-access
 		instance._version = version
 		instance._signer_public_key = signer_public_key
 		instance._signature = signature
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self._version.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._signer_public_key.serialize()
 		buffer += self._signature.serialize()
@@ -1539,6 +3920,13 @@ class Cosignature:
 		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
 		result += f'signature: {self._signature.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {}
+		result['version'] = str(self._version)
+		result['signer_public_key'] = self._signer_public_key.to_json()
+		result['signature'] = self._signature.to_json()
 		return result
 
 
@@ -1554,6 +3942,9 @@ class DetachedCosignature:
 		self._signer_public_key = PublicKey()
 		self._signature = Signature()
 		self._parent_hash = Hash256()
+
+	def sort(self) -> None:
+		pass
 
 	@property
 	def version(self) -> int:
@@ -1597,8 +3988,9 @@ class DetachedCosignature:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> DetachedCosignature:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> DetachedCosignature:
 		buffer = memoryview(payload)
+		instance = DetachedCosignature()
 		version = int.from_bytes(buffer[:8], byteorder='little', signed=False)
 		buffer = buffer[8:]
 		signer_public_key = PublicKey.deserialize(buffer)
@@ -1608,7 +4000,7 @@ class DetachedCosignature:
 		parent_hash = Hash256.deserialize(buffer)
 		buffer = buffer[parent_hash.size:]
 
-		instance = DetachedCosignature()
+		# pylint: disable=protected-access
 		instance._version = version
 		instance._signer_public_key = signer_public_key
 		instance._signature = signature
@@ -1616,7 +4008,7 @@ class DetachedCosignature:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self._version.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._signer_public_key.serialize()
 		buffer += self._signature.serialize()
@@ -1632,64 +4024,36 @@ class DetachedCosignature:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {}
+		result['version'] = str(self._version)
+		result['signer_public_key'] = self._signer_public_key.to_json()
+		result['signature'] = self._signature.to_json()
+		result['parent_hash'] = self._parent_hash.to_json()
+		return result
 
-class AggregateCompleteTransaction:
+
+class AggregateCompleteTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.AGGREGATE_COMPLETE
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'transactions_hash': 'pod:Hash256',
 		'transactions': 'array[EmbeddedTransaction]',
 		'cosignatures': 'array[Cosignature]'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AggregateCompleteTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AggregateCompleteTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AggregateCompleteTransactionV1.TRANSACTION_VERSION
+		self._type_ = AggregateCompleteTransactionV1.TRANSACTION_TYPE
 		self._transactions_hash = Hash256()
 		self._transactions = []
 		self._cosignatures = []
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._aggregate_transaction_header_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def transactions_hash(self) -> Hash256:
@@ -1702,34 +4066,6 @@ class AggregateCompleteTransaction:
 	@property
 	def cosignatures(self) -> List[Cosignature]:
 		return self._cosignatures
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@transactions_hash.setter
 	def transactions_hash(self, value: Hash256):
@@ -1746,16 +4082,7 @@ class AggregateCompleteTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.transactions_hash.size
 		size += 4
 		size += 4
@@ -1764,32 +4091,11 @@ class AggregateCompleteTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AggregateCompleteTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AggregateCompleteTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AggregateCompleteTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		transactions_hash = Hash256.deserialize(buffer)
 		buffer = buffer[transactions_hash.size:]
 		payload_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
@@ -1802,31 +4108,15 @@ class AggregateCompleteTransaction:
 		cosignatures = ArrayHelpers.read_array(buffer, Cosignature)
 		buffer = buffer[ArrayHelpers.size(cosignatures):]
 
-		instance = AggregateCompleteTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._transactions_hash = transactions_hash
 		instance._transactions = transactions
 		instance._cosignatures = cosignatures
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._transactions_hash.serialize()
 		buffer += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False).to_bytes(4, byteorder='little', signed=False)  # payload_size
 		buffer += self._aggregate_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
@@ -1836,77 +4126,258 @@ class AggregateCompleteTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
 		result += f'transactions: {list(map(str, self._transactions))}, '
 		result += f'cosignatures: {list(map(str, self._cosignatures))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		result['cosignatures'] = [e.to_json() for e in self._cosignatures]
+		return result
 
-class AggregateBondedTransaction:
+
+class AggregateCompleteTransactionV2(Transaction):
+	TRANSACTION_VERSION: int = 2
+	TRANSACTION_TYPE: TransactionType = TransactionType.AGGREGATE_COMPLETE
+	TYPE_HINTS = {
+		**Transaction.TYPE_HINTS,
+		'transactions_hash': 'pod:Hash256',
+		'transactions': 'array[EmbeddedTransaction]',
+		'cosignatures': 'array[Cosignature]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = AggregateCompleteTransactionV2.TRANSACTION_VERSION
+		self._type_ = AggregateCompleteTransactionV2.TRANSACTION_TYPE
+		self._transactions_hash = Hash256()
+		self._transactions = []
+		self._cosignatures = []
+		self._aggregate_transaction_header_reserved_1 = 0  # reserved field
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def transactions_hash(self) -> Hash256:
+		return self._transactions_hash
+
+	@property
+	def transactions(self) -> List[EmbeddedTransaction]:
+		return self._transactions
+
+	@property
+	def cosignatures(self) -> List[Cosignature]:
+		return self._cosignatures
+
+	@transactions_hash.setter
+	def transactions_hash(self, value: Hash256):
+		self._transactions_hash = value
+
+	@transactions.setter
+	def transactions(self, value: List[EmbeddedTransaction]):
+		self._transactions = value
+
+	@cosignatures.setter
+	def cosignatures(self, value: List[Cosignature]):
+		self._cosignatures = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.transactions_hash.size
+		size += 4
+		size += 4
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False)
+		size += ArrayHelpers.size(self.cosignatures)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AggregateCompleteTransactionV2:
+		buffer = memoryview(payload)
+		instance = AggregateCompleteTransactionV2()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		transactions_hash = Hash256.deserialize(buffer)
+		buffer = buffer[transactions_hash.size:]
+		payload_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		aggregate_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		assert aggregate_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({aggregate_transaction_header_reserved_1})'
+		transactions = ArrayHelpers.read_variable_size_elements(buffer[:payload_size], EmbeddedTransactionFactory, 8, skip_last_element_padding=False)
+		buffer = buffer[payload_size:]
+		cosignatures = ArrayHelpers.read_array(buffer, Cosignature)
+		buffer = buffer[ArrayHelpers.size(cosignatures):]
+
+		# pylint: disable=protected-access
+		instance._transactions_hash = transactions_hash
+		instance._transactions = transactions
+		instance._cosignatures = cosignatures
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._transactions_hash.serialize()
+		buffer += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False).to_bytes(4, byteorder='little', signed=False)  # payload_size
+		buffer += self._aggregate_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=False)
+		buffer += ArrayHelpers.write_array(self._cosignatures)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += f'cosignatures: {list(map(str, self._cosignatures))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		result['cosignatures'] = [e.to_json() for e in self._cosignatures]
+		return result
+
+
+class AggregateCompleteTransactionV3(Transaction):
+	TRANSACTION_VERSION: int = 3
+	TRANSACTION_TYPE: TransactionType = TransactionType.AGGREGATE_COMPLETE
+	TYPE_HINTS = {
+		**Transaction.TYPE_HINTS,
+		'transactions_hash': 'pod:Hash256',
+		'transactions': 'array[EmbeddedTransaction]',
+		'cosignatures': 'array[Cosignature]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = AggregateCompleteTransactionV3.TRANSACTION_VERSION
+		self._type_ = AggregateCompleteTransactionV3.TRANSACTION_TYPE
+		self._transactions_hash = Hash256()
+		self._transactions = []
+		self._cosignatures = []
+		self._aggregate_transaction_header_reserved_1 = 0  # reserved field
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def transactions_hash(self) -> Hash256:
+		return self._transactions_hash
+
+	@property
+	def transactions(self) -> List[EmbeddedTransaction]:
+		return self._transactions
+
+	@property
+	def cosignatures(self) -> List[Cosignature]:
+		return self._cosignatures
+
+	@transactions_hash.setter
+	def transactions_hash(self, value: Hash256):
+		self._transactions_hash = value
+
+	@transactions.setter
+	def transactions(self, value: List[EmbeddedTransaction]):
+		self._transactions = value
+
+	@cosignatures.setter
+	def cosignatures(self, value: List[Cosignature]):
+		self._cosignatures = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.transactions_hash.size
+		size += 4
+		size += 4
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False)
+		size += ArrayHelpers.size(self.cosignatures)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AggregateCompleteTransactionV3:
+		buffer = memoryview(payload)
+		instance = AggregateCompleteTransactionV3()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		transactions_hash = Hash256.deserialize(buffer)
+		buffer = buffer[transactions_hash.size:]
+		payload_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		aggregate_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		assert aggregate_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({aggregate_transaction_header_reserved_1})'
+		transactions = ArrayHelpers.read_variable_size_elements(buffer[:payload_size], EmbeddedTransactionFactory, 8, skip_last_element_padding=False)
+		buffer = buffer[payload_size:]
+		cosignatures = ArrayHelpers.read_array(buffer, Cosignature)
+		buffer = buffer[ArrayHelpers.size(cosignatures):]
+
+		# pylint: disable=protected-access
+		instance._transactions_hash = transactions_hash
+		instance._transactions = transactions
+		instance._cosignatures = cosignatures
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._transactions_hash.serialize()
+		buffer += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False).to_bytes(4, byteorder='little', signed=False)  # payload_size
+		buffer += self._aggregate_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=False)
+		buffer += ArrayHelpers.write_array(self._cosignatures)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += f'cosignatures: {list(map(str, self._cosignatures))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		result['cosignatures'] = [e.to_json() for e in self._cosignatures]
+		return result
+
+
+class AggregateBondedTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.AGGREGATE_BONDED
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'transactions_hash': 'pod:Hash256',
 		'transactions': 'array[EmbeddedTransaction]',
 		'cosignatures': 'array[Cosignature]'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AggregateBondedTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AggregateBondedTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AggregateBondedTransactionV1.TRANSACTION_VERSION
+		self._type_ = AggregateBondedTransactionV1.TRANSACTION_TYPE
 		self._transactions_hash = Hash256()
 		self._transactions = []
 		self._cosignatures = []
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._aggregate_transaction_header_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def transactions_hash(self) -> Hash256:
@@ -1919,34 +4390,6 @@ class AggregateBondedTransaction:
 	@property
 	def cosignatures(self) -> List[Cosignature]:
 		return self._cosignatures
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@transactions_hash.setter
 	def transactions_hash(self, value: Hash256):
@@ -1963,16 +4406,7 @@ class AggregateBondedTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.transactions_hash.size
 		size += 4
 		size += 4
@@ -1981,32 +4415,11 @@ class AggregateBondedTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AggregateBondedTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AggregateBondedTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AggregateBondedTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		transactions_hash = Hash256.deserialize(buffer)
 		buffer = buffer[transactions_hash.size:]
 		payload_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
@@ -2019,31 +4432,15 @@ class AggregateBondedTransaction:
 		cosignatures = ArrayHelpers.read_array(buffer, Cosignature)
 		buffer = buffer[ArrayHelpers.size(cosignatures):]
 
-		instance = AggregateBondedTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._transactions_hash = transactions_hash
 		instance._transactions = transactions
 		instance._cosignatures = cosignatures
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._transactions_hash.serialize()
 		buffer += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False).to_bytes(4, byteorder='little', signed=False)  # payload_size
 		buffer += self._aggregate_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
@@ -2053,30 +4450,242 @@ class AggregateBondedTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
 		result += f'transactions: {list(map(str, self._transactions))}, '
 		result += f'cosignatures: {list(map(str, self._cosignatures))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		result['cosignatures'] = [e.to_json() for e in self._cosignatures]
+		return result
 
-class VotingKeyLinkTransaction:
+
+class AggregateBondedTransactionV2(Transaction):
+	TRANSACTION_VERSION: int = 2
+	TRANSACTION_TYPE: TransactionType = TransactionType.AGGREGATE_BONDED
+	TYPE_HINTS = {
+		**Transaction.TYPE_HINTS,
+		'transactions_hash': 'pod:Hash256',
+		'transactions': 'array[EmbeddedTransaction]',
+		'cosignatures': 'array[Cosignature]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = AggregateBondedTransactionV2.TRANSACTION_VERSION
+		self._type_ = AggregateBondedTransactionV2.TRANSACTION_TYPE
+		self._transactions_hash = Hash256()
+		self._transactions = []
+		self._cosignatures = []
+		self._aggregate_transaction_header_reserved_1 = 0  # reserved field
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def transactions_hash(self) -> Hash256:
+		return self._transactions_hash
+
+	@property
+	def transactions(self) -> List[EmbeddedTransaction]:
+		return self._transactions
+
+	@property
+	def cosignatures(self) -> List[Cosignature]:
+		return self._cosignatures
+
+	@transactions_hash.setter
+	def transactions_hash(self, value: Hash256):
+		self._transactions_hash = value
+
+	@transactions.setter
+	def transactions(self, value: List[EmbeddedTransaction]):
+		self._transactions = value
+
+	@cosignatures.setter
+	def cosignatures(self, value: List[Cosignature]):
+		self._cosignatures = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.transactions_hash.size
+		size += 4
+		size += 4
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False)
+		size += ArrayHelpers.size(self.cosignatures)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AggregateBondedTransactionV2:
+		buffer = memoryview(payload)
+		instance = AggregateBondedTransactionV2()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		transactions_hash = Hash256.deserialize(buffer)
+		buffer = buffer[transactions_hash.size:]
+		payload_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		aggregate_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		assert aggregate_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({aggregate_transaction_header_reserved_1})'
+		transactions = ArrayHelpers.read_variable_size_elements(buffer[:payload_size], EmbeddedTransactionFactory, 8, skip_last_element_padding=False)
+		buffer = buffer[payload_size:]
+		cosignatures = ArrayHelpers.read_array(buffer, Cosignature)
+		buffer = buffer[ArrayHelpers.size(cosignatures):]
+
+		# pylint: disable=protected-access
+		instance._transactions_hash = transactions_hash
+		instance._transactions = transactions
+		instance._cosignatures = cosignatures
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._transactions_hash.serialize()
+		buffer += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False).to_bytes(4, byteorder='little', signed=False)  # payload_size
+		buffer += self._aggregate_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=False)
+		buffer += ArrayHelpers.write_array(self._cosignatures)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += f'cosignatures: {list(map(str, self._cosignatures))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		result['cosignatures'] = [e.to_json() for e in self._cosignatures]
+		return result
+
+
+class AggregateBondedTransactionV3(Transaction):
+	TRANSACTION_VERSION: int = 3
+	TRANSACTION_TYPE: TransactionType = TransactionType.AGGREGATE_BONDED
+	TYPE_HINTS = {
+		**Transaction.TYPE_HINTS,
+		'transactions_hash': 'pod:Hash256',
+		'transactions': 'array[EmbeddedTransaction]',
+		'cosignatures': 'array[Cosignature]'
+	}
+
+	def __init__(self):
+		super().__init__()
+		self._version = AggregateBondedTransactionV3.TRANSACTION_VERSION
+		self._type_ = AggregateBondedTransactionV3.TRANSACTION_TYPE
+		self._transactions_hash = Hash256()
+		self._transactions = []
+		self._cosignatures = []
+		self._aggregate_transaction_header_reserved_1 = 0  # reserved field
+
+	def sort(self) -> None:
+		pass
+
+	@property
+	def transactions_hash(self) -> Hash256:
+		return self._transactions_hash
+
+	@property
+	def transactions(self) -> List[EmbeddedTransaction]:
+		return self._transactions
+
+	@property
+	def cosignatures(self) -> List[Cosignature]:
+		return self._cosignatures
+
+	@transactions_hash.setter
+	def transactions_hash(self, value: Hash256):
+		self._transactions_hash = value
+
+	@transactions.setter
+	def transactions(self, value: List[EmbeddedTransaction]):
+		self._transactions = value
+
+	@cosignatures.setter
+	def cosignatures(self, value: List[Cosignature]):
+		self._cosignatures = value
+
+	@property
+	def size(self) -> int:
+		size = 0
+		size += super().size
+		size += self.transactions_hash.size
+		size += 4
+		size += 4
+		size += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False)
+		size += ArrayHelpers.size(self.cosignatures)
+		return size
+
+	@classmethod
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AggregateBondedTransactionV3:
+		buffer = memoryview(payload)
+		instance = AggregateBondedTransactionV3()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
+		transactions_hash = Hash256.deserialize(buffer)
+		buffer = buffer[transactions_hash.size:]
+		payload_size = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		aggregate_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
+		buffer = buffer[4:]
+		assert aggregate_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({aggregate_transaction_header_reserved_1})'
+		transactions = ArrayHelpers.read_variable_size_elements(buffer[:payload_size], EmbeddedTransactionFactory, 8, skip_last_element_padding=False)
+		buffer = buffer[payload_size:]
+		cosignatures = ArrayHelpers.read_array(buffer, Cosignature)
+		buffer = buffer[ArrayHelpers.size(cosignatures):]
+
+		# pylint: disable=protected-access
+		instance._transactions_hash = transactions_hash
+		instance._transactions = transactions
+		instance._cosignatures = cosignatures
+		return instance
+
+	def serialize(self) -> bytes:
+		buffer = bytearray()
+		super()._serialize(buffer)
+		buffer += self._transactions_hash.serialize()
+		buffer += ArrayHelpers.size(self.transactions, 8, skip_last_element_padding=False).to_bytes(4, byteorder='little', signed=False)  # payload_size
+		buffer += self._aggregate_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
+		buffer += ArrayHelpers.write_variable_size_elements(self._transactions, 8, skip_last_element_padding=False)
+		buffer += ArrayHelpers.write_array(self._cosignatures)
+		return buffer
+
+	def __str__(self) -> str:
+		result = '('
+		result += super().__str__()
+		result += f'transactions_hash: {self._transactions_hash.__str__()}, '
+		result += f'transactions: {list(map(str, self._transactions))}, '
+		result += f'cosignatures: {list(map(str, self._cosignatures))}, '
+		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['transactions_hash'] = self._transactions_hash.to_json()
+		result['transactions'] = [e.to_json() for e in self._transactions]
+		result['cosignatures'] = [e.to_json() for e in self._cosignatures]
+		return result
+
+
+class VotingKeyLinkTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.VOTING_KEY_LINK
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'linked_public_key': 'pod:VotingPublicKey',
 		'start_epoch': 'pod:FinalizationEpoch',
 		'end_epoch': 'pod:FinalizationEpoch',
@@ -2084,47 +4693,16 @@ class VotingKeyLinkTransaction:
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = VotingKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = VotingKeyLinkTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = VotingKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = VotingKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = VotingPublicKey()
 		self._start_epoch = FinalizationEpoch()
 		self._end_epoch = FinalizationEpoch()
 		self._link_action = LinkAction.UNLINK
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> VotingPublicKey:
@@ -2141,34 +4719,6 @@ class VotingKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: VotingPublicKey):
@@ -2189,16 +4739,7 @@ class VotingKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.start_epoch.size
 		size += self.end_epoch.size
@@ -2206,32 +4747,11 @@ class VotingKeyLinkTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> VotingKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> VotingKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = VotingKeyLinkTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = VotingPublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		start_epoch = FinalizationEpoch.deserialize(buffer)
@@ -2241,14 +4761,7 @@ class VotingKeyLinkTransaction:
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = VotingKeyLinkTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._start_epoch = start_epoch
 		instance._end_epoch = end_epoch
@@ -2256,17 +4769,8 @@ class VotingKeyLinkTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._start_epoch.serialize()
 		buffer += self._end_epoch.serialize()
@@ -2275,13 +4779,7 @@ class VotingKeyLinkTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'start_epoch: {self._start_epoch.__str__()}, '
 		result += f'end_epoch: {self._end_epoch.__str__()}, '
@@ -2289,14 +4787,20 @@ class VotingKeyLinkTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['start_epoch'] = self._start_epoch.to_json()
+		result['end_epoch'] = self._end_epoch.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
 
-class EmbeddedVotingKeyLinkTransaction:
+
+class EmbeddedVotingKeyLinkTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.VOTING_KEY_LINK
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'linked_public_key': 'pod:VotingPublicKey',
 		'start_epoch': 'pod:FinalizationEpoch',
 		'end_epoch': 'pod:FinalizationEpoch',
@@ -2304,32 +4808,16 @@ class EmbeddedVotingKeyLinkTransaction:
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedVotingKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedVotingKeyLinkTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedVotingKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedVotingKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = VotingPublicKey()
 		self._start_epoch = FinalizationEpoch()
 		self._end_epoch = FinalizationEpoch()
 		self._link_action = LinkAction.UNLINK
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> VotingPublicKey:
@@ -2346,22 +4834,6 @@ class EmbeddedVotingKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: VotingPublicKey):
@@ -2382,13 +4854,7 @@ class EmbeddedVotingKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.start_epoch.size
 		size += self.end_epoch.size
@@ -2396,26 +4862,11 @@ class EmbeddedVotingKeyLinkTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedVotingKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedVotingKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedVotingKeyLinkTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = VotingPublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		start_epoch = FinalizationEpoch.deserialize(buffer)
@@ -2425,11 +4876,7 @@ class EmbeddedVotingKeyLinkTransaction:
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = EmbeddedVotingKeyLinkTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._start_epoch = start_epoch
 		instance._end_epoch = end_epoch
@@ -2437,14 +4884,8 @@ class EmbeddedVotingKeyLinkTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._start_epoch.serialize()
 		buffer += self._end_epoch.serialize()
@@ -2453,10 +4894,7 @@ class EmbeddedVotingKeyLinkTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'start_epoch: {self._start_epoch.__str__()}, '
 		result += f'end_epoch: {self._end_epoch.__str__()}, '
@@ -2464,61 +4902,33 @@ class EmbeddedVotingKeyLinkTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['start_epoch'] = self._start_epoch.to_json()
+		result['end_epoch'] = self._end_epoch.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
 
-class VrfKeyLinkTransaction:
+
+class VrfKeyLinkTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.VRF_KEY_LINK
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'linked_public_key': 'pod:PublicKey',
 		'link_action': 'enum:LinkAction'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = VrfKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = VrfKeyLinkTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = VrfKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = VrfKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = PublicKey()
 		self._link_action = LinkAction.UNLINK
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> PublicKey:
@@ -2527,34 +4937,6 @@ class VrfKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: PublicKey):
@@ -2567,131 +4949,67 @@ class VrfKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.link_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> VrfKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> VrfKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = VrfKeyLinkTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = VrfKeyLinkTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._link_action = link_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._link_action.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'link_action: {self._link_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
 
-class EmbeddedVrfKeyLinkTransaction:
+
+class EmbeddedVrfKeyLinkTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.VRF_KEY_LINK
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'linked_public_key': 'pod:PublicKey',
 		'link_action': 'enum:LinkAction'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedVrfKeyLinkTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedVrfKeyLinkTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedVrfKeyLinkTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedVrfKeyLinkTransactionV1.TRANSACTION_TYPE
 		self._linked_public_key = PublicKey()
 		self._link_action = LinkAction.UNLINK
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def linked_public_key(self) -> PublicKey:
@@ -2700,22 +5018,6 @@ class EmbeddedVrfKeyLinkTransaction:
 	@property
 	def link_action(self) -> LinkAction:
 		return self._link_action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@linked_public_key.setter
 	def linked_public_key(self, value: PublicKey):
@@ -2728,133 +5030,69 @@ class EmbeddedVrfKeyLinkTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.linked_public_key.size
 		size += self.link_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedVrfKeyLinkTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedVrfKeyLinkTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedVrfKeyLinkTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		linked_public_key = PublicKey.deserialize(buffer)
 		buffer = buffer[linked_public_key.size:]
 		link_action = LinkAction.deserialize(buffer)
 		buffer = buffer[link_action.size:]
 
-		instance = EmbeddedVrfKeyLinkTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._linked_public_key = linked_public_key
 		instance._link_action = link_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._linked_public_key.serialize()
 		buffer += self._link_action.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'linked_public_key: {self._linked_public_key.__str__()}, '
 		result += f'link_action: {self._link_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['linked_public_key'] = self._linked_public_key.to_json()
+		result['link_action'] = self._link_action.to_json()
+		return result
 
-class HashLockTransaction:
+
+class HashLockTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.HASH_LOCK
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'mosaic': 'struct:UnresolvedMosaic',
 		'duration': 'pod:BlockDuration',
 		'hash': 'pod:Hash256'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = HashLockTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = HashLockTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = HashLockTransactionV1.TRANSACTION_VERSION
+		self._type_ = HashLockTransactionV1.TRANSACTION_TYPE
 		self._mosaic = UnresolvedMosaic()
 		self._duration = BlockDuration()
 		self._hash = Hash256()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def mosaic(self) -> UnresolvedMosaic:
@@ -2867,34 +5105,6 @@ class HashLockTransaction:
 	@property
 	def hash(self) -> Hash256:
 		return self._hash
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@mosaic.setter
 	def mosaic(self, value: UnresolvedMosaic):
@@ -2911,48 +5121,18 @@ class HashLockTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.mosaic.size
 		size += self.duration.size
 		size += self.hash.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> HashLockTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> HashLockTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = HashLockTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic = UnresolvedMosaic.deserialize(buffer)
 		buffer = buffer[mosaic.size:]
 		duration = BlockDuration.deserialize(buffer)
@@ -2960,31 +5140,15 @@ class HashLockTransaction:
 		hash = Hash256.deserialize(buffer)
 		buffer = buffer[hash.size:]
 
-		instance = HashLockTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._mosaic = mosaic
 		instance._duration = duration
 		instance._hash = hash
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic.serialize()
 		buffer += self._duration.serialize()
 		buffer += self._hash.serialize()
@@ -2992,58 +5156,41 @@ class HashLockTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic: {self._mosaic.__str__()}, '
 		result += f'duration: {self._duration.__str__()}, '
 		result += f'hash: {self._hash.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['duration'] = self._duration.to_json()
+		result['hash'] = self._hash.to_json()
+		return result
 
-class EmbeddedHashLockTransaction:
+
+class EmbeddedHashLockTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.HASH_LOCK
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'mosaic': 'struct:UnresolvedMosaic',
 		'duration': 'pod:BlockDuration',
 		'hash': 'pod:Hash256'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedHashLockTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedHashLockTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedHashLockTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedHashLockTransactionV1.TRANSACTION_TYPE
 		self._mosaic = UnresolvedMosaic()
 		self._duration = BlockDuration()
 		self._hash = Hash256()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def mosaic(self) -> UnresolvedMosaic:
@@ -3056,22 +5203,6 @@ class EmbeddedHashLockTransaction:
 	@property
 	def hash(self) -> Hash256:
 		return self._hash
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@mosaic.setter
 	def mosaic(self, value: UnresolvedMosaic):
@@ -3088,39 +5219,18 @@ class EmbeddedHashLockTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.mosaic.size
 		size += self.duration.size
 		size += self.hash.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedHashLockTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedHashLockTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedHashLockTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic = UnresolvedMosaic.deserialize(buffer)
 		buffer = buffer[mosaic.size:]
 		duration = BlockDuration.deserialize(buffer)
@@ -3128,25 +5238,15 @@ class EmbeddedHashLockTransaction:
 		hash = Hash256.deserialize(buffer)
 		buffer = buffer[hash.size:]
 
-		instance = EmbeddedHashLockTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._mosaic = mosaic
 		instance._duration = duration
 		instance._hash = hash
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic.serialize()
 		buffer += self._duration.serialize()
 		buffer += self._hash.serialize()
@@ -3154,14 +5254,18 @@ class EmbeddedHashLockTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic: {self._mosaic.__str__()}, '
 		result += f'duration: {self._duration.__str__()}, '
 		result += f'hash: {self._hash.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic'] = self._mosaic.to_json()
+		result['duration'] = self._duration.to_json()
+		result['hash'] = self._hash.to_json()
 		return result
 
 
@@ -3175,26 +5279,24 @@ class LockHashAlgorithm(Enum):
 		return 1
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> LockHashAlgorithm:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> LockHashAlgorithm:
 		buffer = memoryview(payload)
 		return LockHashAlgorithm(int.from_bytes(buffer[:1], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
 		return buffer
 
+	def to_json(self):
+		return self.value
 
-class SecretLockTransaction:
+
+class SecretLockTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.SECRET_LOCK
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'recipient_address': 'pod:UnresolvedAddress',
 		'secret': 'pod:Hash256',
 		'mosaic': 'struct:UnresolvedMosaic',
@@ -3203,48 +5305,17 @@ class SecretLockTransaction:
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = SecretLockTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = SecretLockTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = SecretLockTransactionV1.TRANSACTION_VERSION
+		self._type_ = SecretLockTransactionV1.TRANSACTION_TYPE
 		self._recipient_address = UnresolvedAddress()
 		self._secret = Hash256()
 		self._mosaic = UnresolvedMosaic()
 		self._duration = BlockDuration()
 		self._hash_algorithm = LockHashAlgorithm.SHA3_256
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def recipient_address(self) -> UnresolvedAddress:
@@ -3265,34 +5336,6 @@ class SecretLockTransaction:
 	@property
 	def hash_algorithm(self) -> LockHashAlgorithm:
 		return self._hash_algorithm
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@recipient_address.setter
 	def recipient_address(self, value: UnresolvedAddress):
@@ -3317,16 +5360,7 @@ class SecretLockTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.recipient_address.size
 		size += self.secret.size
 		size += self.mosaic.size
@@ -3335,32 +5369,11 @@ class SecretLockTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> SecretLockTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> SecretLockTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = SecretLockTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		recipient_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[recipient_address.size:]
 		secret = Hash256.deserialize(buffer)
@@ -3372,14 +5385,7 @@ class SecretLockTransaction:
 		hash_algorithm = LockHashAlgorithm.deserialize(buffer)
 		buffer = buffer[hash_algorithm.size:]
 
-		instance = SecretLockTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._recipient_address = recipient_address
 		instance._secret = secret
 		instance._mosaic = mosaic
@@ -3388,17 +5394,8 @@ class SecretLockTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._recipient_address.serialize()
 		buffer += self._secret.serialize()
 		buffer += self._mosaic.serialize()
@@ -3408,13 +5405,7 @@ class SecretLockTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'secret: {self._secret.__str__()}, '
 		result += f'mosaic: {self._mosaic.__str__()}, '
@@ -3423,14 +5414,21 @@ class SecretLockTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['recipient_address'] = self._recipient_address.to_json()
+		result['secret'] = self._secret.to_json()
+		result['mosaic'] = self._mosaic.to_json()
+		result['duration'] = self._duration.to_json()
+		result['hash_algorithm'] = self._hash_algorithm.to_json()
+		return result
 
-class EmbeddedSecretLockTransaction:
+
+class EmbeddedSecretLockTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.SECRET_LOCK
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'recipient_address': 'pod:UnresolvedAddress',
 		'secret': 'pod:Hash256',
 		'mosaic': 'struct:UnresolvedMosaic',
@@ -3439,33 +5437,17 @@ class EmbeddedSecretLockTransaction:
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedSecretLockTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedSecretLockTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedSecretLockTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedSecretLockTransactionV1.TRANSACTION_TYPE
 		self._recipient_address = UnresolvedAddress()
 		self._secret = Hash256()
 		self._mosaic = UnresolvedMosaic()
 		self._duration = BlockDuration()
 		self._hash_algorithm = LockHashAlgorithm.SHA3_256
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def recipient_address(self) -> UnresolvedAddress:
@@ -3486,22 +5468,6 @@ class EmbeddedSecretLockTransaction:
 	@property
 	def hash_algorithm(self) -> LockHashAlgorithm:
 		return self._hash_algorithm
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@recipient_address.setter
 	def recipient_address(self, value: UnresolvedAddress):
@@ -3526,13 +5492,7 @@ class EmbeddedSecretLockTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.recipient_address.size
 		size += self.secret.size
 		size += self.mosaic.size
@@ -3541,26 +5501,11 @@ class EmbeddedSecretLockTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedSecretLockTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedSecretLockTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedSecretLockTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		recipient_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[recipient_address.size:]
 		secret = Hash256.deserialize(buffer)
@@ -3572,11 +5517,7 @@ class EmbeddedSecretLockTransaction:
 		hash_algorithm = LockHashAlgorithm.deserialize(buffer)
 		buffer = buffer[hash_algorithm.size:]
 
-		instance = EmbeddedSecretLockTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._recipient_address = recipient_address
 		instance._secret = secret
 		instance._mosaic = mosaic
@@ -3585,14 +5526,8 @@ class EmbeddedSecretLockTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._recipient_address.serialize()
 		buffer += self._secret.serialize()
 		buffer += self._mosaic.serialize()
@@ -3602,10 +5537,7 @@ class EmbeddedSecretLockTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'secret: {self._secret.__str__()}, '
 		result += f'mosaic: {self._mosaic.__str__()}, '
@@ -3614,17 +5546,21 @@ class EmbeddedSecretLockTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['recipient_address'] = self._recipient_address.to_json()
+		result['secret'] = self._secret.to_json()
+		result['mosaic'] = self._mosaic.to_json()
+		result['duration'] = self._duration.to_json()
+		result['hash_algorithm'] = self._hash_algorithm.to_json()
+		return result
 
-class SecretProofTransaction:
+
+class SecretProofTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.SECRET_PROOF
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'recipient_address': 'pod:UnresolvedAddress',
 		'secret': 'pod:Hash256',
 		'hash_algorithm': 'enum:LockHashAlgorithm',
@@ -3632,47 +5568,16 @@ class SecretProofTransaction:
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = SecretProofTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = SecretProofTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = SecretProofTransactionV1.TRANSACTION_VERSION
+		self._type_ = SecretProofTransactionV1.TRANSACTION_TYPE
 		self._recipient_address = UnresolvedAddress()
 		self._secret = Hash256()
 		self._hash_algorithm = LockHashAlgorithm.SHA3_256
 		self._proof = bytes()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def recipient_address(self) -> UnresolvedAddress:
@@ -3689,34 +5594,6 @@ class SecretProofTransaction:
 	@property
 	def proof(self) -> bytes:
 		return self._proof
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@recipient_address.setter
 	def recipient_address(self, value: UnresolvedAddress):
@@ -3737,16 +5614,7 @@ class SecretProofTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.recipient_address.size
 		size += self.secret.size
 		size += 2
@@ -3755,32 +5623,11 @@ class SecretProofTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> SecretProofTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> SecretProofTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = SecretProofTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		recipient_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[recipient_address.size:]
 		secret = Hash256.deserialize(buffer)
@@ -3792,14 +5639,7 @@ class SecretProofTransaction:
 		proof = ArrayHelpers.get_bytes(buffer, proof_size)
 		buffer = buffer[proof_size:]
 
-		instance = SecretProofTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._recipient_address = recipient_address
 		instance._secret = secret
 		instance._hash_algorithm = hash_algorithm
@@ -3807,17 +5647,8 @@ class SecretProofTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._recipient_address.serialize()
 		buffer += self._secret.serialize()
 		buffer += len(self._proof).to_bytes(2, byteorder='little', signed=False)  # proof_size
@@ -3827,13 +5658,7 @@ class SecretProofTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'secret: {self._secret.__str__()}, '
 		result += f'hash_algorithm: {self._hash_algorithm.__str__()}, '
@@ -3841,14 +5666,20 @@ class SecretProofTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['recipient_address'] = self._recipient_address.to_json()
+		result['secret'] = self._secret.to_json()
+		result['hash_algorithm'] = self._hash_algorithm.to_json()
+		result['proof'] = hexlify(self._proof).decode('utf8')
+		return result
 
-class EmbeddedSecretProofTransaction:
+
+class EmbeddedSecretProofTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.SECRET_PROOF
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'recipient_address': 'pod:UnresolvedAddress',
 		'secret': 'pod:Hash256',
 		'hash_algorithm': 'enum:LockHashAlgorithm',
@@ -3856,32 +5687,16 @@ class EmbeddedSecretProofTransaction:
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedSecretProofTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedSecretProofTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedSecretProofTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedSecretProofTransactionV1.TRANSACTION_TYPE
 		self._recipient_address = UnresolvedAddress()
 		self._secret = Hash256()
 		self._hash_algorithm = LockHashAlgorithm.SHA3_256
 		self._proof = bytes()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def recipient_address(self) -> UnresolvedAddress:
@@ -3898,22 +5713,6 @@ class EmbeddedSecretProofTransaction:
 	@property
 	def proof(self) -> bytes:
 		return self._proof
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@recipient_address.setter
 	def recipient_address(self, value: UnresolvedAddress):
@@ -3934,13 +5733,7 @@ class EmbeddedSecretProofTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.recipient_address.size
 		size += self.secret.size
 		size += 2
@@ -3949,26 +5742,11 @@ class EmbeddedSecretProofTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedSecretProofTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedSecretProofTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedSecretProofTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		recipient_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[recipient_address.size:]
 		secret = Hash256.deserialize(buffer)
@@ -3980,11 +5758,7 @@ class EmbeddedSecretProofTransaction:
 		proof = ArrayHelpers.get_bytes(buffer, proof_size)
 		buffer = buffer[proof_size:]
 
-		instance = EmbeddedSecretProofTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._recipient_address = recipient_address
 		instance._secret = secret
 		instance._hash_algorithm = hash_algorithm
@@ -3992,14 +5766,8 @@ class EmbeddedSecretProofTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._recipient_address.serialize()
 		buffer += self._secret.serialize()
 		buffer += len(self._proof).to_bytes(2, byteorder='little', signed=False)  # proof_size
@@ -4009,10 +5777,7 @@ class EmbeddedSecretProofTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'secret: {self._secret.__str__()}, '
 		result += f'hash_algorithm: {self._hash_algorithm.__str__()}, '
@@ -4020,63 +5785,35 @@ class EmbeddedSecretProofTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['recipient_address'] = self._recipient_address.to_json()
+		result['secret'] = self._secret.to_json()
+		result['hash_algorithm'] = self._hash_algorithm.to_json()
+		result['proof'] = hexlify(self._proof).decode('utf8')
+		return result
 
-class AccountMetadataTransaction:
+
+class AccountMetadataTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_METADATA
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'target_address': 'pod:UnresolvedAddress',
 		'value': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AccountMetadataTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AccountMetadataTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AccountMetadataTransactionV1.TRANSACTION_VERSION
+		self._type_ = AccountMetadataTransactionV1.TRANSACTION_TYPE
 		self._target_address = UnresolvedAddress()
 		self._scoped_metadata_key = 0
 		self._value_size_delta = 0
 		self._value = bytes()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def target_address(self) -> UnresolvedAddress:
@@ -4093,34 +5830,6 @@ class AccountMetadataTransaction:
 	@property
 	def value(self) -> bytes:
 		return self._value
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@target_address.setter
 	def target_address(self, value: UnresolvedAddress):
@@ -4141,16 +5850,7 @@ class AccountMetadataTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.target_address.size
 		size += 8
 		size += 2
@@ -4159,32 +5859,11 @@ class AccountMetadataTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountMetadataTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AccountMetadataTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AccountMetadataTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 		scoped_metadata_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -4196,14 +5875,7 @@ class AccountMetadataTransaction:
 		value = ArrayHelpers.get_bytes(buffer, value_size)
 		buffer = buffer[value_size:]
 
-		instance = AccountMetadataTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._target_address = target_address
 		instance._scoped_metadata_key = scoped_metadata_key
 		instance._value_size_delta = value_size_delta
@@ -4211,17 +5883,8 @@ class AccountMetadataTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._target_address.serialize()
 		buffer += self._scoped_metadata_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._value_size_delta.to_bytes(2, byteorder='little', signed=True)
@@ -4231,13 +5894,7 @@ class AccountMetadataTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += f'scoped_metadata_key: 0x{self._scoped_metadata_key:X}, '
 		result += f'value_size_delta: 0x{self._value_size_delta:X}, '
@@ -4245,45 +5902,35 @@ class AccountMetadataTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['target_address'] = self._target_address.to_json()
+		result['scoped_metadata_key'] = str(self._scoped_metadata_key)
+		result['value_size_delta'] = self._value_size_delta
+		result['value'] = hexlify(self._value).decode('utf8')
+		return result
 
-class EmbeddedAccountMetadataTransaction:
+
+class EmbeddedAccountMetadataTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_METADATA
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'target_address': 'pod:UnresolvedAddress',
 		'value': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedAccountMetadataTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedAccountMetadataTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedAccountMetadataTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedAccountMetadataTransactionV1.TRANSACTION_TYPE
 		self._target_address = UnresolvedAddress()
 		self._scoped_metadata_key = 0
 		self._value_size_delta = 0
 		self._value = bytes()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def target_address(self) -> UnresolvedAddress:
@@ -4300,22 +5947,6 @@ class EmbeddedAccountMetadataTransaction:
 	@property
 	def value(self) -> bytes:
 		return self._value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@target_address.setter
 	def target_address(self, value: UnresolvedAddress):
@@ -4336,13 +5967,7 @@ class EmbeddedAccountMetadataTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.target_address.size
 		size += 8
 		size += 2
@@ -4351,26 +5976,11 @@ class EmbeddedAccountMetadataTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedAccountMetadataTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedAccountMetadataTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedAccountMetadataTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 		scoped_metadata_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -4382,11 +5992,7 @@ class EmbeddedAccountMetadataTransaction:
 		value = ArrayHelpers.get_bytes(buffer, value_size)
 		buffer = buffer[value_size:]
 
-		instance = EmbeddedAccountMetadataTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._target_address = target_address
 		instance._scoped_metadata_key = scoped_metadata_key
 		instance._value_size_delta = value_size_delta
@@ -4394,14 +6000,8 @@ class EmbeddedAccountMetadataTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._target_address.serialize()
 		buffer += self._scoped_metadata_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._value_size_delta.to_bytes(2, byteorder='little', signed=True)
@@ -4411,10 +6011,7 @@ class EmbeddedAccountMetadataTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += f'scoped_metadata_key: 0x{self._scoped_metadata_key:X}, '
 		result += f'value_size_delta: 0x{self._value_size_delta:X}, '
@@ -4422,65 +6019,37 @@ class EmbeddedAccountMetadataTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['target_address'] = self._target_address.to_json()
+		result['scoped_metadata_key'] = str(self._scoped_metadata_key)
+		result['value_size_delta'] = self._value_size_delta
+		result['value'] = hexlify(self._value).decode('utf8')
+		return result
 
-class MosaicMetadataTransaction:
+
+class MosaicMetadataTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_METADATA
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'target_address': 'pod:UnresolvedAddress',
 		'target_mosaic_id': 'pod:UnresolvedMosaicId',
 		'value': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicMetadataTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicMetadataTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicMetadataTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicMetadataTransactionV1.TRANSACTION_TYPE
 		self._target_address = UnresolvedAddress()
 		self._scoped_metadata_key = 0
 		self._target_mosaic_id = UnresolvedMosaicId()
 		self._value_size_delta = 0
 		self._value = bytes()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def target_address(self) -> UnresolvedAddress:
@@ -4501,34 +6070,6 @@ class MosaicMetadataTransaction:
 	@property
 	def value(self) -> bytes:
 		return self._value
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@target_address.setter
 	def target_address(self, value: UnresolvedAddress):
@@ -4553,16 +6094,7 @@ class MosaicMetadataTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.target_address.size
 		size += 8
 		size += self.target_mosaic_id.size
@@ -4572,32 +6104,11 @@ class MosaicMetadataTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicMetadataTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicMetadataTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicMetadataTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 		scoped_metadata_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -4611,14 +6122,7 @@ class MosaicMetadataTransaction:
 		value = ArrayHelpers.get_bytes(buffer, value_size)
 		buffer = buffer[value_size:]
 
-		instance = MosaicMetadataTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._target_address = target_address
 		instance._scoped_metadata_key = scoped_metadata_key
 		instance._target_mosaic_id = target_mosaic_id
@@ -4627,17 +6131,8 @@ class MosaicMetadataTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._target_address.serialize()
 		buffer += self._scoped_metadata_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._target_mosaic_id.serialize()
@@ -4648,13 +6143,7 @@ class MosaicMetadataTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += f'scoped_metadata_key: 0x{self._scoped_metadata_key:X}, '
 		result += f'target_mosaic_id: {self._target_mosaic_id.__str__()}, '
@@ -4663,47 +6152,38 @@ class MosaicMetadataTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['target_address'] = self._target_address.to_json()
+		result['scoped_metadata_key'] = str(self._scoped_metadata_key)
+		result['target_mosaic_id'] = self._target_mosaic_id.to_json()
+		result['value_size_delta'] = self._value_size_delta
+		result['value'] = hexlify(self._value).decode('utf8')
+		return result
 
-class EmbeddedMosaicMetadataTransaction:
+
+class EmbeddedMosaicMetadataTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_METADATA
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'target_address': 'pod:UnresolvedAddress',
 		'target_mosaic_id': 'pod:UnresolvedMosaicId',
 		'value': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicMetadataTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicMetadataTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicMetadataTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicMetadataTransactionV1.TRANSACTION_TYPE
 		self._target_address = UnresolvedAddress()
 		self._scoped_metadata_key = 0
 		self._target_mosaic_id = UnresolvedMosaicId()
 		self._value_size_delta = 0
 		self._value = bytes()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def target_address(self) -> UnresolvedAddress:
@@ -4724,22 +6204,6 @@ class EmbeddedMosaicMetadataTransaction:
 	@property
 	def value(self) -> bytes:
 		return self._value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@target_address.setter
 	def target_address(self, value: UnresolvedAddress):
@@ -4764,13 +6228,7 @@ class EmbeddedMosaicMetadataTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.target_address.size
 		size += 8
 		size += self.target_mosaic_id.size
@@ -4780,26 +6238,11 @@ class EmbeddedMosaicMetadataTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicMetadataTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicMetadataTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicMetadataTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 		scoped_metadata_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -4813,11 +6256,7 @@ class EmbeddedMosaicMetadataTransaction:
 		value = ArrayHelpers.get_bytes(buffer, value_size)
 		buffer = buffer[value_size:]
 
-		instance = EmbeddedMosaicMetadataTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._target_address = target_address
 		instance._scoped_metadata_key = scoped_metadata_key
 		instance._target_mosaic_id = target_mosaic_id
@@ -4826,14 +6265,8 @@ class EmbeddedMosaicMetadataTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._target_address.serialize()
 		buffer += self._scoped_metadata_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._target_mosaic_id.serialize()
@@ -4844,10 +6277,7 @@ class EmbeddedMosaicMetadataTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += f'scoped_metadata_key: 0x{self._scoped_metadata_key:X}, '
 		result += f'target_mosaic_id: {self._target_mosaic_id.__str__()}, '
@@ -4856,118 +6286,38 @@ class EmbeddedMosaicMetadataTransaction:
 		result += ')'
 		return result
 
-
-class NamespaceId(BaseValue):
-	SIZE = 8
-
-	def __init__(self, namespace_id: int = 0):
-		super().__init__(self.SIZE, namespace_id, NamespaceId)
-
-	@classmethod
-	def deserialize(cls, payload: ByteString) -> NamespaceId:
-		buffer = memoryview(payload)
-		return NamespaceId(int.from_bytes(buffer[:8], byteorder='little', signed=False))
-
-	def serialize(self) -> bytes:
-		return self.value.to_bytes(8, byteorder='little', signed=False)
+	def to_json(self):
+		result = {**super().to_json()}
+		result['target_address'] = self._target_address.to_json()
+		result['scoped_metadata_key'] = str(self._scoped_metadata_key)
+		result['target_mosaic_id'] = self._target_mosaic_id.to_json()
+		result['value_size_delta'] = self._value_size_delta
+		result['value'] = hexlify(self._value).decode('utf8')
+		return result
 
 
-class NamespaceRegistrationType(Enum):
-	ROOT = 0
-	CHILD = 1
-
-	@property
-	def size(self) -> int:
-		return 1
-
-	@classmethod
-	def deserialize(cls, payload: ByteString) -> NamespaceRegistrationType:
-		buffer = memoryview(payload)
-		return NamespaceRegistrationType(int.from_bytes(buffer[:1], byteorder='little', signed=False))
-
-	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
-		return buffer
-
-
-class AliasAction(Enum):
-	UNLINK = 0
-	LINK = 1
-
-	@property
-	def size(self) -> int:
-		return 1
-
-	@classmethod
-	def deserialize(cls, payload: ByteString) -> AliasAction:
-		buffer = memoryview(payload)
-		return AliasAction(int.from_bytes(buffer[:1], byteorder='little', signed=False))
-
-	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
-		return buffer
-
-
-class NamespaceMetadataTransaction:
+class NamespaceMetadataTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NAMESPACE_METADATA
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'target_address': 'pod:UnresolvedAddress',
 		'target_namespace_id': 'pod:NamespaceId',
 		'value': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = NamespaceMetadataTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = NamespaceMetadataTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = NamespaceMetadataTransactionV1.TRANSACTION_VERSION
+		self._type_ = NamespaceMetadataTransactionV1.TRANSACTION_TYPE
 		self._target_address = UnresolvedAddress()
 		self._scoped_metadata_key = 0
 		self._target_namespace_id = NamespaceId()
 		self._value_size_delta = 0
 		self._value = bytes()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def target_address(self) -> UnresolvedAddress:
@@ -4988,34 +6338,6 @@ class NamespaceMetadataTransaction:
 	@property
 	def value(self) -> bytes:
 		return self._value
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@target_address.setter
 	def target_address(self, value: UnresolvedAddress):
@@ -5040,16 +6362,7 @@ class NamespaceMetadataTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.target_address.size
 		size += 8
 		size += self.target_namespace_id.size
@@ -5059,32 +6372,11 @@ class NamespaceMetadataTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NamespaceMetadataTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceMetadataTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = NamespaceMetadataTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 		scoped_metadata_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -5098,14 +6390,7 @@ class NamespaceMetadataTransaction:
 		value = ArrayHelpers.get_bytes(buffer, value_size)
 		buffer = buffer[value_size:]
 
-		instance = NamespaceMetadataTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._target_address = target_address
 		instance._scoped_metadata_key = scoped_metadata_key
 		instance._target_namespace_id = target_namespace_id
@@ -5114,17 +6399,8 @@ class NamespaceMetadataTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._target_address.serialize()
 		buffer += self._scoped_metadata_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._target_namespace_id.serialize()
@@ -5135,13 +6411,7 @@ class NamespaceMetadataTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += f'scoped_metadata_key: 0x{self._scoped_metadata_key:X}, '
 		result += f'target_namespace_id: {self._target_namespace_id.__str__()}, '
@@ -5150,47 +6420,38 @@ class NamespaceMetadataTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['target_address'] = self._target_address.to_json()
+		result['scoped_metadata_key'] = str(self._scoped_metadata_key)
+		result['target_namespace_id'] = self._target_namespace_id.to_json()
+		result['value_size_delta'] = self._value_size_delta
+		result['value'] = hexlify(self._value).decode('utf8')
+		return result
 
-class EmbeddedNamespaceMetadataTransaction:
+
+class EmbeddedNamespaceMetadataTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NAMESPACE_METADATA
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'target_address': 'pod:UnresolvedAddress',
 		'target_namespace_id': 'pod:NamespaceId',
 		'value': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedNamespaceMetadataTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedNamespaceMetadataTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedNamespaceMetadataTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedNamespaceMetadataTransactionV1.TRANSACTION_TYPE
 		self._target_address = UnresolvedAddress()
 		self._scoped_metadata_key = 0
 		self._target_namespace_id = NamespaceId()
 		self._value_size_delta = 0
 		self._value = bytes()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def target_address(self) -> UnresolvedAddress:
@@ -5211,22 +6472,6 @@ class EmbeddedNamespaceMetadataTransaction:
 	@property
 	def value(self) -> bytes:
 		return self._value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@target_address.setter
 	def target_address(self, value: UnresolvedAddress):
@@ -5251,13 +6496,7 @@ class EmbeddedNamespaceMetadataTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.target_address.size
 		size += 8
 		size += self.target_namespace_id.size
@@ -5267,26 +6506,11 @@ class EmbeddedNamespaceMetadataTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedNamespaceMetadataTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedNamespaceMetadataTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedNamespaceMetadataTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 		scoped_metadata_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -5300,11 +6524,7 @@ class EmbeddedNamespaceMetadataTransaction:
 		value = ArrayHelpers.get_bytes(buffer, value_size)
 		buffer = buffer[value_size:]
 
-		instance = EmbeddedNamespaceMetadataTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._target_address = target_address
 		instance._scoped_metadata_key = scoped_metadata_key
 		instance._target_namespace_id = target_namespace_id
@@ -5313,14 +6533,8 @@ class EmbeddedNamespaceMetadataTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._target_address.serialize()
 		buffer += self._scoped_metadata_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._target_namespace_id.serialize()
@@ -5331,16 +6545,22 @@ class EmbeddedNamespaceMetadataTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += f'scoped_metadata_key: 0x{self._scoped_metadata_key:X}, '
 		result += f'target_namespace_id: {self._target_namespace_id.__str__()}, '
 		result += f'value_size_delta: 0x{self._value_size_delta:X}, '
 		result += f'value: {hexlify(self._value).decode("utf8")}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['target_address'] = self._target_address.to_json()
+		result['scoped_metadata_key'] = str(self._scoped_metadata_key)
+		result['target_namespace_id'] = self._target_namespace_id.to_json()
+		result['value_size_delta'] = self._value_size_delta
+		result['value'] = hexlify(self._value).decode('utf8')
 		return result
 
 
@@ -5351,7 +6571,7 @@ class MosaicNonce(BaseValue):
 		super().__init__(self.SIZE, mosaic_nonce, MosaicNonce)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicNonce:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicNonce:
 		buffer = memoryview(payload)
 		return MosaicNonce(int.from_bytes(buffer[:4], byteorder='little', signed=False))
 
@@ -5371,14 +6591,17 @@ class MosaicFlags(Flag):
 		return 1
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicFlags:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicFlags:
 		buffer = memoryview(payload)
 		return MosaicFlags(int.from_bytes(buffer[:1], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
 		return buffer
+
+	def to_json(self):
+		return self.value
 
 
 class MosaicSupplyChangeAction(Enum):
@@ -5390,26 +6613,24 @@ class MosaicSupplyChangeAction(Enum):
 		return 1
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicSupplyChangeAction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicSupplyChangeAction:
 		buffer = memoryview(payload)
 		return MosaicSupplyChangeAction(int.from_bytes(buffer[:1], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
 		return buffer
 
+	def to_json(self):
+		return self.value
 
-class MosaicDefinitionTransaction:
+
+class MosaicDefinitionTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_DEFINITION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'id': 'pod:MosaicId',
 		'duration': 'pod:BlockDuration',
 		'nonce': 'pod:MosaicNonce',
@@ -5417,48 +6638,17 @@ class MosaicDefinitionTransaction:
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicDefinitionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicDefinitionTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicDefinitionTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicDefinitionTransactionV1.TRANSACTION_TYPE
 		self._id = MosaicId()
 		self._duration = BlockDuration()
 		self._nonce = MosaicNonce()
 		self._flags = MosaicFlags.NONE
 		self._divisibility = 0
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def id(self) -> MosaicId:
@@ -5479,34 +6669,6 @@ class MosaicDefinitionTransaction:
 	@property
 	def divisibility(self) -> int:
 		return self._divisibility
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@id.setter
 	def id(self, value: MosaicId):
@@ -5531,16 +6693,7 @@ class MosaicDefinitionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.id.size
 		size += self.duration.size
 		size += self.nonce.size
@@ -5549,32 +6702,11 @@ class MosaicDefinitionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicDefinitionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicDefinitionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicDefinitionTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		id = MosaicId.deserialize(buffer)
 		buffer = buffer[id.size:]
 		duration = BlockDuration.deserialize(buffer)
@@ -5586,14 +6718,7 @@ class MosaicDefinitionTransaction:
 		divisibility = int.from_bytes(buffer[:1], byteorder='little', signed=False)
 		buffer = buffer[1:]
 
-		instance = MosaicDefinitionTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._id = id
 		instance._duration = duration
 		instance._nonce = nonce
@@ -5602,17 +6727,8 @@ class MosaicDefinitionTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._id.serialize()
 		buffer += self._duration.serialize()
 		buffer += self._nonce.serialize()
@@ -5622,13 +6738,7 @@ class MosaicDefinitionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'id: {self._id.__str__()}, '
 		result += f'duration: {self._duration.__str__()}, '
 		result += f'nonce: {self._nonce.__str__()}, '
@@ -5637,14 +6747,21 @@ class MosaicDefinitionTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['id'] = self._id.to_json()
+		result['duration'] = self._duration.to_json()
+		result['nonce'] = self._nonce.to_json()
+		result['flags'] = self._flags.to_json()
+		result['divisibility'] = self._divisibility
+		return result
 
-class EmbeddedMosaicDefinitionTransaction:
+
+class EmbeddedMosaicDefinitionTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_DEFINITION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'id': 'pod:MosaicId',
 		'duration': 'pod:BlockDuration',
 		'nonce': 'pod:MosaicNonce',
@@ -5652,33 +6769,17 @@ class EmbeddedMosaicDefinitionTransaction:
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicDefinitionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicDefinitionTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicDefinitionTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicDefinitionTransactionV1.TRANSACTION_TYPE
 		self._id = MosaicId()
 		self._duration = BlockDuration()
 		self._nonce = MosaicNonce()
 		self._flags = MosaicFlags.NONE
 		self._divisibility = 0
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def id(self) -> MosaicId:
@@ -5699,22 +6800,6 @@ class EmbeddedMosaicDefinitionTransaction:
 	@property
 	def divisibility(self) -> int:
 		return self._divisibility
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@id.setter
 	def id(self, value: MosaicId):
@@ -5739,13 +6824,7 @@ class EmbeddedMosaicDefinitionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.id.size
 		size += self.duration.size
 		size += self.nonce.size
@@ -5754,26 +6833,11 @@ class EmbeddedMosaicDefinitionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicDefinitionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicDefinitionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicDefinitionTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		id = MosaicId.deserialize(buffer)
 		buffer = buffer[id.size:]
 		duration = BlockDuration.deserialize(buffer)
@@ -5785,11 +6849,7 @@ class EmbeddedMosaicDefinitionTransaction:
 		divisibility = int.from_bytes(buffer[:1], byteorder='little', signed=False)
 		buffer = buffer[1:]
 
-		instance = EmbeddedMosaicDefinitionTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._id = id
 		instance._duration = duration
 		instance._nonce = nonce
@@ -5798,14 +6858,8 @@ class EmbeddedMosaicDefinitionTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._id.serialize()
 		buffer += self._duration.serialize()
 		buffer += self._nonce.serialize()
@@ -5815,10 +6869,7 @@ class EmbeddedMosaicDefinitionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'id: {self._id.__str__()}, '
 		result += f'duration: {self._duration.__str__()}, '
 		result += f'nonce: {self._nonce.__str__()}, '
@@ -5827,63 +6878,36 @@ class EmbeddedMosaicDefinitionTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['id'] = self._id.to_json()
+		result['duration'] = self._duration.to_json()
+		result['nonce'] = self._nonce.to_json()
+		result['flags'] = self._flags.to_json()
+		result['divisibility'] = self._divisibility
+		return result
 
-class MosaicSupplyChangeTransaction:
+
+class MosaicSupplyChangeTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_SUPPLY_CHANGE
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'mosaic_id': 'pod:UnresolvedMosaicId',
 		'delta': 'pod:Amount',
 		'action': 'enum:MosaicSupplyChangeAction'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicSupplyChangeTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicSupplyChangeTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicSupplyChangeTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicSupplyChangeTransactionV1.TRANSACTION_TYPE
 		self._mosaic_id = UnresolvedMosaicId()
 		self._delta = Amount()
 		self._action = MosaicSupplyChangeAction.DECREASE
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -5896,34 +6920,6 @@ class MosaicSupplyChangeTransaction:
 	@property
 	def action(self) -> MosaicSupplyChangeAction:
 		return self._action
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@mosaic_id.setter
 	def mosaic_id(self, value: UnresolvedMosaicId):
@@ -5940,48 +6936,18 @@ class MosaicSupplyChangeTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.mosaic_id.size
 		size += self.delta.size
 		size += self.action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicSupplyChangeTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicSupplyChangeTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicSupplyChangeTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		delta = Amount.deserialize(buffer)
@@ -5989,31 +6955,15 @@ class MosaicSupplyChangeTransaction:
 		action = MosaicSupplyChangeAction.deserialize(buffer)
 		buffer = buffer[action.size:]
 
-		instance = MosaicSupplyChangeTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._delta = delta
 		instance._action = action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic_id.serialize()
 		buffer += self._delta.serialize()
 		buffer += self._action.serialize()
@@ -6021,58 +6971,41 @@ class MosaicSupplyChangeTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'delta: {self._delta.__str__()}, '
 		result += f'action: {self._action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['delta'] = self._delta.to_json()
+		result['action'] = self._action.to_json()
+		return result
 
-class EmbeddedMosaicSupplyChangeTransaction:
+
+class EmbeddedMosaicSupplyChangeTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_SUPPLY_CHANGE
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'mosaic_id': 'pod:UnresolvedMosaicId',
 		'delta': 'pod:Amount',
 		'action': 'enum:MosaicSupplyChangeAction'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicSupplyChangeTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicSupplyChangeTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicSupplyChangeTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicSupplyChangeTransactionV1.TRANSACTION_TYPE
 		self._mosaic_id = UnresolvedMosaicId()
 		self._delta = Amount()
 		self._action = MosaicSupplyChangeAction.DECREASE
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -6085,22 +7018,6 @@ class EmbeddedMosaicSupplyChangeTransaction:
 	@property
 	def action(self) -> MosaicSupplyChangeAction:
 		return self._action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@mosaic_id.setter
 	def mosaic_id(self, value: UnresolvedMosaicId):
@@ -6117,39 +7034,18 @@ class EmbeddedMosaicSupplyChangeTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.mosaic_id.size
 		size += self.delta.size
 		size += self.action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicSupplyChangeTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicSupplyChangeTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicSupplyChangeTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		delta = Amount.deserialize(buffer)
@@ -6157,25 +7053,15 @@ class EmbeddedMosaicSupplyChangeTransaction:
 		action = MosaicSupplyChangeAction.deserialize(buffer)
 		buffer = buffer[action.size:]
 
-		instance = EmbeddedMosaicSupplyChangeTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._delta = delta
 		instance._action = action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic_id.serialize()
 		buffer += self._delta.serialize()
 		buffer += self._action.serialize()
@@ -6183,71 +7069,39 @@ class EmbeddedMosaicSupplyChangeTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'delta: {self._delta.__str__()}, '
 		result += f'action: {self._action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['delta'] = self._delta.to_json()
+		result['action'] = self._action.to_json()
+		return result
 
-class MosaicSupplyRevocationTransaction:
+
+class MosaicSupplyRevocationTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_SUPPLY_REVOCATION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'source_address': 'pod:UnresolvedAddress',
 		'mosaic': 'struct:UnresolvedMosaic'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicSupplyRevocationTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicSupplyRevocationTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicSupplyRevocationTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicSupplyRevocationTransactionV1.TRANSACTION_TYPE
 		self._source_address = UnresolvedAddress()
 		self._mosaic = UnresolvedMosaic()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def source_address(self) -> UnresolvedAddress:
@@ -6256,34 +7110,6 @@ class MosaicSupplyRevocationTransaction:
 	@property
 	def mosaic(self) -> UnresolvedMosaic:
 		return self._mosaic
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@source_address.setter
 	def source_address(self, value: UnresolvedAddress):
@@ -6296,131 +7122,67 @@ class MosaicSupplyRevocationTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.source_address.size
 		size += self.mosaic.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicSupplyRevocationTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicSupplyRevocationTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicSupplyRevocationTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		source_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[source_address.size:]
 		mosaic = UnresolvedMosaic.deserialize(buffer)
 		buffer = buffer[mosaic.size:]
 
-		instance = MosaicSupplyRevocationTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._source_address = source_address
 		instance._mosaic = mosaic
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._source_address.serialize()
 		buffer += self._mosaic.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'source_address: {self._source_address.__str__()}, '
 		result += f'mosaic: {self._mosaic.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['source_address'] = self._source_address.to_json()
+		result['mosaic'] = self._mosaic.to_json()
+		return result
 
-class EmbeddedMosaicSupplyRevocationTransaction:
+
+class EmbeddedMosaicSupplyRevocationTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_SUPPLY_REVOCATION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'source_address': 'pod:UnresolvedAddress',
 		'mosaic': 'struct:UnresolvedMosaic'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicSupplyRevocationTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicSupplyRevocationTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicSupplyRevocationTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicSupplyRevocationTransactionV1.TRANSACTION_TYPE
 		self._source_address = UnresolvedAddress()
 		self._mosaic = UnresolvedMosaic()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		self._mosaic.sort()
 
 	@property
 	def source_address(self) -> UnresolvedAddress:
@@ -6429,22 +7191,6 @@ class EmbeddedMosaicSupplyRevocationTransaction:
 	@property
 	def mosaic(self) -> UnresolvedMosaic:
 		return self._mosaic
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@source_address.setter
 	def source_address(self, value: UnresolvedAddress):
@@ -6457,134 +7203,70 @@ class EmbeddedMosaicSupplyRevocationTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.source_address.size
 		size += self.mosaic.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicSupplyRevocationTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicSupplyRevocationTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicSupplyRevocationTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		source_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[source_address.size:]
 		mosaic = UnresolvedMosaic.deserialize(buffer)
 		buffer = buffer[mosaic.size:]
 
-		instance = EmbeddedMosaicSupplyRevocationTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._source_address = source_address
 		instance._mosaic = mosaic
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._source_address.serialize()
 		buffer += self._mosaic.serialize()
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'source_address: {self._source_address.__str__()}, '
 		result += f'mosaic: {self._mosaic.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['source_address'] = self._source_address.to_json()
+		result['mosaic'] = self._mosaic.to_json()
+		return result
 
-class MultisigAccountModificationTransaction:
+
+class MultisigAccountModificationTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MULTISIG_ACCOUNT_MODIFICATION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'address_additions': 'array[UnresolvedAddress]',
 		'address_deletions': 'array[UnresolvedAddress]'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MultisigAccountModificationTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MultisigAccountModificationTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MultisigAccountModificationTransactionV1.TRANSACTION_VERSION
+		self._type_ = MultisigAccountModificationTransactionV1.TRANSACTION_TYPE
 		self._min_removal_delta = 0
 		self._min_approval_delta = 0
 		self._address_additions = []
 		self._address_deletions = []
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._multisig_account_modification_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def min_removal_delta(self) -> int:
@@ -6601,34 +7283,6 @@ class MultisigAccountModificationTransaction:
 	@property
 	def address_deletions(self) -> List[UnresolvedAddress]:
 		return self._address_deletions
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@min_removal_delta.setter
 	def min_removal_delta(self, value: int):
@@ -6649,16 +7303,7 @@ class MultisigAccountModificationTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += 1
 		size += 1
 		size += 1
@@ -6669,32 +7314,11 @@ class MultisigAccountModificationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MultisigAccountModificationTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MultisigAccountModificationTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MultisigAccountModificationTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		min_removal_delta = int.from_bytes(buffer[:1], byteorder='little', signed=True)
 		buffer = buffer[1:]
 		min_approval_delta = int.from_bytes(buffer[:1], byteorder='little', signed=True)
@@ -6711,14 +7335,7 @@ class MultisigAccountModificationTransaction:
 		address_deletions = ArrayHelpers.read_array_count(buffer, UnresolvedAddress, address_deletions_count)
 		buffer = buffer[ArrayHelpers.size(address_deletions):]
 
-		instance = MultisigAccountModificationTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._min_removal_delta = min_removal_delta
 		instance._min_approval_delta = min_approval_delta
 		instance._address_additions = address_additions
@@ -6726,17 +7343,8 @@ class MultisigAccountModificationTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._min_removal_delta.to_bytes(1, byteorder='little', signed=True)
 		buffer += self._min_approval_delta.to_bytes(1, byteorder='little', signed=True)
 		buffer += len(self._address_additions).to_bytes(1, byteorder='little', signed=False)  # address_additions_count
@@ -6748,13 +7356,7 @@ class MultisigAccountModificationTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'min_removal_delta: 0x{self._min_removal_delta:X}, '
 		result += f'min_approval_delta: 0x{self._min_approval_delta:X}, '
 		result += f'address_additions: {list(map(str, self._address_additions))}, '
@@ -6762,46 +7364,36 @@ class MultisigAccountModificationTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['min_removal_delta'] = self._min_removal_delta
+		result['min_approval_delta'] = self._min_approval_delta
+		result['address_additions'] = [e.to_json() for e in self._address_additions]
+		result['address_deletions'] = [e.to_json() for e in self._address_deletions]
+		return result
 
-class EmbeddedMultisigAccountModificationTransaction:
+
+class EmbeddedMultisigAccountModificationTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MULTISIG_ACCOUNT_MODIFICATION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'address_additions': 'array[UnresolvedAddress]',
 		'address_deletions': 'array[UnresolvedAddress]'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMultisigAccountModificationTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMultisigAccountModificationTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMultisigAccountModificationTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMultisigAccountModificationTransactionV1.TRANSACTION_TYPE
 		self._min_removal_delta = 0
 		self._min_approval_delta = 0
 		self._address_additions = []
 		self._address_deletions = []
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._multisig_account_modification_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def min_removal_delta(self) -> int:
@@ -6818,22 +7410,6 @@ class EmbeddedMultisigAccountModificationTransaction:
 	@property
 	def address_deletions(self) -> List[UnresolvedAddress]:
 		return self._address_deletions
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@min_removal_delta.setter
 	def min_removal_delta(self, value: int):
@@ -6854,13 +7430,7 @@ class EmbeddedMultisigAccountModificationTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += 1
 		size += 1
 		size += 1
@@ -6871,26 +7441,11 @@ class EmbeddedMultisigAccountModificationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMultisigAccountModificationTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMultisigAccountModificationTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMultisigAccountModificationTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		min_removal_delta = int.from_bytes(buffer[:1], byteorder='little', signed=True)
 		buffer = buffer[1:]
 		min_approval_delta = int.from_bytes(buffer[:1], byteorder='little', signed=True)
@@ -6907,11 +7462,7 @@ class EmbeddedMultisigAccountModificationTransaction:
 		address_deletions = ArrayHelpers.read_array_count(buffer, UnresolvedAddress, address_deletions_count)
 		buffer = buffer[ArrayHelpers.size(address_deletions):]
 
-		instance = EmbeddedMultisigAccountModificationTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._min_removal_delta = min_removal_delta
 		instance._min_approval_delta = min_approval_delta
 		instance._address_additions = address_additions
@@ -6919,14 +7470,8 @@ class EmbeddedMultisigAccountModificationTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._min_removal_delta.to_bytes(1, byteorder='little', signed=True)
 		buffer += self._min_approval_delta.to_bytes(1, byteorder='little', signed=True)
 		buffer += len(self._address_additions).to_bytes(1, byteorder='little', signed=False)  # address_additions_count
@@ -6938,10 +7483,7 @@ class EmbeddedMultisigAccountModificationTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'min_removal_delta: 0x{self._min_removal_delta:X}, '
 		result += f'min_approval_delta: 0x{self._min_approval_delta:X}, '
 		result += f'address_additions: {list(map(str, self._address_additions))}, '
@@ -6949,63 +7491,35 @@ class EmbeddedMultisigAccountModificationTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['min_removal_delta'] = self._min_removal_delta
+		result['min_approval_delta'] = self._min_approval_delta
+		result['address_additions'] = [e.to_json() for e in self._address_additions]
+		result['address_deletions'] = [e.to_json() for e in self._address_deletions]
+		return result
 
-class AddressAliasTransaction:
+
+class AddressAliasTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ADDRESS_ALIAS
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'namespace_id': 'pod:NamespaceId',
 		'address': 'pod:Address',
 		'alias_action': 'enum:AliasAction'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AddressAliasTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AddressAliasTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AddressAliasTransactionV1.TRANSACTION_VERSION
+		self._type_ = AddressAliasTransactionV1.TRANSACTION_TYPE
 		self._namespace_id = NamespaceId()
 		self._address = Address()
 		self._alias_action = AliasAction.UNLINK
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def namespace_id(self) -> NamespaceId:
@@ -7018,34 +7532,6 @@ class AddressAliasTransaction:
 	@property
 	def alias_action(self) -> AliasAction:
 		return self._alias_action
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@namespace_id.setter
 	def namespace_id(self, value: NamespaceId):
@@ -7062,48 +7548,18 @@ class AddressAliasTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.namespace_id.size
 		size += self.address.size
 		size += self.alias_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AddressAliasTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AddressAliasTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AddressAliasTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		namespace_id = NamespaceId.deserialize(buffer)
 		buffer = buffer[namespace_id.size:]
 		address = Address.deserialize(buffer)
@@ -7111,31 +7567,15 @@ class AddressAliasTransaction:
 		alias_action = AliasAction.deserialize(buffer)
 		buffer = buffer[alias_action.size:]
 
-		instance = AddressAliasTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._namespace_id = namespace_id
 		instance._address = address
 		instance._alias_action = alias_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._namespace_id.serialize()
 		buffer += self._address.serialize()
 		buffer += self._alias_action.serialize()
@@ -7143,58 +7583,41 @@ class AddressAliasTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'namespace_id: {self._namespace_id.__str__()}, '
 		result += f'address: {self._address.__str__()}, '
 		result += f'alias_action: {self._alias_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['namespace_id'] = self._namespace_id.to_json()
+		result['address'] = self._address.to_json()
+		result['alias_action'] = self._alias_action.to_json()
+		return result
 
-class EmbeddedAddressAliasTransaction:
+
+class EmbeddedAddressAliasTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ADDRESS_ALIAS
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'namespace_id': 'pod:NamespaceId',
 		'address': 'pod:Address',
 		'alias_action': 'enum:AliasAction'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedAddressAliasTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedAddressAliasTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedAddressAliasTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedAddressAliasTransactionV1.TRANSACTION_TYPE
 		self._namespace_id = NamespaceId()
 		self._address = Address()
 		self._alias_action = AliasAction.UNLINK
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def namespace_id(self) -> NamespaceId:
@@ -7207,22 +7630,6 @@ class EmbeddedAddressAliasTransaction:
 	@property
 	def alias_action(self) -> AliasAction:
 		return self._alias_action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@namespace_id.setter
 	def namespace_id(self, value: NamespaceId):
@@ -7239,39 +7646,18 @@ class EmbeddedAddressAliasTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.namespace_id.size
 		size += self.address.size
 		size += self.alias_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedAddressAliasTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedAddressAliasTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedAddressAliasTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		namespace_id = NamespaceId.deserialize(buffer)
 		buffer = buffer[namespace_id.size:]
 		address = Address.deserialize(buffer)
@@ -7279,25 +7665,15 @@ class EmbeddedAddressAliasTransaction:
 		alias_action = AliasAction.deserialize(buffer)
 		buffer = buffer[alias_action.size:]
 
-		instance = EmbeddedAddressAliasTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._namespace_id = namespace_id
 		instance._address = address
 		instance._alias_action = alias_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._namespace_id.serialize()
 		buffer += self._address.serialize()
 		buffer += self._alias_action.serialize()
@@ -7305,73 +7681,41 @@ class EmbeddedAddressAliasTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'namespace_id: {self._namespace_id.__str__()}, '
 		result += f'address: {self._address.__str__()}, '
 		result += f'alias_action: {self._alias_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['namespace_id'] = self._namespace_id.to_json()
+		result['address'] = self._address.to_json()
+		result['alias_action'] = self._alias_action.to_json()
+		return result
 
-class MosaicAliasTransaction:
+
+class MosaicAliasTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_ALIAS
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'namespace_id': 'pod:NamespaceId',
 		'mosaic_id': 'pod:MosaicId',
 		'alias_action': 'enum:AliasAction'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicAliasTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicAliasTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicAliasTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicAliasTransactionV1.TRANSACTION_TYPE
 		self._namespace_id = NamespaceId()
 		self._mosaic_id = MosaicId()
 		self._alias_action = AliasAction.UNLINK
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def namespace_id(self) -> NamespaceId:
@@ -7384,34 +7728,6 @@ class MosaicAliasTransaction:
 	@property
 	def alias_action(self) -> AliasAction:
 		return self._alias_action
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@namespace_id.setter
 	def namespace_id(self, value: NamespaceId):
@@ -7428,48 +7744,18 @@ class MosaicAliasTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.namespace_id.size
 		size += self.mosaic_id.size
 		size += self.alias_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicAliasTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicAliasTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicAliasTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		namespace_id = NamespaceId.deserialize(buffer)
 		buffer = buffer[namespace_id.size:]
 		mosaic_id = MosaicId.deserialize(buffer)
@@ -7477,31 +7763,15 @@ class MosaicAliasTransaction:
 		alias_action = AliasAction.deserialize(buffer)
 		buffer = buffer[alias_action.size:]
 
-		instance = MosaicAliasTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._namespace_id = namespace_id
 		instance._mosaic_id = mosaic_id
 		instance._alias_action = alias_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._namespace_id.serialize()
 		buffer += self._mosaic_id.serialize()
 		buffer += self._alias_action.serialize()
@@ -7509,58 +7779,41 @@ class MosaicAliasTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'namespace_id: {self._namespace_id.__str__()}, '
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'alias_action: {self._alias_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['namespace_id'] = self._namespace_id.to_json()
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['alias_action'] = self._alias_action.to_json()
+		return result
 
-class EmbeddedMosaicAliasTransaction:
+
+class EmbeddedMosaicAliasTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_ALIAS
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'namespace_id': 'pod:NamespaceId',
 		'mosaic_id': 'pod:MosaicId',
 		'alias_action': 'enum:AliasAction'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicAliasTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicAliasTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicAliasTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicAliasTransactionV1.TRANSACTION_TYPE
 		self._namespace_id = NamespaceId()
 		self._mosaic_id = MosaicId()
 		self._alias_action = AliasAction.UNLINK
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def namespace_id(self) -> NamespaceId:
@@ -7573,22 +7826,6 @@ class EmbeddedMosaicAliasTransaction:
 	@property
 	def alias_action(self) -> AliasAction:
 		return self._alias_action
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@namespace_id.setter
 	def namespace_id(self, value: NamespaceId):
@@ -7605,39 +7842,18 @@ class EmbeddedMosaicAliasTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.namespace_id.size
 		size += self.mosaic_id.size
 		size += self.alias_action.size
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicAliasTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicAliasTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicAliasTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		namespace_id = NamespaceId.deserialize(buffer)
 		buffer = buffer[namespace_id.size:]
 		mosaic_id = MosaicId.deserialize(buffer)
@@ -7645,25 +7861,15 @@ class EmbeddedMosaicAliasTransaction:
 		alias_action = AliasAction.deserialize(buffer)
 		buffer = buffer[alias_action.size:]
 
-		instance = EmbeddedMosaicAliasTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._namespace_id = namespace_id
 		instance._mosaic_id = mosaic_id
 		instance._alias_action = alias_action
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._namespace_id.serialize()
 		buffer += self._mosaic_id.serialize()
 		buffer += self._alias_action.serialize()
@@ -7671,27 +7877,26 @@ class EmbeddedMosaicAliasTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'namespace_id: {self._namespace_id.__str__()}, '
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'alias_action: {self._alias_action.__str__()}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['namespace_id'] = self._namespace_id.to_json()
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['alias_action'] = self._alias_action.to_json()
+		return result
 
-class NamespaceRegistrationTransaction:
+
+class NamespaceRegistrationTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NAMESPACE_REGISTRATION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'duration': 'pod:BlockDuration',
 		'parent_id': 'pod:NamespaceId',
 		'id': 'pod:NamespaceId',
@@ -7700,48 +7905,17 @@ class NamespaceRegistrationTransaction:
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = NamespaceRegistrationTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = NamespaceRegistrationTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = NamespaceRegistrationTransactionV1.TRANSACTION_VERSION
+		self._type_ = NamespaceRegistrationTransactionV1.TRANSACTION_TYPE
 		self._duration = BlockDuration()
-		self._parent_id = NamespaceId()
+		self._parent_id = None
 		self._id = NamespaceId()
 		self._registration_type = NamespaceRegistrationType.ROOT
 		self._name = bytes()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def duration(self) -> BlockDuration:
@@ -7762,34 +7936,6 @@ class NamespaceRegistrationTransaction:
 	@property
 	def name(self) -> bytes:
 		return self._name
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@duration.setter
 	def duration(self, value: BlockDuration):
@@ -7814,16 +7960,7 @@ class NamespaceRegistrationTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		if NamespaceRegistrationType.ROOT == self.registration_type:
 			size += self.duration.size
 		if NamespaceRegistrationType.CHILD == self.registration_type:
@@ -7835,32 +7972,11 @@ class NamespaceRegistrationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> NamespaceRegistrationTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> NamespaceRegistrationTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = NamespaceRegistrationTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		# deserialize to temporary buffer for further processing
 		duration_temporary = BlockDuration.deserialize(buffer)
 		registration_type_condition = buffer[:duration_temporary.size]
@@ -7883,14 +7999,7 @@ class NamespaceRegistrationTransaction:
 		name = ArrayHelpers.get_bytes(buffer, name_size)
 		buffer = buffer[name_size:]
 
-		instance = NamespaceRegistrationTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._duration = duration
 		instance._parent_id = parent_id
 		instance._id = id
@@ -7899,17 +8008,8 @@ class NamespaceRegistrationTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		if NamespaceRegistrationType.ROOT == self.registration_type:
 			buffer += self._duration.serialize()
 		if NamespaceRegistrationType.CHILD == self.registration_type:
@@ -7922,13 +8022,7 @@ class NamespaceRegistrationTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		if NamespaceRegistrationType.ROOT == self.registration_type:
 			result += f'duration: {self._duration.__str__()}, '
 		if NamespaceRegistrationType.CHILD == self.registration_type:
@@ -7939,14 +8033,23 @@ class NamespaceRegistrationTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		if NamespaceRegistrationType.ROOT == self.registration_type:
+			result['duration'] = self._duration.to_json()
+		if NamespaceRegistrationType.CHILD == self.registration_type:
+			result['parent_id'] = self._parent_id.to_json()
+		result['id'] = self._id.to_json()
+		result['registration_type'] = self._registration_type.to_json()
+		result['name'] = hexlify(self._name).decode('utf8')
+		return result
 
-class EmbeddedNamespaceRegistrationTransaction:
+
+class EmbeddedNamespaceRegistrationTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.NAMESPACE_REGISTRATION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'duration': 'pod:BlockDuration',
 		'parent_id': 'pod:NamespaceId',
 		'id': 'pod:NamespaceId',
@@ -7955,33 +8058,17 @@ class EmbeddedNamespaceRegistrationTransaction:
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedNamespaceRegistrationTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedNamespaceRegistrationTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedNamespaceRegistrationTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedNamespaceRegistrationTransactionV1.TRANSACTION_TYPE
 		self._duration = BlockDuration()
-		self._parent_id = NamespaceId()
+		self._parent_id = None
 		self._id = NamespaceId()
 		self._registration_type = NamespaceRegistrationType.ROOT
 		self._name = bytes()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def duration(self) -> BlockDuration:
@@ -8002,22 +8089,6 @@ class EmbeddedNamespaceRegistrationTransaction:
 	@property
 	def name(self) -> bytes:
 		return self._name
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@duration.setter
 	def duration(self, value: BlockDuration):
@@ -8042,13 +8113,7 @@ class EmbeddedNamespaceRegistrationTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		if NamespaceRegistrationType.ROOT == self.registration_type:
 			size += self.duration.size
 		if NamespaceRegistrationType.CHILD == self.registration_type:
@@ -8060,26 +8125,11 @@ class EmbeddedNamespaceRegistrationTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedNamespaceRegistrationTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedNamespaceRegistrationTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedNamespaceRegistrationTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		# deserialize to temporary buffer for further processing
 		duration_temporary = BlockDuration.deserialize(buffer)
 		registration_type_condition = buffer[:duration_temporary.size]
@@ -8102,11 +8152,7 @@ class EmbeddedNamespaceRegistrationTransaction:
 		name = ArrayHelpers.get_bytes(buffer, name_size)
 		buffer = buffer[name_size:]
 
-		instance = EmbeddedNamespaceRegistrationTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._duration = duration
 		instance._parent_id = parent_id
 		instance._id = id
@@ -8115,14 +8161,8 @@ class EmbeddedNamespaceRegistrationTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		if NamespaceRegistrationType.ROOT == self.registration_type:
 			buffer += self._duration.serialize()
 		if NamespaceRegistrationType.CHILD == self.registration_type:
@@ -8135,10 +8175,7 @@ class EmbeddedNamespaceRegistrationTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		if NamespaceRegistrationType.ROOT == self.registration_type:
 			result += f'duration: {self._duration.__str__()}, '
 		if NamespaceRegistrationType.CHILD == self.registration_type:
@@ -8147,6 +8184,17 @@ class EmbeddedNamespaceRegistrationTransaction:
 		result += f'registration_type: {self._registration_type.__str__()}, '
 		result += f'name: {hexlify(self._name).decode("utf8")}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		if NamespaceRegistrationType.ROOT == self.registration_type:
+			result['duration'] = self._duration.to_json()
+		if NamespaceRegistrationType.CHILD == self.registration_type:
+			result['parent_id'] = self._parent_id.to_json()
+		result['id'] = self._id.to_json()
+		result['registration_type'] = self._registration_type.to_json()
+		result['name'] = hexlify(self._name).decode('utf8')
 		return result
 
 
@@ -8162,73 +8210,40 @@ class AccountRestrictionFlags(Flag):
 		return 2
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountRestrictionFlags:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AccountRestrictionFlags:
 		buffer = memoryview(payload)
 		return AccountRestrictionFlags(int.from_bytes(buffer[:2], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(2, byteorder='little', signed=False)
 		return buffer
 
+	def to_json(self):
+		return self.value
 
-class AccountAddressRestrictionTransaction:
+
+class AccountAddressRestrictionTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_ADDRESS_RESTRICTION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'restriction_flags': 'enum:AccountRestrictionFlags',
 		'restriction_additions': 'array[UnresolvedAddress]',
 		'restriction_deletions': 'array[UnresolvedAddress]'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AccountAddressRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AccountAddressRestrictionTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AccountAddressRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = AccountAddressRestrictionTransactionV1.TRANSACTION_TYPE
 		self._restriction_flags = AccountRestrictionFlags.ADDRESS
 		self._restriction_additions = []
 		self._restriction_deletions = []
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._account_restriction_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def restriction_flags(self) -> AccountRestrictionFlags:
@@ -8241,34 +8256,6 @@ class AccountAddressRestrictionTransaction:
 	@property
 	def restriction_deletions(self) -> List[UnresolvedAddress]:
 		return self._restriction_deletions
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@restriction_flags.setter
 	def restriction_flags(self, value: AccountRestrictionFlags):
@@ -8285,16 +8272,7 @@ class AccountAddressRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.restriction_flags.size
 		size += 1
 		size += 1
@@ -8304,32 +8282,11 @@ class AccountAddressRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountAddressRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AccountAddressRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AccountAddressRestrictionTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		restriction_flags = AccountRestrictionFlags.deserialize(buffer)
 		buffer = buffer[restriction_flags.size:]
 		restriction_additions_count = int.from_bytes(buffer[:1], byteorder='little', signed=False)
@@ -8344,31 +8301,15 @@ class AccountAddressRestrictionTransaction:
 		restriction_deletions = ArrayHelpers.read_array_count(buffer, UnresolvedAddress, restriction_deletions_count)
 		buffer = buffer[ArrayHelpers.size(restriction_deletions):]
 
-		instance = AccountAddressRestrictionTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._restriction_flags = restriction_flags
 		instance._restriction_additions = restriction_additions
 		instance._restriction_deletions = restriction_deletions
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._restriction_flags.serialize()
 		buffer += len(self._restriction_additions).to_bytes(1, byteorder='little', signed=False)  # restriction_additions_count
 		buffer += len(self._restriction_deletions).to_bytes(1, byteorder='little', signed=False)  # restriction_deletions_count
@@ -8379,59 +8320,42 @@ class AccountAddressRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'restriction_flags: {self._restriction_flags.__str__()}, '
 		result += f'restriction_additions: {list(map(str, self._restriction_additions))}, '
 		result += f'restriction_deletions: {list(map(str, self._restriction_deletions))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['restriction_flags'] = self._restriction_flags.to_json()
+		result['restriction_additions'] = [e.to_json() for e in self._restriction_additions]
+		result['restriction_deletions'] = [e.to_json() for e in self._restriction_deletions]
+		return result
 
-class EmbeddedAccountAddressRestrictionTransaction:
+
+class EmbeddedAccountAddressRestrictionTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_ADDRESS_RESTRICTION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'restriction_flags': 'enum:AccountRestrictionFlags',
 		'restriction_additions': 'array[UnresolvedAddress]',
 		'restriction_deletions': 'array[UnresolvedAddress]'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedAccountAddressRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedAccountAddressRestrictionTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedAccountAddressRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedAccountAddressRestrictionTransactionV1.TRANSACTION_TYPE
 		self._restriction_flags = AccountRestrictionFlags.ADDRESS
 		self._restriction_additions = []
 		self._restriction_deletions = []
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._account_restriction_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def restriction_flags(self) -> AccountRestrictionFlags:
@@ -8444,22 +8368,6 @@ class EmbeddedAccountAddressRestrictionTransaction:
 	@property
 	def restriction_deletions(self) -> List[UnresolvedAddress]:
 		return self._restriction_deletions
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@restriction_flags.setter
 	def restriction_flags(self, value: AccountRestrictionFlags):
@@ -8476,13 +8384,7 @@ class EmbeddedAccountAddressRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.restriction_flags.size
 		size += 1
 		size += 1
@@ -8492,26 +8394,11 @@ class EmbeddedAccountAddressRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedAccountAddressRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedAccountAddressRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedAccountAddressRestrictionTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		restriction_flags = AccountRestrictionFlags.deserialize(buffer)
 		buffer = buffer[restriction_flags.size:]
 		restriction_additions_count = int.from_bytes(buffer[:1], byteorder='little', signed=False)
@@ -8526,25 +8413,15 @@ class EmbeddedAccountAddressRestrictionTransaction:
 		restriction_deletions = ArrayHelpers.read_array_count(buffer, UnresolvedAddress, restriction_deletions_count)
 		buffer = buffer[ArrayHelpers.size(restriction_deletions):]
 
-		instance = EmbeddedAccountAddressRestrictionTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._restriction_flags = restriction_flags
 		instance._restriction_additions = restriction_additions
 		instance._restriction_deletions = restriction_deletions
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._restriction_flags.serialize()
 		buffer += len(self._restriction_additions).to_bytes(1, byteorder='little', signed=False)  # restriction_additions_count
 		buffer += len(self._restriction_deletions).to_bytes(1, byteorder='little', signed=False)  # restriction_deletions_count
@@ -8555,74 +8432,42 @@ class EmbeddedAccountAddressRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'restriction_flags: {self._restriction_flags.__str__()}, '
 		result += f'restriction_additions: {list(map(str, self._restriction_additions))}, '
 		result += f'restriction_deletions: {list(map(str, self._restriction_deletions))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['restriction_flags'] = self._restriction_flags.to_json()
+		result['restriction_additions'] = [e.to_json() for e in self._restriction_additions]
+		result['restriction_deletions'] = [e.to_json() for e in self._restriction_deletions]
+		return result
 
-class AccountMosaicRestrictionTransaction:
+
+class AccountMosaicRestrictionTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_MOSAIC_RESTRICTION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'restriction_flags': 'enum:AccountRestrictionFlags',
 		'restriction_additions': 'array[UnresolvedMosaicId]',
 		'restriction_deletions': 'array[UnresolvedMosaicId]'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AccountMosaicRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AccountMosaicRestrictionTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AccountMosaicRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = AccountMosaicRestrictionTransactionV1.TRANSACTION_TYPE
 		self._restriction_flags = AccountRestrictionFlags.ADDRESS
 		self._restriction_additions = []
 		self._restriction_deletions = []
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._account_restriction_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def restriction_flags(self) -> AccountRestrictionFlags:
@@ -8635,34 +8480,6 @@ class AccountMosaicRestrictionTransaction:
 	@property
 	def restriction_deletions(self) -> List[UnresolvedMosaicId]:
 		return self._restriction_deletions
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@restriction_flags.setter
 	def restriction_flags(self, value: AccountRestrictionFlags):
@@ -8679,16 +8496,7 @@ class AccountMosaicRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.restriction_flags.size
 		size += 1
 		size += 1
@@ -8698,32 +8506,11 @@ class AccountMosaicRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountMosaicRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AccountMosaicRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AccountMosaicRestrictionTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		restriction_flags = AccountRestrictionFlags.deserialize(buffer)
 		buffer = buffer[restriction_flags.size:]
 		restriction_additions_count = int.from_bytes(buffer[:1], byteorder='little', signed=False)
@@ -8738,31 +8525,15 @@ class AccountMosaicRestrictionTransaction:
 		restriction_deletions = ArrayHelpers.read_array_count(buffer, UnresolvedMosaicId, restriction_deletions_count)
 		buffer = buffer[ArrayHelpers.size(restriction_deletions):]
 
-		instance = AccountMosaicRestrictionTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._restriction_flags = restriction_flags
 		instance._restriction_additions = restriction_additions
 		instance._restriction_deletions = restriction_deletions
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._restriction_flags.serialize()
 		buffer += len(self._restriction_additions).to_bytes(1, byteorder='little', signed=False)  # restriction_additions_count
 		buffer += len(self._restriction_deletions).to_bytes(1, byteorder='little', signed=False)  # restriction_deletions_count
@@ -8773,59 +8544,42 @@ class AccountMosaicRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'restriction_flags: {self._restriction_flags.__str__()}, '
 		result += f'restriction_additions: {list(map(str, self._restriction_additions))}, '
 		result += f'restriction_deletions: {list(map(str, self._restriction_deletions))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['restriction_flags'] = self._restriction_flags.to_json()
+		result['restriction_additions'] = [e.to_json() for e in self._restriction_additions]
+		result['restriction_deletions'] = [e.to_json() for e in self._restriction_deletions]
+		return result
 
-class EmbeddedAccountMosaicRestrictionTransaction:
+
+class EmbeddedAccountMosaicRestrictionTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_MOSAIC_RESTRICTION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'restriction_flags': 'enum:AccountRestrictionFlags',
 		'restriction_additions': 'array[UnresolvedMosaicId]',
 		'restriction_deletions': 'array[UnresolvedMosaicId]'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedAccountMosaicRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedAccountMosaicRestrictionTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedAccountMosaicRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedAccountMosaicRestrictionTransactionV1.TRANSACTION_TYPE
 		self._restriction_flags = AccountRestrictionFlags.ADDRESS
 		self._restriction_additions = []
 		self._restriction_deletions = []
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._account_restriction_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def restriction_flags(self) -> AccountRestrictionFlags:
@@ -8838,22 +8592,6 @@ class EmbeddedAccountMosaicRestrictionTransaction:
 	@property
 	def restriction_deletions(self) -> List[UnresolvedMosaicId]:
 		return self._restriction_deletions
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@restriction_flags.setter
 	def restriction_flags(self, value: AccountRestrictionFlags):
@@ -8870,13 +8608,7 @@ class EmbeddedAccountMosaicRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.restriction_flags.size
 		size += 1
 		size += 1
@@ -8886,26 +8618,11 @@ class EmbeddedAccountMosaicRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedAccountMosaicRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedAccountMosaicRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedAccountMosaicRestrictionTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		restriction_flags = AccountRestrictionFlags.deserialize(buffer)
 		buffer = buffer[restriction_flags.size:]
 		restriction_additions_count = int.from_bytes(buffer[:1], byteorder='little', signed=False)
@@ -8920,25 +8637,15 @@ class EmbeddedAccountMosaicRestrictionTransaction:
 		restriction_deletions = ArrayHelpers.read_array_count(buffer, UnresolvedMosaicId, restriction_deletions_count)
 		buffer = buffer[ArrayHelpers.size(restriction_deletions):]
 
-		instance = EmbeddedAccountMosaicRestrictionTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._restriction_flags = restriction_flags
 		instance._restriction_additions = restriction_additions
 		instance._restriction_deletions = restriction_deletions
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._restriction_flags.serialize()
 		buffer += len(self._restriction_additions).to_bytes(1, byteorder='little', signed=False)  # restriction_additions_count
 		buffer += len(self._restriction_deletions).to_bytes(1, byteorder='little', signed=False)  # restriction_deletions_count
@@ -8949,74 +8656,42 @@ class EmbeddedAccountMosaicRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'restriction_flags: {self._restriction_flags.__str__()}, '
 		result += f'restriction_additions: {list(map(str, self._restriction_additions))}, '
 		result += f'restriction_deletions: {list(map(str, self._restriction_deletions))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['restriction_flags'] = self._restriction_flags.to_json()
+		result['restriction_additions'] = [e.to_json() for e in self._restriction_additions]
+		result['restriction_deletions'] = [e.to_json() for e in self._restriction_deletions]
+		return result
 
-class AccountOperationRestrictionTransaction:
+
+class AccountOperationRestrictionTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_OPERATION_RESTRICTION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'restriction_flags': 'enum:AccountRestrictionFlags',
 		'restriction_additions': 'array[TransactionType]',
 		'restriction_deletions': 'array[TransactionType]'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = AccountOperationRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = AccountOperationRestrictionTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = AccountOperationRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = AccountOperationRestrictionTransactionV1.TRANSACTION_TYPE
 		self._restriction_flags = AccountRestrictionFlags.ADDRESS
 		self._restriction_additions = []
 		self._restriction_deletions = []
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._account_restriction_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def restriction_flags(self) -> AccountRestrictionFlags:
@@ -9029,34 +8704,6 @@ class AccountOperationRestrictionTransaction:
 	@property
 	def restriction_deletions(self) -> List[TransactionType]:
 		return self._restriction_deletions
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@restriction_flags.setter
 	def restriction_flags(self, value: AccountRestrictionFlags):
@@ -9073,16 +8720,7 @@ class AccountOperationRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.restriction_flags.size
 		size += 1
 		size += 1
@@ -9092,32 +8730,11 @@ class AccountOperationRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> AccountOperationRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> AccountOperationRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = AccountOperationRestrictionTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		restriction_flags = AccountRestrictionFlags.deserialize(buffer)
 		buffer = buffer[restriction_flags.size:]
 		restriction_additions_count = int.from_bytes(buffer[:1], byteorder='little', signed=False)
@@ -9132,31 +8749,15 @@ class AccountOperationRestrictionTransaction:
 		restriction_deletions = ArrayHelpers.read_array_count(buffer, TransactionType, restriction_deletions_count)
 		buffer = buffer[ArrayHelpers.size(restriction_deletions):]
 
-		instance = AccountOperationRestrictionTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._restriction_flags = restriction_flags
 		instance._restriction_additions = restriction_additions
 		instance._restriction_deletions = restriction_deletions
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._restriction_flags.serialize()
 		buffer += len(self._restriction_additions).to_bytes(1, byteorder='little', signed=False)  # restriction_additions_count
 		buffer += len(self._restriction_deletions).to_bytes(1, byteorder='little', signed=False)  # restriction_deletions_count
@@ -9167,59 +8768,42 @@ class AccountOperationRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'restriction_flags: {self._restriction_flags.__str__()}, '
 		result += f'restriction_additions: {list(map(str, self._restriction_additions))}, '
 		result += f'restriction_deletions: {list(map(str, self._restriction_deletions))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['restriction_flags'] = self._restriction_flags.to_json()
+		result['restriction_additions'] = [e.to_json() for e in self._restriction_additions]
+		result['restriction_deletions'] = [e.to_json() for e in self._restriction_deletions]
+		return result
 
-class EmbeddedAccountOperationRestrictionTransaction:
+
+class EmbeddedAccountOperationRestrictionTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.ACCOUNT_OPERATION_RESTRICTION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'restriction_flags': 'enum:AccountRestrictionFlags',
 		'restriction_additions': 'array[TransactionType]',
 		'restriction_deletions': 'array[TransactionType]'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedAccountOperationRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedAccountOperationRestrictionTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedAccountOperationRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedAccountOperationRestrictionTransactionV1.TRANSACTION_TYPE
 		self._restriction_flags = AccountRestrictionFlags.ADDRESS
 		self._restriction_additions = []
 		self._restriction_deletions = []
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._account_restriction_transaction_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def restriction_flags(self) -> AccountRestrictionFlags:
@@ -9232,22 +8816,6 @@ class EmbeddedAccountOperationRestrictionTransaction:
 	@property
 	def restriction_deletions(self) -> List[TransactionType]:
 		return self._restriction_deletions
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@restriction_flags.setter
 	def restriction_flags(self, value: AccountRestrictionFlags):
@@ -9264,13 +8832,7 @@ class EmbeddedAccountOperationRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.restriction_flags.size
 		size += 1
 		size += 1
@@ -9280,26 +8842,11 @@ class EmbeddedAccountOperationRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedAccountOperationRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedAccountOperationRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedAccountOperationRestrictionTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		restriction_flags = AccountRestrictionFlags.deserialize(buffer)
 		buffer = buffer[restriction_flags.size:]
 		restriction_additions_count = int.from_bytes(buffer[:1], byteorder='little', signed=False)
@@ -9314,25 +8861,15 @@ class EmbeddedAccountOperationRestrictionTransaction:
 		restriction_deletions = ArrayHelpers.read_array_count(buffer, TransactionType, restriction_deletions_count)
 		buffer = buffer[ArrayHelpers.size(restriction_deletions):]
 
-		instance = EmbeddedAccountOperationRestrictionTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._restriction_flags = restriction_flags
 		instance._restriction_additions = restriction_additions
 		instance._restriction_deletions = restriction_deletions
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._restriction_flags.serialize()
 		buffer += len(self._restriction_additions).to_bytes(1, byteorder='little', signed=False)  # restriction_additions_count
 		buffer += len(self._restriction_deletions).to_bytes(1, byteorder='little', signed=False)  # restriction_deletions_count
@@ -9343,74 +8880,42 @@ class EmbeddedAccountOperationRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'restriction_flags: {self._restriction_flags.__str__()}, '
 		result += f'restriction_additions: {list(map(str, self._restriction_additions))}, '
 		result += f'restriction_deletions: {list(map(str, self._restriction_deletions))}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['restriction_flags'] = self._restriction_flags.to_json()
+		result['restriction_additions'] = [e.to_json() for e in self._restriction_additions]
+		result['restriction_deletions'] = [e.to_json() for e in self._restriction_deletions]
+		return result
 
-class MosaicAddressRestrictionTransaction:
+
+class MosaicAddressRestrictionTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_ADDRESS_RESTRICTION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'mosaic_id': 'pod:UnresolvedMosaicId',
 		'target_address': 'pod:UnresolvedAddress'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicAddressRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicAddressRestrictionTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicAddressRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicAddressRestrictionTransactionV1.TRANSACTION_TYPE
 		self._mosaic_id = UnresolvedMosaicId()
 		self._restriction_key = 0
 		self._previous_restriction_value = 0
 		self._new_restriction_value = 0
 		self._target_address = UnresolvedAddress()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -9431,34 +8936,6 @@ class MosaicAddressRestrictionTransaction:
 	@property
 	def target_address(self) -> UnresolvedAddress:
 		return self._target_address
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@mosaic_id.setter
 	def mosaic_id(self, value: UnresolvedMosaicId):
@@ -9483,16 +8960,7 @@ class MosaicAddressRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.mosaic_id.size
 		size += 8
 		size += 8
@@ -9501,32 +8969,11 @@ class MosaicAddressRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicAddressRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicAddressRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicAddressRestrictionTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		restriction_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -9538,14 +8985,7 @@ class MosaicAddressRestrictionTransaction:
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 
-		instance = MosaicAddressRestrictionTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._restriction_key = restriction_key
 		instance._previous_restriction_value = previous_restriction_value
@@ -9554,17 +8994,8 @@ class MosaicAddressRestrictionTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic_id.serialize()
 		buffer += self._restriction_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._previous_restriction_value.to_bytes(8, byteorder='little', signed=False)
@@ -9574,13 +9005,7 @@ class MosaicAddressRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'restriction_key: 0x{self._restriction_key:X}, '
 		result += f'previous_restriction_value: 0x{self._previous_restriction_value:X}, '
@@ -9589,46 +9014,37 @@ class MosaicAddressRestrictionTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['restriction_key'] = str(self._restriction_key)
+		result['previous_restriction_value'] = str(self._previous_restriction_value)
+		result['new_restriction_value'] = str(self._new_restriction_value)
+		result['target_address'] = self._target_address.to_json()
+		return result
 
-class EmbeddedMosaicAddressRestrictionTransaction:
+
+class EmbeddedMosaicAddressRestrictionTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_ADDRESS_RESTRICTION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'mosaic_id': 'pod:UnresolvedMosaicId',
 		'target_address': 'pod:UnresolvedAddress'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicAddressRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicAddressRestrictionTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicAddressRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicAddressRestrictionTransactionV1.TRANSACTION_TYPE
 		self._mosaic_id = UnresolvedMosaicId()
 		self._restriction_key = 0
 		self._previous_restriction_value = 0
 		self._new_restriction_value = 0
 		self._target_address = UnresolvedAddress()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -9649,22 +9065,6 @@ class EmbeddedMosaicAddressRestrictionTransaction:
 	@property
 	def target_address(self) -> UnresolvedAddress:
 		return self._target_address
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@mosaic_id.setter
 	def mosaic_id(self, value: UnresolvedMosaicId):
@@ -9689,13 +9089,7 @@ class EmbeddedMosaicAddressRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.mosaic_id.size
 		size += 8
 		size += 8
@@ -9704,26 +9098,11 @@ class EmbeddedMosaicAddressRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicAddressRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicAddressRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicAddressRestrictionTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		restriction_key = int.from_bytes(buffer[:8], byteorder='little', signed=False)
@@ -9735,11 +9114,7 @@ class EmbeddedMosaicAddressRestrictionTransaction:
 		target_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[target_address.size:]
 
-		instance = EmbeddedMosaicAddressRestrictionTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._restriction_key = restriction_key
 		instance._previous_restriction_value = previous_restriction_value
@@ -9748,14 +9123,8 @@ class EmbeddedMosaicAddressRestrictionTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic_id.serialize()
 		buffer += self._restriction_key.to_bytes(8, byteorder='little', signed=False)
 		buffer += self._previous_restriction_value.to_bytes(8, byteorder='little', signed=False)
@@ -9765,16 +9134,22 @@ class EmbeddedMosaicAddressRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'restriction_key: 0x{self._restriction_key:X}, '
 		result += f'previous_restriction_value: 0x{self._previous_restriction_value:X}, '
 		result += f'new_restriction_value: 0x{self._new_restriction_value:X}, '
 		result += f'target_address: {self._target_address.__str__()}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['restriction_key'] = str(self._restriction_key)
+		result['previous_restriction_value'] = str(self._previous_restriction_value)
+		result['new_restriction_value'] = str(self._new_restriction_value)
+		result['target_address'] = self._target_address.to_json()
 		return result
 
 
@@ -9785,7 +9160,7 @@ class MosaicRestrictionKey(BaseValue):
 		super().__init__(self.SIZE, mosaic_restriction_key, MosaicRestrictionKey)
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicRestrictionKey:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicRestrictionKey:
 		buffer = memoryview(payload)
 		return MosaicRestrictionKey(int.from_bytes(buffer[:8], byteorder='little', signed=False))
 
@@ -9807,26 +9182,24 @@ class MosaicRestrictionType(Enum):
 		return 1
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicRestrictionType:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicRestrictionType:
 		buffer = memoryview(payload)
 		return MosaicRestrictionType(int.from_bytes(buffer[:1], byteorder='little', signed=False))
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
+		buffer = bytearray()
 		buffer += self.value.to_bytes(1, byteorder='little', signed=False)
 		return buffer
 
+	def to_json(self):
+		return self.value
 
-class MosaicGlobalRestrictionTransaction:
+
+class MosaicGlobalRestrictionTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_GLOBAL_RESTRICTION
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'mosaic_id': 'pod:UnresolvedMosaicId',
 		'reference_mosaic_id': 'pod:UnresolvedMosaicId',
 		'previous_restriction_type': 'enum:MosaicRestrictionType',
@@ -9834,13 +9207,9 @@ class MosaicGlobalRestrictionTransaction:
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = MosaicGlobalRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = MosaicGlobalRestrictionTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = MosaicGlobalRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = MosaicGlobalRestrictionTransactionV1.TRANSACTION_TYPE
 		self._mosaic_id = UnresolvedMosaicId()
 		self._reference_mosaic_id = UnresolvedMosaicId()
 		self._restriction_key = 0
@@ -9848,36 +9217,9 @@ class MosaicGlobalRestrictionTransaction:
 		self._new_restriction_value = 0
 		self._previous_restriction_type = MosaicRestrictionType.NONE
 		self._new_restriction_type = MosaicRestrictionType.NONE
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -9906,34 +9248,6 @@ class MosaicGlobalRestrictionTransaction:
 	@property
 	def new_restriction_type(self) -> MosaicRestrictionType:
 		return self._new_restriction_type
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@mosaic_id.setter
 	def mosaic_id(self, value: UnresolvedMosaicId):
@@ -9966,16 +9280,7 @@ class MosaicGlobalRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.mosaic_id.size
 		size += self.reference_mosaic_id.size
 		size += 8
@@ -9986,32 +9291,11 @@ class MosaicGlobalRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> MosaicGlobalRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> MosaicGlobalRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = MosaicGlobalRestrictionTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		reference_mosaic_id = UnresolvedMosaicId.deserialize(buffer)
@@ -10027,14 +9311,7 @@ class MosaicGlobalRestrictionTransaction:
 		new_restriction_type = MosaicRestrictionType.deserialize(buffer)
 		buffer = buffer[new_restriction_type.size:]
 
-		instance = MosaicGlobalRestrictionTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._reference_mosaic_id = reference_mosaic_id
 		instance._restriction_key = restriction_key
@@ -10045,17 +9322,8 @@ class MosaicGlobalRestrictionTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic_id.serialize()
 		buffer += self._reference_mosaic_id.serialize()
 		buffer += self._restriction_key.to_bytes(8, byteorder='little', signed=False)
@@ -10067,13 +9335,7 @@ class MosaicGlobalRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'reference_mosaic_id: {self._reference_mosaic_id.__str__()}, '
 		result += f'restriction_key: 0x{self._restriction_key:X}, '
@@ -10084,14 +9346,23 @@ class MosaicGlobalRestrictionTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['reference_mosaic_id'] = self._reference_mosaic_id.to_json()
+		result['restriction_key'] = str(self._restriction_key)
+		result['previous_restriction_value'] = str(self._previous_restriction_value)
+		result['new_restriction_value'] = str(self._new_restriction_value)
+		result['previous_restriction_type'] = self._previous_restriction_type.to_json()
+		result['new_restriction_type'] = self._new_restriction_type.to_json()
+		return result
 
-class EmbeddedMosaicGlobalRestrictionTransaction:
+
+class EmbeddedMosaicGlobalRestrictionTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.MOSAIC_GLOBAL_RESTRICTION
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'mosaic_id': 'pod:UnresolvedMosaicId',
 		'reference_mosaic_id': 'pod:UnresolvedMosaicId',
 		'previous_restriction_type': 'enum:MosaicRestrictionType',
@@ -10099,10 +9370,9 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedMosaicGlobalRestrictionTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedMosaicGlobalRestrictionTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedMosaicGlobalRestrictionTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedMosaicGlobalRestrictionTransactionV1.TRANSACTION_TYPE
 		self._mosaic_id = UnresolvedMosaicId()
 		self._reference_mosaic_id = UnresolvedMosaicId()
 		self._restriction_key = 0
@@ -10110,24 +9380,9 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 		self._new_restriction_value = 0
 		self._previous_restriction_type = MosaicRestrictionType.NONE
 		self._new_restriction_type = MosaicRestrictionType.NONE
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		pass
 
 	@property
 	def mosaic_id(self) -> UnresolvedMosaicId:
@@ -10156,22 +9411,6 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 	@property
 	def new_restriction_type(self) -> MosaicRestrictionType:
 		return self._new_restriction_type
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@mosaic_id.setter
 	def mosaic_id(self, value: UnresolvedMosaicId):
@@ -10204,13 +9443,7 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.mosaic_id.size
 		size += self.reference_mosaic_id.size
 		size += 8
@@ -10221,26 +9454,11 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedMosaicGlobalRestrictionTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedMosaicGlobalRestrictionTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedMosaicGlobalRestrictionTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		mosaic_id = UnresolvedMosaicId.deserialize(buffer)
 		buffer = buffer[mosaic_id.size:]
 		reference_mosaic_id = UnresolvedMosaicId.deserialize(buffer)
@@ -10256,11 +9474,7 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 		new_restriction_type = MosaicRestrictionType.deserialize(buffer)
 		buffer = buffer[new_restriction_type.size:]
 
-		instance = EmbeddedMosaicGlobalRestrictionTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._mosaic_id = mosaic_id
 		instance._reference_mosaic_id = reference_mosaic_id
 		instance._restriction_key = restriction_key
@@ -10271,14 +9485,8 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._mosaic_id.serialize()
 		buffer += self._reference_mosaic_id.serialize()
 		buffer += self._restriction_key.to_bytes(8, byteorder='little', signed=False)
@@ -10290,10 +9498,7 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'mosaic_id: {self._mosaic_id.__str__()}, '
 		result += f'reference_mosaic_id: {self._reference_mosaic_id.__str__()}, '
 		result += f'restriction_key: 0x{self._restriction_key:X}, '
@@ -10304,65 +9509,40 @@ class EmbeddedMosaicGlobalRestrictionTransaction:
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['mosaic_id'] = self._mosaic_id.to_json()
+		result['reference_mosaic_id'] = self._reference_mosaic_id.to_json()
+		result['restriction_key'] = str(self._restriction_key)
+		result['previous_restriction_value'] = str(self._previous_restriction_value)
+		result['new_restriction_value'] = str(self._new_restriction_value)
+		result['previous_restriction_type'] = self._previous_restriction_type.to_json()
+		result['new_restriction_type'] = self._new_restriction_type.to_json()
+		return result
 
-class TransferTransaction:
+
+class TransferTransactionV1(Transaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.TRANSFER
 	TYPE_HINTS = {
-		'signature': 'pod:Signature',
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
-		'fee': 'pod:Amount',
-		'deadline': 'pod:Timestamp',
+		**Transaction.TYPE_HINTS,
 		'recipient_address': 'pod:UnresolvedAddress',
 		'mosaics': 'array[UnresolvedMosaic]',
 		'message': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signature = Signature()
-		self._signer_public_key = PublicKey()
-		self._version = TransferTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = TransferTransaction.TRANSACTION_TYPE
-		self._fee = Amount()
-		self._deadline = Timestamp()
+		super().__init__()
+		self._version = TransferTransactionV1.TRANSACTION_VERSION
+		self._type_ = TransferTransactionV1.TRANSACTION_TYPE
 		self._recipient_address = UnresolvedAddress()
 		self._mosaics = []
 		self._message = bytes()
-		self._verifiable_entity_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._transfer_transaction_body_reserved_1 = 0  # reserved field
 		self._transfer_transaction_body_reserved_2 = 0  # reserved field
 
-	@property
-	def signature(self) -> Signature:
-		return self._signature
-
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
-
-	@property
-	def fee(self) -> Amount:
-		return self._fee
-
-	@property
-	def deadline(self) -> Timestamp:
-		return self._deadline
+	def sort(self) -> None:
+		self._mosaics = sorted(self._mosaics, key=lambda e: e.mosaic_id.comparer() if hasattr(e.mosaic_id, 'comparer') else e.mosaic_id)
 
 	@property
 	def recipient_address(self) -> UnresolvedAddress:
@@ -10375,34 +9555,6 @@ class TransferTransaction:
 	@property
 	def message(self) -> bytes:
 		return self._message
-
-	@signature.setter
-	def signature(self, value: Signature):
-		self._signature = value
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
-
-	@fee.setter
-	def fee(self, value: Amount):
-		self._fee = value
-
-	@deadline.setter
-	def deadline(self, value: Timestamp):
-		self._deadline = value
 
 	@recipient_address.setter
 	def recipient_address(self, value: UnresolvedAddress):
@@ -10419,16 +9571,7 @@ class TransferTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signature.size
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
-		size += self.fee.size
-		size += self.deadline.size
+		size += super().size
 		size += self.recipient_address.size
 		size += 2
 		size += 1
@@ -10439,32 +9582,11 @@ class TransferTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> TransferTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> TransferTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		verifiable_entity_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert verifiable_entity_header_reserved_1 == 0, f'Invalid value of reserved field ({verifiable_entity_header_reserved_1})'
-		signature = Signature.deserialize(buffer)
-		buffer = buffer[signature.size:]
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
-		fee = Amount.deserialize(buffer)
-		buffer = buffer[fee.size:]
-		deadline = Timestamp.deserialize(buffer)
-		buffer = buffer[deadline.size:]
+		instance = TransferTransactionV1()
+		(window_start, window_end) = Transaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		recipient_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[recipient_address.size:]
 		message_size = int.from_bytes(buffer[:2], byteorder='little', signed=False)
@@ -10477,101 +9599,68 @@ class TransferTransaction:
 		transfer_transaction_body_reserved_2 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
 		assert transfer_transaction_body_reserved_2 == 0, f'Invalid value of reserved field ({transfer_transaction_body_reserved_2})'
-		mosaics = ArrayHelpers.read_array_count(buffer, UnresolvedMosaic, mosaics_count, lambda e: e.mosaic_id)
+		mosaics = ArrayHelpers.read_array_count(buffer, UnresolvedMosaic, mosaics_count, lambda e: e.mosaic_id.comparer() if hasattr(e.mosaic_id, 'comparer') else e.mosaic_id)
 		buffer = buffer[ArrayHelpers.size(mosaics):]
 		message = ArrayHelpers.get_bytes(buffer, message_size)
 		buffer = buffer[message_size:]
 
-		instance = TransferTransaction()
-		instance._signature = signature
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
-		instance._fee = fee
-		instance._deadline = deadline
+		# pylint: disable=protected-access
 		instance._recipient_address = recipient_address
 		instance._mosaics = mosaics
 		instance._message = message
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._verifiable_entity_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signature.serialize()
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
-		buffer += self._fee.serialize()
-		buffer += self._deadline.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._recipient_address.serialize()
 		buffer += len(self._message).to_bytes(2, byteorder='little', signed=False)  # message_size
 		buffer += len(self._mosaics).to_bytes(1, byteorder='little', signed=False)  # mosaics_count
 		buffer += self._transfer_transaction_body_reserved_1.to_bytes(1, byteorder='little', signed=False)
 		buffer += self._transfer_transaction_body_reserved_2.to_bytes(4, byteorder='little', signed=False)
-		buffer += ArrayHelpers.write_array(self._mosaics, lambda e: e.mosaic_id)
+		buffer += ArrayHelpers.write_array(self._mosaics, lambda e: e.mosaic_id.comparer() if hasattr(e.mosaic_id, 'comparer') else e.mosaic_id)
 		buffer += self._message
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signature: {self._signature.__str__()}, '
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
-		result += f'fee: {self._fee.__str__()}, '
-		result += f'deadline: {self._deadline.__str__()}, '
+		result += super().__str__()
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'mosaics: {list(map(str, self._mosaics))}, '
 		result += f'message: {hexlify(self._message).decode("utf8")}, '
 		result += ')'
 		return result
 
+	def to_json(self):
+		result = {**super().to_json()}
+		result['recipient_address'] = self._recipient_address.to_json()
+		result['mosaics'] = [e.to_json() for e in self._mosaics]
+		result['message'] = hexlify(self._message).decode('utf8')
+		return result
 
-class EmbeddedTransferTransaction:
+
+class EmbeddedTransferTransactionV1(EmbeddedTransaction):
 	TRANSACTION_VERSION: int = 1
 	TRANSACTION_TYPE: TransactionType = TransactionType.TRANSFER
 	TYPE_HINTS = {
-		'signer_public_key': 'pod:PublicKey',
-		'network': 'enum:NetworkType',
-		'type_': 'enum:TransactionType',
+		**EmbeddedTransaction.TYPE_HINTS,
 		'recipient_address': 'pod:UnresolvedAddress',
 		'mosaics': 'array[UnresolvedMosaic]',
 		'message': 'bytes_array'
 	}
 
 	def __init__(self):
-		self._signer_public_key = PublicKey()
-		self._version = EmbeddedTransferTransaction.TRANSACTION_VERSION
-		self._network = NetworkType.MAINNET
-		self._type_ = EmbeddedTransferTransaction.TRANSACTION_TYPE
+		super().__init__()
+		self._version = EmbeddedTransferTransactionV1.TRANSACTION_VERSION
+		self._type_ = EmbeddedTransferTransactionV1.TRANSACTION_TYPE
 		self._recipient_address = UnresolvedAddress()
 		self._mosaics = []
 		self._message = bytes()
-		self._embedded_transaction_header_reserved_1 = 0  # reserved field
-		self._entity_body_reserved_1 = 0  # reserved field
 		self._transfer_transaction_body_reserved_1 = 0  # reserved field
 		self._transfer_transaction_body_reserved_2 = 0  # reserved field
 
-	@property
-	def signer_public_key(self) -> PublicKey:
-		return self._signer_public_key
-
-	@property
-	def version(self) -> int:
-		return self._version
-
-	@property
-	def network(self) -> NetworkType:
-		return self._network
-
-	@property
-	def type_(self) -> TransactionType:
-		return self._type_
+	def sort(self) -> None:
+		self._mosaics = sorted(self._mosaics, key=lambda e: e.mosaic_id.comparer() if hasattr(e.mosaic_id, 'comparer') else e.mosaic_id)
 
 	@property
 	def recipient_address(self) -> UnresolvedAddress:
@@ -10584,22 +9673,6 @@ class EmbeddedTransferTransaction:
 	@property
 	def message(self) -> bytes:
 		return self._message
-
-	@signer_public_key.setter
-	def signer_public_key(self, value: PublicKey):
-		self._signer_public_key = value
-
-	@version.setter
-	def version(self, value: int):
-		self._version = value
-
-	@network.setter
-	def network(self, value: NetworkType):
-		self._network = value
-
-	@type_.setter
-	def type_(self, value: TransactionType):
-		self._type_ = value
 
 	@recipient_address.setter
 	def recipient_address(self, value: UnresolvedAddress):
@@ -10616,13 +9689,7 @@ class EmbeddedTransferTransaction:
 	@property
 	def size(self) -> int:
 		size = 0
-		size += 4
-		size += 4
-		size += self.signer_public_key.size
-		size += 4
-		size += 1
-		size += self.network.size
-		size += self.type_.size
+		size += super().size
 		size += self.recipient_address.size
 		size += 2
 		size += 1
@@ -10633,26 +9700,11 @@ class EmbeddedTransferTransaction:
 		return size
 
 	@classmethod
-	def deserialize(cls, payload: ByteString) -> EmbeddedTransferTransaction:
+	def deserialize(cls, payload: bytes | bytearray | memoryview) -> EmbeddedTransferTransactionV1:
 		buffer = memoryview(payload)
-		size_ = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		buffer = buffer[:size_ - 4]
-		del size_
-		embedded_transaction_header_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert embedded_transaction_header_reserved_1 == 0, f'Invalid value of reserved field ({embedded_transaction_header_reserved_1})'
-		signer_public_key = PublicKey.deserialize(buffer)
-		buffer = buffer[signer_public_key.size:]
-		entity_body_reserved_1 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
-		buffer = buffer[4:]
-		assert entity_body_reserved_1 == 0, f'Invalid value of reserved field ({entity_body_reserved_1})'
-		version = int.from_bytes(buffer[:1], byteorder='little', signed=False)
-		buffer = buffer[1:]
-		network = NetworkType.deserialize(buffer)
-		buffer = buffer[network.size:]
-		type_ = TransactionType.deserialize(buffer)
-		buffer = buffer[type_.size:]
+		instance = EmbeddedTransferTransactionV1()
+		(window_start, window_end) = EmbeddedTransaction._deserialize(buffer, instance)
+		buffer = buffer[window_start:window_end]
 		recipient_address = UnresolvedAddress.deserialize(buffer)
 		buffer = buffer[recipient_address.size:]
 		message_size = int.from_bytes(buffer[:2], byteorder='little', signed=False)
@@ -10665,120 +9717,124 @@ class EmbeddedTransferTransaction:
 		transfer_transaction_body_reserved_2 = int.from_bytes(buffer[:4], byteorder='little', signed=False)
 		buffer = buffer[4:]
 		assert transfer_transaction_body_reserved_2 == 0, f'Invalid value of reserved field ({transfer_transaction_body_reserved_2})'
-		mosaics = ArrayHelpers.read_array_count(buffer, UnresolvedMosaic, mosaics_count, lambda e: e.mosaic_id)
+		mosaics = ArrayHelpers.read_array_count(buffer, UnresolvedMosaic, mosaics_count, lambda e: e.mosaic_id.comparer() if hasattr(e.mosaic_id, 'comparer') else e.mosaic_id)
 		buffer = buffer[ArrayHelpers.size(mosaics):]
 		message = ArrayHelpers.get_bytes(buffer, message_size)
 		buffer = buffer[message_size:]
 
-		instance = EmbeddedTransferTransaction()
-		instance._signer_public_key = signer_public_key
-		instance._version = version
-		instance._network = network
-		instance._type_ = type_
+		# pylint: disable=protected-access
 		instance._recipient_address = recipient_address
 		instance._mosaics = mosaics
 		instance._message = message
 		return instance
 
 	def serialize(self) -> bytes:
-		buffer = bytes()
-		buffer += self.size.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._embedded_transaction_header_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._signer_public_key.serialize()
-		buffer += self._entity_body_reserved_1.to_bytes(4, byteorder='little', signed=False)
-		buffer += self._version.to_bytes(1, byteorder='little', signed=False)
-		buffer += self._network.serialize()
-		buffer += self._type_.serialize()
+		buffer = bytearray()
+		super()._serialize(buffer)
 		buffer += self._recipient_address.serialize()
 		buffer += len(self._message).to_bytes(2, byteorder='little', signed=False)  # message_size
 		buffer += len(self._mosaics).to_bytes(1, byteorder='little', signed=False)  # mosaics_count
 		buffer += self._transfer_transaction_body_reserved_1.to_bytes(1, byteorder='little', signed=False)
 		buffer += self._transfer_transaction_body_reserved_2.to_bytes(4, byteorder='little', signed=False)
-		buffer += ArrayHelpers.write_array(self._mosaics, lambda e: e.mosaic_id)
+		buffer += ArrayHelpers.write_array(self._mosaics, lambda e: e.mosaic_id.comparer() if hasattr(e.mosaic_id, 'comparer') else e.mosaic_id)
 		buffer += self._message
 		return buffer
 
 	def __str__(self) -> str:
 		result = '('
-		result += f'signer_public_key: {self._signer_public_key.__str__()}, '
-		result += f'version: 0x{self._version:X}, '
-		result += f'network: {self._network.__str__()}, '
-		result += f'type_: {self._type_.__str__()}, '
+		result += super().__str__()
 		result += f'recipient_address: {self._recipient_address.__str__()}, '
 		result += f'mosaics: {list(map(str, self._mosaics))}, '
 		result += f'message: {hexlify(self._message).decode("utf8")}, '
 		result += ')'
+		return result
+
+	def to_json(self):
+		result = {**super().to_json()}
+		result['recipient_address'] = self._recipient_address.to_json()
+		result['mosaics'] = [e.to_json() for e in self._mosaics]
+		result['message'] = hexlify(self._message).decode('utf8')
 		return result
 
 
 class TransactionFactory:
 	@classmethod
 	def deserialize(cls, payload: bytes) -> Transaction:
+		parent = Transaction()
 		buffer = bytes(payload)
-		parent = Transaction.deserialize(buffer)
+		Transaction._deserialize(buffer, parent)  # pylint: disable=protected-access
+
 		mapping = {
-			(AccountKeyLinkTransaction.TRANSACTION_TYPE): AccountKeyLinkTransaction,
-			(NodeKeyLinkTransaction.TRANSACTION_TYPE): NodeKeyLinkTransaction,
-			(AggregateCompleteTransaction.TRANSACTION_TYPE): AggregateCompleteTransaction,
-			(AggregateBondedTransaction.TRANSACTION_TYPE): AggregateBondedTransaction,
-			(VotingKeyLinkTransaction.TRANSACTION_TYPE): VotingKeyLinkTransaction,
-			(VrfKeyLinkTransaction.TRANSACTION_TYPE): VrfKeyLinkTransaction,
-			(HashLockTransaction.TRANSACTION_TYPE): HashLockTransaction,
-			(SecretLockTransaction.TRANSACTION_TYPE): SecretLockTransaction,
-			(SecretProofTransaction.TRANSACTION_TYPE): SecretProofTransaction,
-			(AccountMetadataTransaction.TRANSACTION_TYPE): AccountMetadataTransaction,
-			(MosaicMetadataTransaction.TRANSACTION_TYPE): MosaicMetadataTransaction,
-			(NamespaceMetadataTransaction.TRANSACTION_TYPE): NamespaceMetadataTransaction,
-			(MosaicDefinitionTransaction.TRANSACTION_TYPE): MosaicDefinitionTransaction,
-			(MosaicSupplyChangeTransaction.TRANSACTION_TYPE): MosaicSupplyChangeTransaction,
-			(MosaicSupplyRevocationTransaction.TRANSACTION_TYPE): MosaicSupplyRevocationTransaction,
-			(MultisigAccountModificationTransaction.TRANSACTION_TYPE): MultisigAccountModificationTransaction,
-			(AddressAliasTransaction.TRANSACTION_TYPE): AddressAliasTransaction,
-			(MosaicAliasTransaction.TRANSACTION_TYPE): MosaicAliasTransaction,
-			(NamespaceRegistrationTransaction.TRANSACTION_TYPE): NamespaceRegistrationTransaction,
-			(AccountAddressRestrictionTransaction.TRANSACTION_TYPE): AccountAddressRestrictionTransaction,
-			(AccountMosaicRestrictionTransaction.TRANSACTION_TYPE): AccountMosaicRestrictionTransaction,
-			(AccountOperationRestrictionTransaction.TRANSACTION_TYPE): AccountOperationRestrictionTransaction,
-			(MosaicAddressRestrictionTransaction.TRANSACTION_TYPE): MosaicAddressRestrictionTransaction,
-			(MosaicGlobalRestrictionTransaction.TRANSACTION_TYPE): MosaicGlobalRestrictionTransaction,
-			(TransferTransaction.TRANSACTION_TYPE): TransferTransaction
+			(AccountKeyLinkTransactionV1.TRANSACTION_TYPE, AccountKeyLinkTransactionV1.TRANSACTION_VERSION): AccountKeyLinkTransactionV1,
+			(NodeKeyLinkTransactionV1.TRANSACTION_TYPE, NodeKeyLinkTransactionV1.TRANSACTION_VERSION): NodeKeyLinkTransactionV1,
+			(AggregateCompleteTransactionV1.TRANSACTION_TYPE, AggregateCompleteTransactionV1.TRANSACTION_VERSION): AggregateCompleteTransactionV1,
+			(AggregateCompleteTransactionV2.TRANSACTION_TYPE, AggregateCompleteTransactionV2.TRANSACTION_VERSION): AggregateCompleteTransactionV2,
+			(AggregateCompleteTransactionV3.TRANSACTION_TYPE, AggregateCompleteTransactionV3.TRANSACTION_VERSION): AggregateCompleteTransactionV3,
+			(AggregateBondedTransactionV1.TRANSACTION_TYPE, AggregateBondedTransactionV1.TRANSACTION_VERSION): AggregateBondedTransactionV1,
+			(AggregateBondedTransactionV2.TRANSACTION_TYPE, AggregateBondedTransactionV2.TRANSACTION_VERSION): AggregateBondedTransactionV2,
+			(AggregateBondedTransactionV3.TRANSACTION_TYPE, AggregateBondedTransactionV3.TRANSACTION_VERSION): AggregateBondedTransactionV3,
+			(VotingKeyLinkTransactionV1.TRANSACTION_TYPE, VotingKeyLinkTransactionV1.TRANSACTION_VERSION): VotingKeyLinkTransactionV1,
+			(VrfKeyLinkTransactionV1.TRANSACTION_TYPE, VrfKeyLinkTransactionV1.TRANSACTION_VERSION): VrfKeyLinkTransactionV1,
+			(HashLockTransactionV1.TRANSACTION_TYPE, HashLockTransactionV1.TRANSACTION_VERSION): HashLockTransactionV1,
+			(SecretLockTransactionV1.TRANSACTION_TYPE, SecretLockTransactionV1.TRANSACTION_VERSION): SecretLockTransactionV1,
+			(SecretProofTransactionV1.TRANSACTION_TYPE, SecretProofTransactionV1.TRANSACTION_VERSION): SecretProofTransactionV1,
+			(AccountMetadataTransactionV1.TRANSACTION_TYPE, AccountMetadataTransactionV1.TRANSACTION_VERSION): AccountMetadataTransactionV1,
+			(MosaicMetadataTransactionV1.TRANSACTION_TYPE, MosaicMetadataTransactionV1.TRANSACTION_VERSION): MosaicMetadataTransactionV1,
+			(NamespaceMetadataTransactionV1.TRANSACTION_TYPE, NamespaceMetadataTransactionV1.TRANSACTION_VERSION): NamespaceMetadataTransactionV1,
+			(MosaicDefinitionTransactionV1.TRANSACTION_TYPE, MosaicDefinitionTransactionV1.TRANSACTION_VERSION): MosaicDefinitionTransactionV1,
+			(MosaicSupplyChangeTransactionV1.TRANSACTION_TYPE, MosaicSupplyChangeTransactionV1.TRANSACTION_VERSION): MosaicSupplyChangeTransactionV1,
+			(MosaicSupplyRevocationTransactionV1.TRANSACTION_TYPE, MosaicSupplyRevocationTransactionV1.TRANSACTION_VERSION): MosaicSupplyRevocationTransactionV1,
+			(MultisigAccountModificationTransactionV1.TRANSACTION_TYPE, MultisigAccountModificationTransactionV1.TRANSACTION_VERSION): MultisigAccountModificationTransactionV1,
+			(AddressAliasTransactionV1.TRANSACTION_TYPE, AddressAliasTransactionV1.TRANSACTION_VERSION): AddressAliasTransactionV1,
+			(MosaicAliasTransactionV1.TRANSACTION_TYPE, MosaicAliasTransactionV1.TRANSACTION_VERSION): MosaicAliasTransactionV1,
+			(NamespaceRegistrationTransactionV1.TRANSACTION_TYPE, NamespaceRegistrationTransactionV1.TRANSACTION_VERSION): NamespaceRegistrationTransactionV1,
+			(AccountAddressRestrictionTransactionV1.TRANSACTION_TYPE, AccountAddressRestrictionTransactionV1.TRANSACTION_VERSION): AccountAddressRestrictionTransactionV1,
+			(AccountMosaicRestrictionTransactionV1.TRANSACTION_TYPE, AccountMosaicRestrictionTransactionV1.TRANSACTION_VERSION): AccountMosaicRestrictionTransactionV1,
+			(AccountOperationRestrictionTransactionV1.TRANSACTION_TYPE, AccountOperationRestrictionTransactionV1.TRANSACTION_VERSION): AccountOperationRestrictionTransactionV1,
+			(MosaicAddressRestrictionTransactionV1.TRANSACTION_TYPE, MosaicAddressRestrictionTransactionV1.TRANSACTION_VERSION): MosaicAddressRestrictionTransactionV1,
+			(MosaicGlobalRestrictionTransactionV1.TRANSACTION_TYPE, MosaicGlobalRestrictionTransactionV1.TRANSACTION_VERSION): MosaicGlobalRestrictionTransactionV1,
+			(TransferTransactionV1.TRANSACTION_TYPE, TransferTransactionV1.TRANSACTION_VERSION): TransferTransactionV1
 		}
-		discriminator = (parent.type_)
+		discriminator = (parent.type_, parent.version)
 		factory_class = mapping[discriminator]
 		return factory_class.deserialize(buffer)
 
 	@classmethod
 	def create_by_name(cls, entity_name: str) -> Transaction:
 		mapping = {
-			'account_key_link_transaction': AccountKeyLinkTransaction,
-			'node_key_link_transaction': NodeKeyLinkTransaction,
-			'aggregate_complete_transaction': AggregateCompleteTransaction,
-			'aggregate_bonded_transaction': AggregateBondedTransaction,
-			'voting_key_link_transaction': VotingKeyLinkTransaction,
-			'vrf_key_link_transaction': VrfKeyLinkTransaction,
-			'hash_lock_transaction': HashLockTransaction,
-			'secret_lock_transaction': SecretLockTransaction,
-			'secret_proof_transaction': SecretProofTransaction,
-			'account_metadata_transaction': AccountMetadataTransaction,
-			'mosaic_metadata_transaction': MosaicMetadataTransaction,
-			'namespace_metadata_transaction': NamespaceMetadataTransaction,
-			'mosaic_definition_transaction': MosaicDefinitionTransaction,
-			'mosaic_supply_change_transaction': MosaicSupplyChangeTransaction,
-			'mosaic_supply_revocation_transaction': MosaicSupplyRevocationTransaction,
-			'multisig_account_modification_transaction': MultisigAccountModificationTransaction,
-			'address_alias_transaction': AddressAliasTransaction,
-			'mosaic_alias_transaction': MosaicAliasTransaction,
-			'namespace_registration_transaction': NamespaceRegistrationTransaction,
-			'account_address_restriction_transaction': AccountAddressRestrictionTransaction,
-			'account_mosaic_restriction_transaction': AccountMosaicRestrictionTransaction,
-			'account_operation_restriction_transaction': AccountOperationRestrictionTransaction,
-			'mosaic_address_restriction_transaction': MosaicAddressRestrictionTransaction,
-			'mosaic_global_restriction_transaction': MosaicGlobalRestrictionTransaction,
-			'transfer_transaction': TransferTransaction
+			'account_key_link_transaction_v1': AccountKeyLinkTransactionV1,
+			'node_key_link_transaction_v1': NodeKeyLinkTransactionV1,
+			'aggregate_complete_transaction_v1': AggregateCompleteTransactionV1,
+			'aggregate_complete_transaction_v2': AggregateCompleteTransactionV2,
+			'aggregate_complete_transaction_v3': AggregateCompleteTransactionV3,
+			'aggregate_bonded_transaction_v1': AggregateBondedTransactionV1,
+			'aggregate_bonded_transaction_v2': AggregateBondedTransactionV2,
+			'aggregate_bonded_transaction_v3': AggregateBondedTransactionV3,
+			'voting_key_link_transaction_v1': VotingKeyLinkTransactionV1,
+			'vrf_key_link_transaction_v1': VrfKeyLinkTransactionV1,
+			'hash_lock_transaction_v1': HashLockTransactionV1,
+			'secret_lock_transaction_v1': SecretLockTransactionV1,
+			'secret_proof_transaction_v1': SecretProofTransactionV1,
+			'account_metadata_transaction_v1': AccountMetadataTransactionV1,
+			'mosaic_metadata_transaction_v1': MosaicMetadataTransactionV1,
+			'namespace_metadata_transaction_v1': NamespaceMetadataTransactionV1,
+			'mosaic_definition_transaction_v1': MosaicDefinitionTransactionV1,
+			'mosaic_supply_change_transaction_v1': MosaicSupplyChangeTransactionV1,
+			'mosaic_supply_revocation_transaction_v1': MosaicSupplyRevocationTransactionV1,
+			'multisig_account_modification_transaction_v1': MultisigAccountModificationTransactionV1,
+			'address_alias_transaction_v1': AddressAliasTransactionV1,
+			'mosaic_alias_transaction_v1': MosaicAliasTransactionV1,
+			'namespace_registration_transaction_v1': NamespaceRegistrationTransactionV1,
+			'account_address_restriction_transaction_v1': AccountAddressRestrictionTransactionV1,
+			'account_mosaic_restriction_transaction_v1': AccountMosaicRestrictionTransactionV1,
+			'account_operation_restriction_transaction_v1': AccountOperationRestrictionTransactionV1,
+			'mosaic_address_restriction_transaction_v1': MosaicAddressRestrictionTransactionV1,
+			'mosaic_global_restriction_transaction_v1': MosaicGlobalRestrictionTransactionV1,
+			'transfer_transaction_v1': TransferTransactionV1
 		}
 
 		if entity_name not in mapping:
-			raise ValueError('unknown Transaction type')
+			raise ValueError(f'unknown Transaction type {entity_name}')
 
 		return mapping[entity_name]()
 
@@ -10786,66 +9842,148 @@ class TransactionFactory:
 class EmbeddedTransactionFactory:
 	@classmethod
 	def deserialize(cls, payload: bytes) -> EmbeddedTransaction:
+		parent = EmbeddedTransaction()
 		buffer = bytes(payload)
-		parent = EmbeddedTransaction.deserialize(buffer)
+		EmbeddedTransaction._deserialize(buffer, parent)  # pylint: disable=protected-access
+
 		mapping = {
-			(EmbeddedAccountKeyLinkTransaction.TRANSACTION_TYPE): EmbeddedAccountKeyLinkTransaction,
-			(EmbeddedNodeKeyLinkTransaction.TRANSACTION_TYPE): EmbeddedNodeKeyLinkTransaction,
-			(EmbeddedVotingKeyLinkTransaction.TRANSACTION_TYPE): EmbeddedVotingKeyLinkTransaction,
-			(EmbeddedVrfKeyLinkTransaction.TRANSACTION_TYPE): EmbeddedVrfKeyLinkTransaction,
-			(EmbeddedHashLockTransaction.TRANSACTION_TYPE): EmbeddedHashLockTransaction,
-			(EmbeddedSecretLockTransaction.TRANSACTION_TYPE): EmbeddedSecretLockTransaction,
-			(EmbeddedSecretProofTransaction.TRANSACTION_TYPE): EmbeddedSecretProofTransaction,
-			(EmbeddedAccountMetadataTransaction.TRANSACTION_TYPE): EmbeddedAccountMetadataTransaction,
-			(EmbeddedMosaicMetadataTransaction.TRANSACTION_TYPE): EmbeddedMosaicMetadataTransaction,
-			(EmbeddedNamespaceMetadataTransaction.TRANSACTION_TYPE): EmbeddedNamespaceMetadataTransaction,
-			(EmbeddedMosaicDefinitionTransaction.TRANSACTION_TYPE): EmbeddedMosaicDefinitionTransaction,
-			(EmbeddedMosaicSupplyChangeTransaction.TRANSACTION_TYPE): EmbeddedMosaicSupplyChangeTransaction,
-			(EmbeddedMosaicSupplyRevocationTransaction.TRANSACTION_TYPE): EmbeddedMosaicSupplyRevocationTransaction,
-			(EmbeddedMultisigAccountModificationTransaction.TRANSACTION_TYPE): EmbeddedMultisigAccountModificationTransaction,
-			(EmbeddedAddressAliasTransaction.TRANSACTION_TYPE): EmbeddedAddressAliasTransaction,
-			(EmbeddedMosaicAliasTransaction.TRANSACTION_TYPE): EmbeddedMosaicAliasTransaction,
-			(EmbeddedNamespaceRegistrationTransaction.TRANSACTION_TYPE): EmbeddedNamespaceRegistrationTransaction,
-			(EmbeddedAccountAddressRestrictionTransaction.TRANSACTION_TYPE): EmbeddedAccountAddressRestrictionTransaction,
-			(EmbeddedAccountMosaicRestrictionTransaction.TRANSACTION_TYPE): EmbeddedAccountMosaicRestrictionTransaction,
-			(EmbeddedAccountOperationRestrictionTransaction.TRANSACTION_TYPE): EmbeddedAccountOperationRestrictionTransaction,
-			(EmbeddedMosaicAddressRestrictionTransaction.TRANSACTION_TYPE): EmbeddedMosaicAddressRestrictionTransaction,
-			(EmbeddedMosaicGlobalRestrictionTransaction.TRANSACTION_TYPE): EmbeddedMosaicGlobalRestrictionTransaction,
-			(EmbeddedTransferTransaction.TRANSACTION_TYPE): EmbeddedTransferTransaction
+			(EmbeddedAccountKeyLinkTransactionV1.TRANSACTION_TYPE, EmbeddedAccountKeyLinkTransactionV1.TRANSACTION_VERSION): EmbeddedAccountKeyLinkTransactionV1,
+			(EmbeddedNodeKeyLinkTransactionV1.TRANSACTION_TYPE, EmbeddedNodeKeyLinkTransactionV1.TRANSACTION_VERSION): EmbeddedNodeKeyLinkTransactionV1,
+			(EmbeddedVotingKeyLinkTransactionV1.TRANSACTION_TYPE, EmbeddedVotingKeyLinkTransactionV1.TRANSACTION_VERSION): EmbeddedVotingKeyLinkTransactionV1,
+			(EmbeddedVrfKeyLinkTransactionV1.TRANSACTION_TYPE, EmbeddedVrfKeyLinkTransactionV1.TRANSACTION_VERSION): EmbeddedVrfKeyLinkTransactionV1,
+			(EmbeddedHashLockTransactionV1.TRANSACTION_TYPE, EmbeddedHashLockTransactionV1.TRANSACTION_VERSION): EmbeddedHashLockTransactionV1,
+			(EmbeddedSecretLockTransactionV1.TRANSACTION_TYPE, EmbeddedSecretLockTransactionV1.TRANSACTION_VERSION): EmbeddedSecretLockTransactionV1,
+			(EmbeddedSecretProofTransactionV1.TRANSACTION_TYPE, EmbeddedSecretProofTransactionV1.TRANSACTION_VERSION): EmbeddedSecretProofTransactionV1,
+			(EmbeddedAccountMetadataTransactionV1.TRANSACTION_TYPE, EmbeddedAccountMetadataTransactionV1.TRANSACTION_VERSION): EmbeddedAccountMetadataTransactionV1,
+			(EmbeddedMosaicMetadataTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicMetadataTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicMetadataTransactionV1,
+			(EmbeddedNamespaceMetadataTransactionV1.TRANSACTION_TYPE, EmbeddedNamespaceMetadataTransactionV1.TRANSACTION_VERSION): EmbeddedNamespaceMetadataTransactionV1,
+			(EmbeddedMosaicDefinitionTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicDefinitionTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicDefinitionTransactionV1,
+			(EmbeddedMosaicSupplyChangeTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicSupplyChangeTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicSupplyChangeTransactionV1,
+			(EmbeddedMosaicSupplyRevocationTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicSupplyRevocationTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicSupplyRevocationTransactionV1,
+			(EmbeddedMultisigAccountModificationTransactionV1.TRANSACTION_TYPE, EmbeddedMultisigAccountModificationTransactionV1.TRANSACTION_VERSION): EmbeddedMultisigAccountModificationTransactionV1,
+			(EmbeddedAddressAliasTransactionV1.TRANSACTION_TYPE, EmbeddedAddressAliasTransactionV1.TRANSACTION_VERSION): EmbeddedAddressAliasTransactionV1,
+			(EmbeddedMosaicAliasTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicAliasTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicAliasTransactionV1,
+			(EmbeddedNamespaceRegistrationTransactionV1.TRANSACTION_TYPE, EmbeddedNamespaceRegistrationTransactionV1.TRANSACTION_VERSION): EmbeddedNamespaceRegistrationTransactionV1,
+			(EmbeddedAccountAddressRestrictionTransactionV1.TRANSACTION_TYPE, EmbeddedAccountAddressRestrictionTransactionV1.TRANSACTION_VERSION): EmbeddedAccountAddressRestrictionTransactionV1,
+			(EmbeddedAccountMosaicRestrictionTransactionV1.TRANSACTION_TYPE, EmbeddedAccountMosaicRestrictionTransactionV1.TRANSACTION_VERSION): EmbeddedAccountMosaicRestrictionTransactionV1,
+			(EmbeddedAccountOperationRestrictionTransactionV1.TRANSACTION_TYPE, EmbeddedAccountOperationRestrictionTransactionV1.TRANSACTION_VERSION): EmbeddedAccountOperationRestrictionTransactionV1,
+			(EmbeddedMosaicAddressRestrictionTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicAddressRestrictionTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicAddressRestrictionTransactionV1,
+			(EmbeddedMosaicGlobalRestrictionTransactionV1.TRANSACTION_TYPE, EmbeddedMosaicGlobalRestrictionTransactionV1.TRANSACTION_VERSION): EmbeddedMosaicGlobalRestrictionTransactionV1,
+			(EmbeddedTransferTransactionV1.TRANSACTION_TYPE, EmbeddedTransferTransactionV1.TRANSACTION_VERSION): EmbeddedTransferTransactionV1
 		}
-		discriminator = (parent.type_)
+		discriminator = (parent.type_, parent.version)
 		factory_class = mapping[discriminator]
 		return factory_class.deserialize(buffer)
 
 	@classmethod
 	def create_by_name(cls, entity_name: str) -> EmbeddedTransaction:
 		mapping = {
-			'account_key_link_transaction': EmbeddedAccountKeyLinkTransaction,
-			'node_key_link_transaction': EmbeddedNodeKeyLinkTransaction,
-			'voting_key_link_transaction': EmbeddedVotingKeyLinkTransaction,
-			'vrf_key_link_transaction': EmbeddedVrfKeyLinkTransaction,
-			'hash_lock_transaction': EmbeddedHashLockTransaction,
-			'secret_lock_transaction': EmbeddedSecretLockTransaction,
-			'secret_proof_transaction': EmbeddedSecretProofTransaction,
-			'account_metadata_transaction': EmbeddedAccountMetadataTransaction,
-			'mosaic_metadata_transaction': EmbeddedMosaicMetadataTransaction,
-			'namespace_metadata_transaction': EmbeddedNamespaceMetadataTransaction,
-			'mosaic_definition_transaction': EmbeddedMosaicDefinitionTransaction,
-			'mosaic_supply_change_transaction': EmbeddedMosaicSupplyChangeTransaction,
-			'mosaic_supply_revocation_transaction': EmbeddedMosaicSupplyRevocationTransaction,
-			'multisig_account_modification_transaction': EmbeddedMultisigAccountModificationTransaction,
-			'address_alias_transaction': EmbeddedAddressAliasTransaction,
-			'mosaic_alias_transaction': EmbeddedMosaicAliasTransaction,
-			'namespace_registration_transaction': EmbeddedNamespaceRegistrationTransaction,
-			'account_address_restriction_transaction': EmbeddedAccountAddressRestrictionTransaction,
-			'account_mosaic_restriction_transaction': EmbeddedAccountMosaicRestrictionTransaction,
-			'account_operation_restriction_transaction': EmbeddedAccountOperationRestrictionTransaction,
-			'mosaic_address_restriction_transaction': EmbeddedMosaicAddressRestrictionTransaction,
-			'mosaic_global_restriction_transaction': EmbeddedMosaicGlobalRestrictionTransaction,
-			'transfer_transaction': EmbeddedTransferTransaction
+			'account_key_link_transaction_v1': EmbeddedAccountKeyLinkTransactionV1,
+			'node_key_link_transaction_v1': EmbeddedNodeKeyLinkTransactionV1,
+			'voting_key_link_transaction_v1': EmbeddedVotingKeyLinkTransactionV1,
+			'vrf_key_link_transaction_v1': EmbeddedVrfKeyLinkTransactionV1,
+			'hash_lock_transaction_v1': EmbeddedHashLockTransactionV1,
+			'secret_lock_transaction_v1': EmbeddedSecretLockTransactionV1,
+			'secret_proof_transaction_v1': EmbeddedSecretProofTransactionV1,
+			'account_metadata_transaction_v1': EmbeddedAccountMetadataTransactionV1,
+			'mosaic_metadata_transaction_v1': EmbeddedMosaicMetadataTransactionV1,
+			'namespace_metadata_transaction_v1': EmbeddedNamespaceMetadataTransactionV1,
+			'mosaic_definition_transaction_v1': EmbeddedMosaicDefinitionTransactionV1,
+			'mosaic_supply_change_transaction_v1': EmbeddedMosaicSupplyChangeTransactionV1,
+			'mosaic_supply_revocation_transaction_v1': EmbeddedMosaicSupplyRevocationTransactionV1,
+			'multisig_account_modification_transaction_v1': EmbeddedMultisigAccountModificationTransactionV1,
+			'address_alias_transaction_v1': EmbeddedAddressAliasTransactionV1,
+			'mosaic_alias_transaction_v1': EmbeddedMosaicAliasTransactionV1,
+			'namespace_registration_transaction_v1': EmbeddedNamespaceRegistrationTransactionV1,
+			'account_address_restriction_transaction_v1': EmbeddedAccountAddressRestrictionTransactionV1,
+			'account_mosaic_restriction_transaction_v1': EmbeddedAccountMosaicRestrictionTransactionV1,
+			'account_operation_restriction_transaction_v1': EmbeddedAccountOperationRestrictionTransactionV1,
+			'mosaic_address_restriction_transaction_v1': EmbeddedMosaicAddressRestrictionTransactionV1,
+			'mosaic_global_restriction_transaction_v1': EmbeddedMosaicGlobalRestrictionTransactionV1,
+			'transfer_transaction_v1': EmbeddedTransferTransactionV1
 		}
 
 		if entity_name not in mapping:
-			raise ValueError('unknown EmbeddedTransaction type')
+			raise ValueError(f'unknown EmbeddedTransaction type {entity_name}')
+
+		return mapping[entity_name]()
+
+
+class BlockFactory:
+	@classmethod
+	def deserialize(cls, payload: bytes) -> Block:
+		parent = Block()
+		buffer = bytes(payload)
+		Block._deserialize(buffer, parent)  # pylint: disable=protected-access
+
+		mapping = {
+			(NemesisBlockV1.BLOCK_TYPE): NemesisBlockV1,
+			(NormalBlockV1.BLOCK_TYPE): NormalBlockV1,
+			(ImportanceBlockV1.BLOCK_TYPE): ImportanceBlockV1
+		}
+		discriminator = (parent.type_)
+		factory_class = mapping[discriminator]
+		return factory_class.deserialize(buffer)
+
+	@classmethod
+	def create_by_name(cls, entity_name: str) -> Block:
+		mapping = {
+			'nemesis_block_v1': NemesisBlockV1,
+			'normal_block_v1': NormalBlockV1,
+			'importance_block_v1': ImportanceBlockV1
+		}
+
+		if entity_name not in mapping:
+			raise ValueError(f'unknown Block type {entity_name}')
+
+		return mapping[entity_name]()
+
+
+class ReceiptFactory:
+	@classmethod
+	def deserialize(cls, payload: bytes) -> Receipt:
+		parent = Receipt()
+		buffer = bytes(payload)
+		Receipt._deserialize(buffer, parent)  # pylint: disable=protected-access
+
+		mapping = {
+			(HarvestFeeReceipt.RECEIPT_TYPE): HarvestFeeReceipt,
+			(InflationReceipt.RECEIPT_TYPE): InflationReceipt,
+			(LockHashCreatedFeeReceipt.RECEIPT_TYPE): LockHashCreatedFeeReceipt,
+			(LockHashCompletedFeeReceipt.RECEIPT_TYPE): LockHashCompletedFeeReceipt,
+			(LockHashExpiredFeeReceipt.RECEIPT_TYPE): LockHashExpiredFeeReceipt,
+			(LockSecretCreatedFeeReceipt.RECEIPT_TYPE): LockSecretCreatedFeeReceipt,
+			(LockSecretCompletedFeeReceipt.RECEIPT_TYPE): LockSecretCompletedFeeReceipt,
+			(LockSecretExpiredFeeReceipt.RECEIPT_TYPE): LockSecretExpiredFeeReceipt,
+			(MosaicExpiredReceipt.RECEIPT_TYPE): MosaicExpiredReceipt,
+			(MosaicRentalFeeReceipt.RECEIPT_TYPE): MosaicRentalFeeReceipt,
+			(NamespaceExpiredReceipt.RECEIPT_TYPE): NamespaceExpiredReceipt,
+			(NamespaceDeletedReceipt.RECEIPT_TYPE): NamespaceDeletedReceipt,
+			(NamespaceRentalFeeReceipt.RECEIPT_TYPE): NamespaceRentalFeeReceipt
+		}
+		discriminator = (parent.type_)
+		factory_class = mapping[discriminator]
+		return factory_class.deserialize(buffer)
+
+	@classmethod
+	def create_by_name(cls, entity_name: str) -> Receipt:
+		mapping = {
+			'harvest_fee_receipt': HarvestFeeReceipt,
+			'inflation_receipt': InflationReceipt,
+			'lock_hash_created_fee_receipt': LockHashCreatedFeeReceipt,
+			'lock_hash_completed_fee_receipt': LockHashCompletedFeeReceipt,
+			'lock_hash_expired_fee_receipt': LockHashExpiredFeeReceipt,
+			'lock_secret_created_fee_receipt': LockSecretCreatedFeeReceipt,
+			'lock_secret_completed_fee_receipt': LockSecretCompletedFeeReceipt,
+			'lock_secret_expired_fee_receipt': LockSecretExpiredFeeReceipt,
+			'mosaic_expired_receipt': MosaicExpiredReceipt,
+			'mosaic_rental_fee_receipt': MosaicRentalFeeReceipt,
+			'namespace_expired_receipt': NamespaceExpiredReceipt,
+			'namespace_deleted_receipt': NamespaceDeletedReceipt,
+			'namespace_rental_fee_receipt': NamespaceRentalFeeReceipt
+		}
+
+		if entity_name not in mapping:
+			raise ValueError(f'unknown Receipt type {entity_name}')
 
 		return mapping[entity_name]()

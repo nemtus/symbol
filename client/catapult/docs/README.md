@@ -26,7 +26,7 @@ Make sure that the node's host is accessible from the internet and that the port
 
 Required
 
-* cmake >= 3.14
+* cmake >= 3.23
 * git
 * python 3.x
 
@@ -51,8 +51,8 @@ OS X:
 
 Windows:
 
-* Visual Studio 2017 (15.8)
 * Visual Studio 2019 (16.8)
+* Visual Studio 2022 (17.9)
 
 ### Guides
 
@@ -60,6 +60,7 @@ In increasing order of complexity:
 
 * [Build with Docker](BUILD-docker.md)
 * [Build with Conan](BUILD-conan.md)
+* [Build with Visual Studio](BUILD-vs.md) (*easiest for Windows users on VS integrated with CMake)
 * [Build manually](BUILD-manual.md)
 
 ### Sanitizers
@@ -84,10 +85,10 @@ race:global_logger::get()
 
 * [How to create a new network](RUNNETWORKLIN.md)
 
-* [Network configuration](https://symbol.github.io/guides/network/configuring-network-properties.html)
+* [Network configuration](https://docs.symbol.dev/guides/network/configuring-network-properties.html)
 
 ## Running a peer node
 
 * [How to create a node and connect to an existing network](RUNPEERLIN.md)
 
-* [Node configuration](https://symbol.github.io/guides/network/configuring-node-properties.html)
+* [Node configuration](https://docs.symbol.dev/guides/network/configuring-node-properties.html)

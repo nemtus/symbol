@@ -1,5 +1,5 @@
-const { NetworkTimestamp, NetworkTimestampDatetimeConverter } = require('../src/NetworkTimestamp');
-const { expect } = require('chai');
+import { NetworkTimestamp, NetworkTimestampDatetimeConverter } from '../src/NetworkTimestamp.js';
+import { expect } from 'chai';
 
 describe('NetworkTimestamp', () => {
 	const runTestCases = wrapInt => {
@@ -102,25 +102,37 @@ describe('NetworkTimestampDatetimeConverter', () => {
 		expect(() => { converter.toDifference(new Date(Date.UTC(2020, 1, 2, 2))); }).to.throw('timestamp cannot be before epoch');
 	});
 
-	it('cannot convert datetime to epochal timestamp', () => {
+	it('can convert datetime to epochal timestamp', () => {
 		// Arrange:
 		const converter = createConverter();
 
 		// Act:
-		const rawTimestamp = converter.toDifference(new Date(Date.UTC(2020, 1, 2, 3)));
+		const rawTimestamp = converter.toDifference(new Date(Date.UTC(2020, 1, 2, 3, 4)));
 
 		// Assert:
 		expect(rawTimestamp).to.equal(0);
 	});
 
-	it('cannot convert datetime to non epochal timestamp', () => {
+	it('can convert datetime to non epochal timestamp', () => {
 		// Arrange:
 		const converter = createConverter();
 
 		// Act:
-		const rawTimestamp = converter.toDifference(new Date(Date.UTC(2020, 1, 2, 3 + 5)));
+		const rawTimestamp = converter.toDifference(new Date(Date.UTC(2020, 1, 2, 3 + 5, 4)));
 
 		// Assert:
 		expect(rawTimestamp).to.equal(5);
+	});
+
+	it('can convert datetime to non epochal timestamp (large)', () => {
+		// Arrange:
+		const converter = new NetworkTimestampDatetimeConverter(new Date(Date.UTC(2020, 1, 2, 3)), 'milliseconds');
+
+		// Act:
+		const rawTimestamp = converter.toDifference(new Date(Date.UTC(2025, 1, 2, 3)));
+
+		// Assert:
+		expect(rawTimestamp).to.equal(((5 * 365) + 2) * 24 * 60 * 60 * 1000);
+		expect(rawTimestamp).to.be.above(2 ** 31);
 	});
 });

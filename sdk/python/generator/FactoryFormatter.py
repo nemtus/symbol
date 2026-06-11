@@ -59,9 +59,10 @@ class FactoryFormatter(AbstractTypeFormatter):
 		return f'({values}): {name}'
 
 	def get_deserialize_descriptor(self):
-		body = 'buffer = bytes(payload)\n'
-		body += f'{self.printer.name} = {self.printer.load()}\n'
-
+		body = f'{self.printer.name} = {self.printer.get_default_value()}\n'
+		body += 'buffer = bytes(payload)\n'
+		body += f'{self.printer.get_type()}._deserialize(buffer, {self.printer.name})  # pylint: disable=protected-access\n'
+		body += '\n'
 		body += 'mapping = {\n'
 
 		if self.factory_descriptor:
@@ -95,7 +96,7 @@ class FactoryFormatter(AbstractTypeFormatter):
 
 		body += f'''
 if entity_name not in mapping:
-	raise ValueError('unknown {self.printer.get_type()} type')
+	raise ValueError(f'unknown {self.printer.get_type()} type {{entity_name}}')
 
 return mapping[entity_name]()
 '''

@@ -1,0 +1,51 @@
+[package]
+name = "symbol-crypto-wasm"
+version = "0.1.0"
+authors = ["Symbol Contributors <contributors@symbol.dev>"]
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2.63"
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.6", optional = true }
+
+sha3 = "0.11.0"
+js-sys = "0.3.59"
+
+# dalek deps
+
+curve25519-dalek = { version = "4", default-features = false }
+hex = { version = "0.4.3", features = ["serde"] }
+sha2 = { version = "0.11", default-features = false }
+subtle = "2.5.0"
+zeroize = "1.5.7"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+clap = { version = "4.3.19", features = ["derive"] }
+hex-literal = "1.0.0"
+serde = { version = "1.0.144", features = ["derive"] }
+serde-hex = "0.1.0"
+serde_json = "1.0.85"
+hex = "0.4.3"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+
+# debug = 1
+# debuginfo = 1
+
+[features]
+default = [
+	"curve25519-dalek/precomputed-tables",
+	"curve25519-dalek/zeroize",
+	"console_error_panic_hook"
+]

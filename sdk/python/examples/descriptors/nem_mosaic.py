@@ -19,7 +19,7 @@ def descriptor_factory():
 	return [
 		# without properties
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'rental_fee_sink': 'TBMOSAICOD4F54EE5CDMR23CCBGOAM2XSJBR5OLC',
 			'rental_fee': 50000 * 1000000,
 
@@ -29,14 +29,13 @@ def descriptor_factory():
 				'description': 'Not really valuable mosaic'.encode('utf8'),
 				'properties': [
 				],
-				'levy_size': 0,
 				'levy': {}
 			}
 		},
 
 		# with properties
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'rental_fee_sink': 'TBMOSAICOD4F54EE5CDMR23CCBGOAM2XSJBR5OLC',
 			'rental_fee': 50000 * 1000000,
 
@@ -50,14 +49,13 @@ def descriptor_factory():
 					{'property_': {'name': 'supplyMutable'.encode('utf8'), 'value': 'false'.encode('utf8')}},
 					{'property_': {'name': 'transferable'.encode('utf8'), 'value': 'true'.encode('utf8')}}
 				],
-				'levy_size': 0,
 				'levy': {}
 			}
 		},
 
 		# with levy
 		{
-			'type': 'mosaic_definition_transaction',
+			'type': 'mosaic_definition_transaction_v1',
 			'rental_fee_sink': 'TBMOSAICOD4F54EE5CDMR23CCBGOAM2XSJBR5OLC',
 			'rental_fee': 50000 * 1000000,
 
@@ -67,7 +65,6 @@ def descriptor_factory():
 				'description': 'Not really valuable mosaic'.encode('utf8'),
 				'properties': [
 				],
-				'levy_size': levy.size,
 				'levy': {
 					'transfer_fee_type': 'absolute',
 					'recipient_address': sample_address,
@@ -79,7 +76,7 @@ def descriptor_factory():
 
 		# supply change
 		{
-			'type': 'mosaic_supply_change_transaction',
+			'type': 'mosaic_supply_change_transaction_v1',
 			'mosaic_id': {'namespace_id': {'name': 'genes'.encode('utf8')}, 'name': 'memes'.encode('utf8')},
 			'action': 'increase',
 			'delta': 321_000

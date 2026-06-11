@@ -90,19 +90,11 @@ rules:
   - object: true
     array: false
 
-  valid-jsdoc:
-  - error
-  - requireReturn: false
-    prefer:
-      arg: param
-      argument: param
-      class: constructor
-      return: returns
-    preferType:
-      Boolean: boolean
-      Number: number
-      Object: object
-      String: string
+  jsdoc/reject-any-type:
+  - off
+
+  jsdoc/reject-function-type:
+  - off
 
   import/order:
     - error
@@ -116,6 +108,9 @@ rules:
       - builtin
       alphabetize:
         order: asc
+  sort-imports: 
+    - error
+    - ignoreDeclarationSort: true
 
   import/extensions:
   - error
@@ -124,6 +119,9 @@ rules:
   - error
   import/no-unresolved:
   - 2
+  # disable for symbol-sdk until https://github.com/import-js/eslint-plugin-import/issues/1810 is resolved
+  - ignore:
+    - '^symbol-sdk/'
   import/no-deprecated:
   - error
   import/named:

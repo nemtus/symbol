@@ -25,9 +25,9 @@ const statePathBaseType = 0x200;
 
 /**
  * Packet types.
- * @enum {numeric}
+ * @enum {number}
  */
-const PacketType = {
+export const PacketType = {
 	/** A challenge from a server to a client. */
 	serverChallenge: 1,
 
@@ -36,6 +36,9 @@ const PacketType = {
 
 	/** Blocks have been pushed by a peer. */
 	pushBlock: 3,
+
+	/** Chain statistics has been requested by a peer. */
+	chainStatistics: 5,
 
 	/** Transactions have been pushed by an api-node or a peer. */
 	pushTransactions: 9,
@@ -54,6 +57,9 @@ const PacketType = {
 
 	/** Node time information has been requested by a peer. */
 	timeSyncNodeTime: 0x120,
+
+	/** Finalization statistics has been requested by a peer. */
+	finalizationStatistics: 0x132,
 
 	/** Finalization proof has been requested by a peer */
 	finalizationProofAtEpoch: 0x133,
@@ -74,17 +80,14 @@ const PacketType = {
 	mosaicRestrictionsStatePath: statePathBaseType + 0x51
 };
 
-module.exports = {
-	PacketType,
-	StatePathPacketTypes: [
-		PacketType.accountStatePath,
-		PacketType.hashLockStatePath,
-		PacketType.secretLockStatePath,
-		PacketType.metadataStatePath,
-		PacketType.mosaicStatePath,
-		PacketType.multisigStatePath,
-		PacketType.namespaceStatePath,
-		PacketType.accountRestrictionsStatePath,
-		PacketType.mosaicRestrictionsStatePath
-	]
-};
+export const StatePathPacketTypes = [
+	PacketType.accountStatePath,
+	PacketType.hashLockStatePath,
+	PacketType.secretLockStatePath,
+	PacketType.metadataStatePath,
+	PacketType.mosaicStatePath,
+	PacketType.multisigStatePath,
+	PacketType.namespaceStatePath,
+	PacketType.accountRestrictionsStatePath,
+	PacketType.mosaicRestrictionsStatePath
+];

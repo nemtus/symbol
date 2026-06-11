@@ -1,5 +1,9 @@
+import hashlib
 import unittest
+from collections import namedtuple
+from datetime import datetime, timezone
 
+from symbolchain import sc
 from symbolchain.AccountDescriptorRepository import AccountDescriptorRepository
 from symbolchain.Bip32 import Bip32
 from symbolchain.CryptoTypes import Hash256, PrivateKey, PublicKey, Signature
@@ -7,6 +11,8 @@ from symbolchain.facade.SymbolFacade import SymbolFacade
 from symbolchain.symbol.Network import Network
 
 from ..test.TestUtils import TestUtils
+
+CosignTransactionTestDescriptor = namedtuple('CosignTransactionTestDescriptor', ['sign_transaction', 'cosign_transaction'])
 
 YAML_INPUT = '''
 - public_key: 87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8
@@ -17,12 +23,14 @@ YAML_INPUT = '''
 
 
 class SymbolFacadeTest(unittest.TestCase):
+	# pylint: disable=too-many-public-methods
+
 	# region real transactions
 
 	@staticmethod
 	def _create_real_transfer(facade):
 		return facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': 'TEST',
 			'fee': 1000000,
 			'deadline': 41998024783,
@@ -35,14 +43,14 @@ class SymbolFacadeTest(unittest.TestCase):
 	@staticmethod
 	def _create_real_aggregate(facade):
 		aggregate = facade.transaction_factory.create({
-			'type': 'aggregate_complete_transaction',
+			'type': 'aggregate_complete_transaction_v1',
 			'signer_public_key': 'TEST',
 			'fee': 2000000,
 			'deadline': 42238390163,
 			'transactions_hash': '71554638F578358B1D3FC4369AC625DB491AD5E5D4424D6DBED9FFC7411A37FE'
 		})
 		transfer = facade.transaction_factory.create_embedded({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': 'TEST',
 			'recipient_address': 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 			'mosaics': [
@@ -56,7 +64,7 @@ class SymbolFacadeTest(unittest.TestCase):
 	def _create_real_embedded_transactions(facade):
 		return list(map(facade.transaction_factory.create_embedded, [
 			{
-				'type': 'transfer_transaction',
+				'type': 'transfer_transaction_v1',
 				'signer_public_key': 'TEST',
 				'recipient_address': 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 				'mosaics': [
@@ -64,7 +72,7 @@ class SymbolFacadeTest(unittest.TestCase):
 				]
 			},
 			{
-				'type': 'secret_proof_transaction',
+				'type': 'secret_proof_transaction_v1',
 				'signer_public_key': 'TEST',
 				'recipient_address': 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 				'secret': 'BE254D2744329BBE20F9CF6DA61043B4CEF8C2BC000000000000000000000000',
@@ -72,13 +80,84 @@ class SymbolFacadeTest(unittest.TestCase):
 				'proof': '41FB'
 			},
 			{
-				'type': 'address_alias_transaction',
+				'type': 'address_alias_transaction_v1',
 				'signer_public_key': 'TEST',
 				'namespace_id': 0xA95F1F8A96159516,
 				'address': 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 				'alias_action': 'link'
 			}
 		]))
+
+	@staticmethod
+	def _create_real_aggregate_swap(facade):
+		return facade.transaction_factory.create({
+			'type': 'aggregate_complete_transaction_v1',
+			'signer_public_key': '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+			'fee': 36000,
+			'deadline': 26443750218,
+			'transactions_hash': '641CB7E431F1D44094A43E1CE8265E6BD1DF1C3B0B64797CDDAA0A375FCD3C08',
+			'transactions': [
+				facade.transaction_factory.create_embedded({
+					'type': 'transfer_transaction_v1',
+					'signer_public_key': '29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3',
+					'recipient_address': 'TBEZ3VKFBMKQSW7APBVL5NWNBEU7RR466PRRTDQ',
+					'mosaics': [
+						{'mosaic_id': 0xE74B99BA41F4AFEE, 'amount': 20000000}
+					]
+				}),
+				facade.transaction_factory.create_embedded({
+					'type': 'transfer_transaction_v1',
+					'signer_public_key': '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+					'recipient_address': 'TDFR3Q3H5W4OPOSHALVDY3RF4ZQNH44LIUIHYTQ',
+					'mosaics': [
+						{'mosaic_id': 0x798A29F48E927C83, 'amount': 100}
+					]
+				})
+			]
+		})
+
+	# endregion
+
+	# region test utils
+
+	def _assert_can_cosign_transaction(self, test_descriptor, detached=False):
+		# Arrange:
+		signer_private_key = PrivateKey('F4BC233E183E8CEA08D0A604A3DC67FF3261D1E6EBF84D233488BC53D89C50B7')
+		cosigner_private_key = PrivateKey('BE7B98F835A896136ADDAF04220F28CB4925D24F0675A21421BF213C180BEF86')
+		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
+
+		transaction = self._create_real_aggregate_swap(facade)
+		signature = test_descriptor.sign_transaction(facade, signer_private_key, transaction)
+		facade.transaction_factory.attach_signature(transaction, signature)
+
+		# Act:
+		cosignature = test_descriptor.cosign_transaction(facade, cosigner_private_key, transaction, detached)
+
+		# Assert: check common fields
+		self.assertEqual(0, cosignature.version)
+		self.assertEqual(sc.PublicKey('29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3'), cosignature.signer_public_key)
+		self.assertEqual(
+			sc.Signature('204BD2C4F86B66313E5C5F817FD650B108826D53EDEFC8BDFF936E4D6AA07E38' + (
+				'5F819CF0BF22D14D4AA2011AD07BC0FE6023E2CB48DC5D82A6A1FF1348FA3E0B'
+			)),
+			cosignature.signature)
+		return cosignature
+
+	def _run_test_can_cosign_transaction(self, test_descriptor):
+		# Act:
+		cosignature = self._assert_can_cosign_transaction(test_descriptor)
+
+		# Assert: cosignature should be suitable for attaching to an aggregate
+		self.assertEqual(104, cosignature.size)
+		self.assertFalse(hasattr(cosignature, 'parent_hash'))
+
+	def _run_test_can_cosign_transaction_detached(self, test_descriptor):
+		# Act:
+		cosignature = self._assert_can_cosign_transaction(test_descriptor, True)
+
+		# Assert: cosignature should be detached
+		self.assertEqual(136, cosignature.size)
+		self.assertEqual(sc.Hash256('214DFF47469D462E1D9A03232C2582C7E44DE026A287F98529CC74DE9BD69641'), cosignature.parent_hash)
 
 	# endregion
 
@@ -118,7 +197,7 @@ class SymbolFacadeTest(unittest.TestCase):
 		# Act:
 		facade = SymbolFacade('testnet')
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': bytes(PublicKey.SIZE)
 		})
 
@@ -140,7 +219,7 @@ class SymbolFacadeTest(unittest.TestCase):
 		# Act:
 		facade = SymbolFacade(network)
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': bytes(PublicKey.SIZE)
 		})
 
@@ -155,7 +234,7 @@ class SymbolFacadeTest(unittest.TestCase):
 		# Act:
 		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v1',
 			'signer_public_key': 'TEST',
 			'recipient_address': 'SYMBOL'
 		})
@@ -171,6 +250,118 @@ class SymbolFacadeTest(unittest.TestCase):
 			PublicKey('87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8').bytes,
 			transaction.signer_public_key.bytes)
 		self.assertEqual(SymbolFacade.Address('TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y').bytes, transaction.recipient_address.bytes)
+
+	# endregion
+
+	# region now
+
+	def test_can_create_current_timestamp_for_network_via_now(self):
+		while True:
+			# Arrange: affinitize test to run so that whole test runs within the context of the same millisecond
+			start_time = datetime.now()
+			facade = SymbolFacade('testnet')
+
+			# Act:
+			now_from_facade = facade.now()
+			now_from_network = facade.network.from_datetime(datetime.now(timezone.utc))
+
+			end_time = datetime.now()
+			if (start_time.microsecond // 1000) != (end_time.microsecond // 1000):
+				continue
+
+			# Assert:
+			self.assertEqual(now_from_network, now_from_facade)
+			self.assertGreater(now_from_facade.timestamp, 0)
+			break
+
+	# endregion
+
+	# region create_public_account / create_account
+
+	def test_can_create_public_account_from_public_key(self):
+		# Arrange:
+		facade = SymbolFacade('testnet')
+		public_key = PublicKey('E29C5934F44482E7A9F50725C8681DE6CA63F49E5562DB7E5BC9EABA31356BAD')
+
+		# Act:
+		account = facade.create_public_account(public_key)
+
+		# Assert:
+		self.assertEqual(facade.Address('TABDOFVM2QYIMVNQII6UJWU7Y66GZI4LQTMN4PI'), account.address)
+		self.assertEqual(public_key, account.public_key)
+
+	def test_can_create_account_from_private_key(self):
+		# Arrange:
+		facade = SymbolFacade('testnet')
+		public_key = PublicKey('E29C5934F44482E7A9F50725C8681DE6CA63F49E5562DB7E5BC9EABA31356BAD')
+		private_key = PrivateKey('E88283CE35FE74C89FFCB2D8BFA0A2CF6108BDC0D07606DEE34D161C30AC2F1E')
+
+		# Act:
+		account = facade.create_account(private_key)
+
+		# Assert:
+		self.assertEqual(facade.Address('TABDOFVM2QYIMVNQII6UJWU7Y66GZI4LQTMN4PI'), account.address)
+		self.assertEqual(public_key, account.public_key)
+		self.assertEqual(public_key, account.key_pair.public_key)
+		self.assertEqual(private_key, account.key_pair.private_key)
+
+	def test_can_create_message_encoder_from_account(self):
+		# Arrange:
+		facade = SymbolFacade('testnet')
+		account = facade.create_account(PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC'))
+
+		# Act:
+		encoder = account.message_encoder()
+
+		# Assert: message encoder matches the account
+		self.assertEqual(account.public_key, encoder.public_key)
+
+	def test_can_sign_transaction_with_account_wrappers(self):
+		# Arrange:
+		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
+		account = facade.create_account(PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC'))
+
+		transaction = self._create_real_transfer(facade)
+
+		# Sanity:
+		self.assertEqual(Signature.zero().bytes, transaction.signature.bytes)
+
+		# Act:
+		signature = account.sign_transaction(transaction)
+		is_verified = facade.verify_transaction(transaction, signature)
+
+		# Assert:
+		self.assertTrue(is_verified)
+
+	@staticmethod
+	def _get_cosign_transaction_test_descriptor_for_account_wrappers():
+		return CosignTransactionTestDescriptor(
+			lambda facade, private_key, transaction: facade.create_account(private_key).sign_transaction(transaction),
+			lambda facade, private_key, transaction, detached: facade.create_account(private_key).cosign_transaction(transaction, detached)
+		)
+
+	def test_can_cosign_transaction_with_account_wrappers(self):
+		self._run_test_can_cosign_transaction(self._get_cosign_transaction_test_descriptor_for_account_wrappers())
+
+	def test_can_cosign_transaction_detached_with_account_wrappers(self):
+		self._run_test_can_cosign_transaction_detached(self._get_cosign_transaction_test_descriptor_for_account_wrappers())
+
+	@staticmethod
+	def _get_cosign_transaction_hash_test_descriptor_for_account_wrappers():
+		def _cosign_transaction_hash_for_account_wrappers(facade, private_key, transaction, detached):
+			transaction_hash = facade.hash_transaction(transaction)
+			return facade.create_account(private_key).cosign_transaction_hash(transaction_hash, detached)
+
+		return CosignTransactionTestDescriptor(
+			lambda facade, private_key, transaction: facade.create_account(private_key).sign_transaction(transaction),
+			_cosign_transaction_hash_for_account_wrappers
+		)
+
+	def test_can_cosign_transaction_hash_with_account_wrappers(self):
+		self._run_test_can_cosign_transaction(self._get_cosign_transaction_hash_test_descriptor_for_account_wrappers())
+
+	def test_can_cosign_transaction_hash_detached_with_account_wrappers(self):
+		self._run_test_can_cosign_transaction_detached(self._get_cosign_transaction_hash_test_descriptor_for_account_wrappers())
 
 	# endregion
 
@@ -194,12 +385,12 @@ class SymbolFacadeTest(unittest.TestCase):
 	def test_can_hash_transaction(self):
 		self._assert_can_hash_transaction(
 			self._create_real_transfer,
-			Hash256('600D0CF8C95CDEEB1BC81EFEB9D50BB853F474AC2226E1BEB83E235716C8E16E'))
+			Hash256('86E006F0D400A781A15D0293DFC15897078351A2F7731D49A865A63C2010DE44'))
 
 	def test_can_hash_aggregate_transaction(self):
 		self._assert_can_hash_transaction(
 			self._create_real_aggregate,
-			Hash256('194578BACECBE33A18EE6D1BE02D61B1CC86F57D57C4D22F7783D27EB33FF225'))
+			Hash256('D074716D62F4CDF1CE219D7E0580DC2C030102E216ECE2037FA28A3BC5726BD0'))
 
 	def _assert_can_sign_transaction(self, transaction_factory, expected_signature):
 		# Arrange:
@@ -219,17 +410,26 @@ class SymbolFacadeTest(unittest.TestCase):
 
 	def test_can_sign_transaction(self):
 		self._assert_can_sign_transaction(self._create_real_transfer, Signature(''.join([
-			'5BF0C9DC0D97FDE7FF6F99F1EFADF50DD77C1FA54CFC704FB23295C8F6908B6D',
-			'1F9BA1FB2DB267543805F14C83B7A9D4255D8AECC6046DDBE225115A6DF16002'
+			'24A3788AFD0223083D47ED14F17A2499A7939CD62C4B3288C40CF2736B13F404',
+			'8486680DD574C9F7DB56F453464058CB22349ACBFAECAE16A31EF0725FFF6104'
 		])))
 
 	def test_can_sign_aggregate_transaction(self):
 		self._assert_can_sign_transaction(self._create_real_aggregate, Signature(''.join([
-			'116BA7B83280BC1752440A5CFBF71612385DFDFA0363A5B220E20C0CA0C6307A',
-			'35C979BB120BAB85E58B1C880DDFB7A96A922D1A2828B5C6CC9556C27571190C'
+			'40C5C9F0BAF74E64877982C411D0D16665E18D463B66204081D846564FC6CAE1',
+			'3F1F75C688CBD2D34263DA166537A90B4F371C1B38DDF00414AB0F5D78C3CD0F'
 		])))
 
-	def _assert_can_verify_transaction(self, transaction_factory):
+	@staticmethod
+	def _sign_transaction(facade, key_pair, transaction):
+		return facade.sign_transaction(key_pair, transaction)
+
+	@staticmethod
+	def _sign_transaction_signing_payload(facade, key_pair, transaction):
+		signing_payload = facade.extract_signing_payload(transaction)
+		return key_pair.sign(signing_payload)
+
+	def _assert_can_verify_transaction(self, transaction_factory, sign):
 		# Arrange:
 		private_key = PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC')
 		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
@@ -240,17 +440,96 @@ class SymbolFacadeTest(unittest.TestCase):
 		self.assertEqual(Signature.zero().bytes, transaction.signature.bytes)
 
 		# Act:
-		signature = facade.sign_transaction(SymbolFacade.KeyPair(private_key), transaction)
+		signature = sign(facade, SymbolFacade.KeyPair(private_key), transaction)
 		is_verified = facade.verify_transaction(transaction, signature)
 
 		# Assert:
 		self.assertTrue(is_verified)
 
-	def test_can_verify_transaction(self):
-		self._assert_can_verify_transaction(self._create_real_transfer)
+	def test_can_verify_signed_transaction(self):
+		self._assert_can_verify_transaction(self._create_real_transfer, self._sign_transaction)
 
-	def test_can_verify_aggregate_transaction(self):
-		self._assert_can_verify_transaction(self._create_real_aggregate)
+	def test_can_verify_signed_aggregate_transaction(self):
+		self._assert_can_verify_transaction(self._create_real_aggregate, self._sign_transaction)
+
+	def test_can_verify_signed_transaction_signing_payload(self):
+		self._assert_can_verify_transaction(self._create_real_transfer, self._sign_transaction_signing_payload)
+
+	def test_can_verify_signed_aggregate_transaction_signing_payload(self):
+		self._assert_can_verify_transaction(self._create_real_aggregate, self._sign_transaction_signing_payload)
+
+	# endregion
+
+	# region conditional aggregate data buffers
+
+	@staticmethod
+	def _calculate_expected_transaction_hash(network, transaction, aggregate_data_size):
+		# this mimics SymbolFacade.hash_transaction as a way to implicitly check the version-dependent aggregate data size
+		hasher = hashlib.sha3_256()
+		hasher.update(transaction.signature.bytes)
+		hasher.update(transaction.signer_public_key.bytes)
+		hasher.update(network.generation_hash_seed.bytes)
+
+		serialized_transaction = transaction.serialize()
+		hasher.update(serialized_transaction[108:108 + aggregate_data_size])  # 108 is TRANSACTION_HEADER_SIZE
+		return Hash256(hasher.digest())
+
+	def _assert_aggregate_transaction_hash(self, version, aggregate_data_size):
+		# Arrange:
+		private_key = PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC')
+		facade = SymbolFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
+
+		transaction = self._create_real_aggregate(facade)
+		transaction.version = version
+		signature = facade.sign_transaction(SymbolFacade.KeyPair(private_key), transaction)
+		facade.transaction_factory.attach_signature(transaction, signature)
+
+		# Act:
+		hash_value = facade.hash_transaction(transaction)
+
+		# Assert:
+		expected_hash = self._calculate_expected_transaction_hash(facade.network, transaction, aggregate_data_size)
+		self.assertEqual(expected_hash, hash_value)
+
+	def test_conditional_aggregate_data_buffer_is_respected(self):
+		self._assert_aggregate_transaction_hash(1, 52)
+		self._assert_aggregate_transaction_hash(2, 52)
+		self._assert_aggregate_transaction_hash(3, 56)
+		self._assert_aggregate_transaction_hash(4, 56)
+
+	# endregion
+
+	# region cosign_transaction
+
+	@staticmethod
+	def _get_cosign_transaction_test_descriptor_for_facade():
+		return CosignTransactionTestDescriptor(
+			lambda facade, private_key, transaction: facade.sign_transaction(facade.KeyPair(private_key), transaction),
+			lambda facade, private_key, transaction, detached: facade.cosign_transaction(facade.KeyPair(private_key), transaction, detached)
+		)
+
+	def test_can_cosign_transaction(self):
+		self._run_test_can_cosign_transaction(self._get_cosign_transaction_test_descriptor_for_facade())
+
+	def test_can_cosign_transaction_detached(self):
+		self._run_test_can_cosign_transaction_detached(self._get_cosign_transaction_test_descriptor_for_facade())
+
+	@staticmethod
+	def _get_cosign_transaction_hash_test_descriptor_for_facade():
+		def _cosign_transaction_hash_for_facade(facade, private_key, transaction, detached):
+			transaction_hash = facade.hash_transaction(transaction)
+			return facade.cosign_transaction_hash(facade.KeyPair(private_key), transaction_hash, detached)
+
+		return CosignTransactionTestDescriptor(
+			lambda facade, private_key, transaction: facade.sign_transaction(facade.KeyPair(private_key), transaction),
+			_cosign_transaction_hash_for_facade
+		)
+
+	def test_can_cosign_transaction_hash(self):
+		self._run_test_can_cosign_transaction(self._get_cosign_transaction_hash_test_descriptor_for_facade())
+
+	def test_can_cosign_transaction_hash_detached(self):
+		self._run_test_can_cosign_transaction_detached(self._get_cosign_transaction_hash_test_descriptor_for_facade())
 
 	# endregion
 

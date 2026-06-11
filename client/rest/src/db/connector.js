@@ -19,22 +19,21 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const MongoDb = require('mongodb');
-const winston = require('winston');
+import MongoDb from 'mongodb';
+import winston from 'winston';
 
-const connector = {
-	connectToDatabase(url, dbName, connectionPoolSize) {
+export default {
+	connectToDatabase(url, dbName, connectionPoolSize, timeout) {
 		const connectionString = `${url}${dbName}`;
 		return MongoDb.MongoClient.connect(connectionString, {
 			minPoolSize: connectionPoolSize,
 			promoteLongs: false,
-			useNewUrlParser: true
+			connectTimeoutMS: timeout,
+			serverSelectionTimeoutMS: timeout
 		})
 			.then(client => {
-				winston.verbose(`connected to mongo at ${connectionString}`);
+				winston.verbose(`connecting to mongo at ${connectionString}`);
 				return client;
 			});
 	}
 };
-
-module.exports = connector;

@@ -1,18 +1,18 @@
-const descriptorFactory = () => {
+export default () => {
 	const sampleAddress = 'TALICEROONSJCPHC63F52V6FY3SDMSVAEUGHMB7C';
 	const textEncoder = new TextEncoder();
 
 	return [
 		// mosaics but no message
 		{
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v2',
 			recipientAddress: sampleAddress,
 			amount: 12345_000000n
 		},
 
 		// message but no mosaics
 		{
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v2',
 			recipientAddress: sampleAddress,
 			message: {
 				messageType: 'plain',
@@ -22,7 +22,7 @@ const descriptorFactory = () => {
 
 		// mosaics and message
 		{
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v2',
 			recipientAddress: sampleAddress,
 			amount: 12345_000000n,
 			message: {
@@ -33,7 +33,7 @@ const descriptorFactory = () => {
 
 		// mosaic bags
 		{
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v2',
 			recipientAddress: sampleAddress,
 			amount: 1_000000n,
 			message: {
@@ -71,5 +71,3 @@ const descriptorFactory = () => {
 		}
 	];
 };
-
-module.exports = { descriptorFactory };

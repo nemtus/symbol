@@ -1,52 +1,82 @@
-const { BaseValue } = require('./BaseValue');
-const { Bip32 } = require('./Bip32');
-const { ByteArray } = require('./ByteArray');
-const CryptoTypes = require('./CryptoTypes');
-const { NetworkLocator } = require('./Network');
-const NemFacade = require('./facade/NemFacade');
-const SymbolFacade = require('./facade/SymbolFacade');
-const NemKeyPair = require('./nem/KeyPair');
-const NemNetwork = require('./nem/Network');
-const NemTransactionFactory = require('./nem/TransactionFactory');
-const NemModels = require('./nem/models');
-const SymbolKeyPair = require('./symbol/KeyPair');
-const SymbolMerkleHashBuilder = require('./symbol/MerkleHashBuilder');
-const SymbolNetwork = require('./symbol/Network');
-const SymbolTransactionFactory = require('./symbol/TransactionFactory');
-const SymbolIdGenerator = require('./symbol/idGenerator');
-const SymbolModels = require('./symbol/models');
-const { hexToUint8, uint8ToHex } = require('./utils/converter');
+import BaseValue from './BaseValue.js';
+import { Bip32 } from './Bip32.js';
+import ByteArray from './ByteArray.js';
+import {
+	Hash256,
+	PrivateKey,
+	PublicKey,
+	SharedKey256,
+	Signature
+} from './CryptoTypes.js';
+import { NetworkLocator } from './Network.js';
+import { deepCompare } from './utils/arrayHelpers.js';
+import {
+	bytesToBigInt, bytesToInt, hexToUint8, intToBytes, isHexString, tryParseUint, uint8ToHex
+} from './utils/converter.js';
 
-module.exports = {
+const utils = {
+	bytesToBigInt, bytesToInt, deepCompare, hexToUint8, intToBytes, isHexString, tryParseUint, uint8ToHex
+};
+
+export {
+	/**
+	 * Represents a base integer.
+	 * @type {typeof BaseValue}
+	 */
 	BaseValue,
+
+	/**
+	 * Factory of BIP32 root nodes.
+	 * @type {typeof Bip32}
+	 */
 	Bip32,
+
+	/**
+	 * Represents a fixed size byte array.
+	 * @type {typeof ByteArray}
+	 */
 	ByteArray,
-	CryptoTypes,
+
+	// region CryptoTypes
+
+	/**
+	 * Represents a 256-bit hash.
+	 * @type {typeof Hash256}
+	 */
+	Hash256,
+
+	/**
+	 * Represents a private key.
+	 * @type {typeof PrivateKey}
+	 */
+	PrivateKey,
+
+	/**
+	 * Represents a public key.
+	 * @type {typeof PublicKey}
+	 */
+	PublicKey,
+
+	/**
+	 * Represents a 256-bit symmetric encryption key.
+	 * @type {typeof SharedKey256}
+	 */
+	SharedKey256,
+
+	/**
+	 * Represents a signature.
+	 * @type {typeof Signature}
+	 */
+	Signature,
+
+	/**
+	 * Provides utility functions for finding a network.
+	 * @type {typeof NetworkLocator}
+	 */
 	NetworkLocator,
 
-	facade: {
-		...NemFacade,
-		...SymbolFacade
-	},
-
-	nem: {
-		...NemModels, // must be before Network to promote Address from Network
-		...NemKeyPair,
-		...NemNetwork,
-		...NemTransactionFactory
-	},
-
-	symbol: {
-		...SymbolModels, // must be before Network to promote Address from Network
-		...SymbolKeyPair,
-		...SymbolMerkleHashBuilder,
-		...SymbolNetwork,
-		...SymbolTransactionFactory,
-		...SymbolIdGenerator
-	},
-
-	utils: {
-		hexToUint8,
-		uint8ToHex
-	}
+	/**
+	 * Network independent utilities.
+	 */
+	utils
 };

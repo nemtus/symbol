@@ -1,13 +1,19 @@
-version: '2.1'
+version: '2.4'
 services:
   db:
-    image: mongo:4.2-rc
+    image: mongo:8.0
     user: {{USER}}
     networks:
       test_net:
         ipv6_address: 2001:3200:{{NETWORK_IP}}::25
     command: mongod --bind_ip_all --dbpath=/mongo --logpath /mongo/mongod.log
     stop_signal: SIGINT
+    healthcheck:
+      test: /usr/bin/mongosh --eval 'printjson(db.version())'
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
     volumes:
       - ./mongo/{{BUILD_NUMBER}}:/mongo:rw
 
@@ -38,7 +44,8 @@ services:
       - '{{CATAPULT_SRC}}:/catapult-src'
       - '{{SCRIPT_PATH}}:/scripts'
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 networks:
   test_net:

@@ -1,4 +1,4 @@
-const descriptorFactory = () => {
+export default () => {
 	const sampleAddress = 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y';
 	const sampleNamespaceId = 0xC01DFEE7FEEDDEADn;
 	const sampleMosaicId = 0x7EDCBA90FEDCBA90n;
@@ -8,20 +8,20 @@ const descriptorFactory = () => {
 
 	const templates = [
 		{
-			type: 'account_metadata_transaction',
+			type: 'account_metadata_transaction_v1',
 			targetAddress: sampleAddress,
 			scopedMetadataKey: 0xC0FFEn
 		},
 
 		{
-			type: 'mosaic_metadata_transaction',
+			type: 'mosaic_metadata_transaction_v1',
 			targetMosaicId: sampleMosaicId,
 			targetAddress: sampleAddress,
 			scopedMetadataKey: 0xFACADEn
 		},
 
 		{
-			type: 'namespace_metadata_transaction',
+			type: 'namespace_metadata_transaction_v1',
 			targetNamespaceId: sampleNamespaceId,
 			targetAddress: sampleAddress,
 			scopedMetadataKey: 0xC1CADAn
@@ -39,5 +39,3 @@ const descriptorFactory = () => {
 		{ ...templates[2], valueSizeDelta: -5, value: value3.substring(0, value3.length - 5) }
 	];
 };
-
-module.exports = { descriptorFactory };

@@ -18,26 +18,24 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
-const catapult = require('../../catapult-sdk/index');
-const merkleUtils = require('../../routes/merkleUtils');
-const routeResultTypes = require('../../routes/routeResultTypes');
-const routeUtils = require('../../routes/routeUtils');
+import catapult from '../../catapult-sdk/index.js';
+import merkleUtils from '../../routes/merkleUtils.js';
+import routeResultTypes from '../../routes/routeResultTypes.js';
+import routeUtils from '../../routes/routeUtils.js';
 
 const { PacketType } = catapult.packet;
 
-const { uint64 } = catapult.utils;
-
-module.exports = {
+export default {
 	register: (server, db, services) => {
 		const accountRestrictionsSender = routeUtils.createSender('accountRestrictions');
 
 		// SEARCH
-		server.get('/restrictions/account', (req, res, next) => {
-			const { params } = req;
+		server.get('/restrictions/account', async (request, reply) => {
+			const { params } = request;
 			const address = params.address ? routeUtils.parseArgument(params, 'address', 'address') : undefined;
 			const options = routeUtils.parsePaginationArguments(params, services.config.pageSize, { id: 'objectId' });
-			return db.accountRestrictions(address, options)
-				.then(result => accountRestrictionsSender.sendPage(res, next)(result));
+			const result = await db.accountRestrictions(address, options);
+			return reply.send(accountRestrictionsSender.sendPage()(result));
 		});
 
 		// GET ONE/MANY
@@ -50,27 +48,25 @@ module.exports = {
 		);
 
 		// MERKLE
-		server.get('/restrictions/account/:address/merkle', (req, res, next) => {
-			const encodedAddress = routeUtils.parseArgument(req.params, 'address', 'address');
+		server.get('/restrictions/account/:address/merkle', async (request, reply) => {
+			const encodedAddress = routeUtils.parseArgument(request.params, 'address', 'address');
 			const state = PacketType.accountRestrictionsStatePath;
-			return merkleUtils.requestTree(services, state, encodedAddress).then(response => {
-				res.send(response);
-				next();
-			});
+			const response = await merkleUtils.requestTree(services, state, encodedAddress);
+			return reply.send(response);
 		});
 
 		// SEARCH
 		const mosaicRestrictionSender = routeUtils.createSender(routeResultTypes.mosaicRestrictions);
-		server.get('/restrictions/mosaic', (req, res, next) => {
-			const { params } = req;
-			const mosaicId = params.mosaicId ? routeUtils.parseArgument(params, 'mosaicId', uint64.fromHex) : undefined;
+		server.get('/restrictions/mosaic', async (request, reply) => {
+			const { params } = request;
+			const mosaicId = params.mosaicId ? routeUtils.parseArgument(params, 'mosaicId', 'uint64hex') : undefined;
 			const entryType = params.entryType ? routeUtils.parseArgument(params, 'entryType', 'uint') : undefined;
 			const targetAddress = params.targetAddress ? routeUtils.parseArgument(params, 'targetAddress', 'address') : undefined;
 
 			const options = routeUtils.parsePaginationArguments(params, services.config.pageSize, { id: 'objectId' });
 
-			return db.mosaicRestrictions(mosaicId, entryType, targetAddress, options)
-				.then(result => mosaicRestrictionSender.sendPage(res, next)(result));
+			const result = await db.mosaicRestrictions(mosaicId, entryType, targetAddress, options);
+			return reply.send(mosaicRestrictionSender.sendPage()(result));
 		});
 
 		// GET ONE MANY
@@ -83,13 +79,11 @@ module.exports = {
 		);
 
 		// GET MERKLE
-		server.get('/restrictions/mosaic/:compositeHash/merkle', (req, res, next) => {
-			const compositeHash = routeUtils.parseArgument(req.params, 'compositeHash', 'hash256');
+		server.get('/restrictions/mosaic/:compositeHash/merkle', async (request, reply) => {
+			const compositeHash = routeUtils.parseArgument(request.params, 'compositeHash', 'hash256');
 			const state = PacketType.mosaicRestrictionsStatePath;
-			return merkleUtils.requestTree(services, state, compositeHash).then(response => {
-				res.send(response);
-				next();
-			});
+			const response = await merkleUtils.requestTree(services, state, compositeHash);
+			return reply.send(response);
 		});
 	}
 };

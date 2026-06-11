@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.23)
 
 set(PLUGIN_CATAPULT_LIBS catapult.mongo)
 
@@ -36,7 +36,6 @@ function(catapult_mongo_plugin_tests_with_header_only_deps TARGET_NAME)
 
 	catapult_test_executable_target(${TARGET_NAME} mongo "${ARGN}")
 	catapult_add_mongo_dependencies(${TARGET_NAME})
-	target_link_libraries(${TARGET_NAME} catapult.plugins.${PLUGIN_NAME}.deps)
 	target_link_libraries(${TARGET_NAME} catapult.mongo.plugins.${PLUGIN_NAME}.deps)
 
 	if(TARGET "tests.catapult.test.plugins.${PLUGIN_NAME}")
@@ -59,7 +58,7 @@ endfunction()
 function(catapult_mongo_plugin_test_library TARGET_NAME)
 	catapult_library_target(${TARGET_NAME})
 	catapult_add_mongo_dependencies(${TARGET_NAME})
-	target_link_libraries(${TARGET_NAME} ${GTEST_LIBRARIES})
+	target_link_libraries(${TARGET_NAME} ${GTest_LIBRARIES})
 endfunction()
 
 add_subdirectory(account_link)

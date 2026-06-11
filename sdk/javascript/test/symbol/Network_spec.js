@@ -1,12 +1,13 @@
-const { Hash256, PublicKey } = require('../../src/CryptoTypes');
-const { Address, Network, NetworkTimestamp } = require('../../src/symbol/Network');
-const { hexToUint8 } = require('../../src/utils/converter');
-const { runBasicAddressTests } = require('../test/addressTests');
-const { runBasicNetworkTests } = require('../test/networkTests');
-const { expect } = require('chai');
+import { Hash256, PublicKey } from '../../src/CryptoTypes.js';
+import { Address, Network, NetworkTimestamp } from '../../src/symbol/Network.js';
+import { NamespaceId } from '../../src/symbol/models.js';
+import { hexToUint8 } from '../../src/utils/converter.js';
+import { runBasicAddressTests } from '../test/addressTests.js';
+import { runBasicNetworkTests } from '../test/networkTests.js';
+import { expect } from 'chai';
 
 const MAINNET_GENERATION_HASH_SEED = new Hash256('57F7DA205008026C776CB6AED843393F04CD458E0AA2D9F1D5F31A402072B2D6');
-const TESTNET_GENERATION_HASH_SEED = new Hash256('7FCCD304802016BEBBCD342A332F91FF1F3BB5E902988B352697BE245F48E836');
+const TESTNET_GENERATION_HASH_SEED = new Hash256('49D6E1CE276A85B70EAFE52349AACCA389302E7A9754BCF1221E79494FC665A4');
 
 describe('NetworkTimestamp (Symbol)', () => {
 	const runTestCases = (wrapInt, postfix) => {
@@ -45,6 +46,59 @@ describe('Address (Symbol)', () => {
 		encodedAddress: 'TBLYH55IHPS5QCCMNWR3GZWKV6WMCKPTNI7KSDA',
 		decodedAddress: hexToUint8('985783F7A83BE5D8084C6DA3B366CAAFACC129F36A3EA90C')
 	});
+
+	it('has correct constants', () => {
+		expect(Address.NAME).to.deep.equal('Address');
+		expect(Address.SIZE).to.deep.equal(24);
+		expect(Address.ENCODED_SIZE).to.deep.equal(39);
+	});
+
+	it('cannot extract namespace id from non-alias address', () => {
+		// Arrange:
+		const address = new Address('TBLYH55IHPS5QCCMNWR3GZWKV6WMCKPTNI7KSDA');
+
+		// Act:
+		const namespaceId = address.toNamespaceId();
+
+		// Assert:
+		expect(namespaceId).to.equal(undefined);
+	});
+
+	it('can extract namespace id from alias address', () => {
+		// Arrange:
+		const address = new Address('THBIMC3THGH5RUYAAAAAAAAAAAAAAAAAAAAAAAA');
+
+		// Act:
+		const namespaceId = address.toNamespaceId();
+
+		// Assert:
+		expect(namespaceId).to.deep.equal(new NamespaceId(0xD3D88F39730B86C2n));
+	});
+
+	it('can be created from decoded address hex string', () => {
+		// Act:
+		const address = Address.fromDecodedAddressHexString('980E356BFE40284E4C9C532CB2D5260F6D5FC029D35D2D62');
+
+		// Assert:
+		expect(address.toString()).to.equal('TAHDK276IAUE4TE4KMWLFVJGB5WV7QBJ2NOS2YQ');
+	});
+
+	it('can be created from namespace id', () => {
+		// Act:
+		const address = Address.fromNamespaceId(new NamespaceId(0xD3D88F39730B86C2n), 152);
+
+		// Assert:
+		expect(address.toString()).to.equal('THBIMC3THGH5RUYAAAAAAAAAAAAAAAAAAAAAAAA');
+	});
+
+	it('can detect alias', () => {
+		// Assert: 8th bit unset => false
+		expect(new Address('TAHDK276IAUE4TE4KMWLFVJGB5WV7QBJ2NOS2YQ').isAlias()).to.equal(false);
+		expect(new Address('TBLYH55IHPS5QCCMNWR3GZWKV6WMCKPTNI7KSDA').isAlias()).to.equal(false);
+
+		// - 8th bit set => true
+		expect(new Address('THBIMC3THGH5RUYAAAAAAAAAAAAAAAAAAAAAAAA').isAlias()).to.equal(true);
+	});
 });
 
 describe('Network (Symbol)', () => {
@@ -70,7 +124,7 @@ describe('Network (Symbol)', () => {
 
 		expect(Network.TESTNET.name).to.equal('testnet');
 		expect(Network.TESTNET.identifier).to.equal(0x98);
-		expect(Network.TESTNET.datetimeConverter.epoch.toUTCString()).to.equal('Thu, 25 Nov 2021 14:00:47 GMT');
+		expect(Network.TESTNET.datetimeConverter.epoch.toUTCString()).to.equal('Mon, 31 Oct 2022 21:07:47 GMT');
 		expect(Network.TESTNET.datetimeConverter.timeUnits).to.equal(1);
 		expect(Network.TESTNET.generationHashSeed).to.deep.equal(TESTNET_GENERATION_HASH_SEED);
 	});

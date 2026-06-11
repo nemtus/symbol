@@ -5,11 +5,123 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 ## next
 
-### Changed
- - NetworkTimestamp moved into Network for both nem and symbol submodules
- - to_datetime and from_datetime promoted from NetworkTimestamp to Network
+## [3.3.1] - 14-Apr-2026
 
-## [3.0.3] - 14-Mar-2002
+### Added
+- add support for Python 3.14
+- add to_json function which constructs a JSON transaction representation of a transaction. This is useful for Multisig transactions.
+- add generate_mosaic_restriction_key function which generates mosaic restriction key from a string.
+- add Address.is_alias method to check if an address is an alias.
+- add is_mosaic_alias function to check if a mosaic id is an alias.
+
+### Fixed
+- validate name passed to generate_namespace_id does not contain namespace separator
+
+## [3.3.0] - 23-Sept-2025
+
+### Added
+- add support for aggregate transaction v3.
+
+## [3.2.3] - 04-Dec-2024
+
+### Added
+- add to_json() to the generated model classes to get a JSON-safe representation of the model.
+- add extract_signing_payload() to facade to get signing payload which allows signing by hardware keys.
+- add cosign_transaction_hash() to facade and account to allow cosigning of transaction hash.
+
+### Changed
+- (BREAKING NEM) NEM cosignature transaction multisig_transaction_hash field renamed to other_transaction_hash
+
+### Fixed
+- (NEM) add non-verifiable cosignature transaction to allow signing of the cosignature transaction.
+
+## [3.2.2] - 28-May-2024
+
+### Added
+- use sphinx to generate basic readthedocs-style class level documentation
+- add additional Symbol address utilities
+  - create address alias from namespace id
+  - extract namespace id from address alias
+  - create address from decoded address hex string (REST format)
+-  add metadata_generate_key() since there is no built-in way to convert a string to a metadata key.
+- Added SymbolAccount class
+  - add sign_transaction() to the SymbolAccount to match facade functionality
+  - add cosign_transaction() to the SymbolAccount to match facade functionality
+  - to improve discoverability, add a helper function(message_encoder) to SymbolAccount, which creates a MessageEncoder used to encrypt/encode messages
+- add SymbolPublicAccount class
+  - add properties address and publicKey for better discoverability
+- Added NemAccount class
+  - add sign_transaction() to the NemAccount to match facade functionality
+  - to improve discoverability, add a helper function(message_encoder) to NemAccount, which creates a MessageEncoder used to encrypt/encode messages
+- Add NemPublicAccount class
+  - add properties address and publicKey for better discoverability
+  - add a create_public_account() and create_account() to the facade for both NEM and Symbol
+- add deserialize() function to TransactionFactory in SDK for better discoverability
+
+## [3.2.0] - 09-Apr-2024
+
+### Added
+- add now() to facade for getting current timestamp
+- add support for python 3.11
+
+### Changed
+- improve codegen to significantly reduce size of generated models
+
+### Fixed
+- ByteString is deprecated in Python 3.9
+
+## [3.1.0] - 04-Aug-2023
+
+### Changed
+ - bump minimum python requirement to 3.9
+ - bump version of ripemd-hash dependency to allow windows compilation
+
+## [3.0.11] - 27-Jul-2023
+
+### Added
+ - lookup_transaction_name for generating friendly transaction name from transaction type and version
+ - (Symbol-only) special handling for encrypted messages created by Symbol wallets
+
+### Fixed
+ - (NEM-only) rename TransactionType enum value MULTISIG_TRANSACTION to MULTISIG
+ - (Symbol-only) error that occurs when setting MosaicFlags in the Mosaic definition transaction
+
+## [3.0.7] - 27-Apr-2023
+
+### Changed
+ - Network
+   - to_datetime and from_datetime promoted from NetworkTimestamp to Network
+   - NetworkTimestamp moved into Network
+   - Add epoch_time to network description
+   - Adjust testnet epoch time to match sai network
+ - MerkleHashBuilder.py renamed to Merkle.py
+ - Facade
+   - Can be created around Network instance or name
+ - Sign / verify canonical signature checks
+ - TransactionFactory supports auto sorting transaction properties
+ - Bip32.random for generating random mnemonic
+ - Support `repr` in ByteArray derived types
+ - ripemd fallback when it is not available in hashlib
+
+### Added
+ - is_valid_address_string to Network for checking validity of an unparsed address
+ - MessageEncoder for encrypting and decrypting messages
+   - AesCbcCipher (NEM only) and AesGcmCipher implementations
+   - SharedKey256 BaseArray derived type
+ - Facade
+   - SharedKey type
+   - bip32_path function for returning BIP32 compatible path
+   - (Symbol-only) cosign_transaction for cosigning Symbol transactions
+ - Symbol
+   - Functions for verifying Merkle proofs and Merkle patricia proofs
+   - Utility function metadata_update_value for simplifying update of metadata values
+ - Proper handling of catbuffer computed fields/properties
+ - (NEM-only) Automatic population for fields levy_size and message_envelope_size
+
+### Fixed
+ - (NEM-only) Add NonVerifiableMultisigTransactionV1 model required for signing 'multisig_transaction_v1'
+
+## [3.0.3] - 14-Mar-2022
 
 ### Changed
  - cosmetic changes in generated code
@@ -47,15 +159,22 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 ### Fixed
  - add mapping for voting key dto
 
-## [1.0.0] - 22-Apr-2021
+## 1.0.0 - 22-Apr-2021
 
 ### Added
  - initial code release
 
-[3.0.3]: https://github.com/symbol/sdk-python/compare/v3.0.2...v3.0.3
-[3.0.2]: https://github.com/symbol/sdk-python/compare/v3.0.1...v3.0.2
-[3.0.1]: https://github.com/symbol/sdk-python/compare/v3.0.0...v3.0.1
-[3.0.0]: https://github.com/symbol/sdk-python/compare/v2.0.0...v3.0.0
-[2.0.0]: https://github.com/symbol/sdk-python/compare/v1.0.3...v2.0.0
-[1.0.3]: https://github.com/symbol/sdk-python/compare/v1.0.0...v1.0.3
-[1.0.0]: https://github.com/symbol/sdk-python/releases/tag/v1.0.0
+[3.3.1]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.3.0...sdk%2Fpython%2Fv3.3.1
+[3.3.0]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.2.3...sdk%2Fpython%2Fv3.3.0
+[3.2.3]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.2.2...sdk%2Fpython%2Fv3.2.3
+[3.2.2]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.2.0...sdk%2Fpython%2Fv3.2.2
+[3.2.0]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.1.0...sdk%2Fpython%2Fv3.2.0
+[3.1.0]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.0.11...sdk%2Fpython%2Fv3.1.0
+[3.0.11]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.0.7...sdk%2Fpython%2Fv3.0.11
+[3.0.7]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.0.3...sdk%2Fpython%2Fv3.0.7
+[3.0.3]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.0.2...sdk%2Fpython%2Fv3.0.3
+[3.0.2]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.0.1...sdk%2Fpython%2Fv3.0.2
+[3.0.1]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv3.0.0...sdk%2Fpython%2Fv3.0.1
+[3.0.0]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv2.0.0...sdk%2Fpython%2Fv3.0.0
+[2.0.0]: https://github.com/symbol/symbol/compare/sdk%2Fpython%2Fv1.0.3...sdk%2Fpython%2Fv2.0.0
+[1.0.3]: https://github.com/symbol/symbol/releases/tag/sdk%2Fpython%2Fv1.0.3

@@ -41,7 +41,7 @@ namespace catapult { namespace test {
 		class SocketGuard : public std::enable_shared_from_this<SocketGuard>{
 		public:
 			explicit SocketGuard(boost::asio::io_context& ioContext)
-					: m_strand(ioContext)
+					: m_strand(boost::asio::make_strand(ioContext))
 					, m_strandWrapper(m_strand)
 					, m_socket(ioContext, CreatePacketSocketSslOptions().ContextSupplier())
 					, m_sentinelByte(0) {
@@ -110,7 +110,7 @@ namespace catapult { namespace test {
 			}
 
 		private:
-			boost::asio::io_context::strand m_strand;
+			ionet::Strand m_strand;
 			thread::StrandOwnerLifetimeExtender<SocketGuard> m_strandWrapper;
 			ionet::Socket m_socket;
 			uint8_t m_sentinelByte;
@@ -258,7 +258,7 @@ namespace catapult { namespace test {
 
 				// otherwise, set a timer
 				CATAPULT_LOG(debug) << "delaying for " << delayMillis << "ms";
-				m_timer.expires_from_now(std::chrono::milliseconds(delayMillis));
+				m_timer.expires_after(std::chrono::milliseconds(delayMillis));
 				m_timer.async_wait([continuation](const auto& ec) {
 					CATAPULT_LOG(debug) << "resuming " << ToMessage(ec);
 					continuation();
@@ -294,6 +294,19 @@ namespace catapult { namespace test {
 		auto pClientSocket = CreateClientSocket(ioContext);
 		pClientSocket->connect().then([&receiveBuffer](auto&& socketFuture) {
 			socketFuture.get()->read(receiveBuffer);
+		});
+		return pClientSocket;
+	}
+
+	std::shared_ptr<ClientSocket> AddClientReadBufferTaskWithWait(
+			boost::asio::io_context& ioContext,
+			ionet::ByteBuffer& receiveBuffer,
+			std::atomic_bool& readCompleted) {
+		auto pClientSocket = CreateClientSocket(ioContext);
+		pClientSocket->connect().then([&receiveBuffer, &readCompleted](auto&& socketFuture) {
+			auto size = socketFuture.get()->read(receiveBuffer).get();
+			CATAPULT_LOG(debug) << "client read complete: " << size;
+			readCompleted = true;
 		});
 		return pClientSocket;
 	}

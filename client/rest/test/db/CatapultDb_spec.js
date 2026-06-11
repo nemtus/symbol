@@ -19,17 +19,17 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const test = require('./utils/dbTestUtils');
-const testDbOptions = require('./utils/testDbOptions');
-const catapult = require('../../src/catapult-sdk/index');
-const CatapultDb = require('../../src/db/CatapultDb');
-const { uniqueLongList } = require('../../src/db/dbUtils');
-const { expect } = require('chai');
-const MongoDb = require('mongodb');
-const sinon = require('sinon');
+import test from './utils/dbTestUtils.js';
+import testDbOptions from './utils/testDbOptions.js';
+import CatapultDb from '../../src/db/CatapultDb.js';
+import { uniqueLongList } from '../../src/db/dbUtils.js';
+import { expect } from 'chai';
+import MongoDb from 'mongodb';
+import sinon from 'sinon';
+import { NetworkLocator, PublicKey, utils } from 'symbol-sdk';
+import { Address, Network, models } from 'symbol-sdk/symbol';
 
-const { address, EntityType } = catapult.model;
-
+const { TransactionType } = models;
 const { Long, Binary } = MongoDb;
 const Testnet_Network = testDbOptions.networkId;
 const Default_Height = 34567;
@@ -63,7 +63,8 @@ describe('catapult db', () => {
 		return dbObject;
 	};
 
-	const keyToAddress = key => Buffer.from(address.publicKeyToAddress(key, Testnet_Network));
+	const network = NetworkLocator.findByIdentifier(Network.NETWORKS, Testnet_Network);
+	const keyToAddress = key => network.publicKeyToAddress(new PublicKey(key)).bytes;
 
 	const runDbTest = (dbEntities, issueDbCommand, assertDbCommandResult) => {
 		// Arrange:
@@ -75,7 +76,7 @@ describe('catapult db', () => {
 			.then(() => deleteIds(dbEntities))
 			.then(() => issueDbCommand(db))
 			.then(assertDbCommandResult)
-			.then(() => db.close());
+			.finally(() => db.close());
 	};
 
 	const assertEqualDocuments = (expectedDocuments, actualDocuments) => {
@@ -126,27 +127,45 @@ describe('catapult db', () => {
 			// Act + Assert: no exception
 			expect(() => db.close()).to.not.throw();
 		});
+
+		it('can create db with network id', () => {
+			// Arrange:
+			const db = new CatapultDb({ networkId: Testnet_Network });
+
+			// Act + Assert:
+			expect(db.network).to.equal(Network.TESTNET);
+		});
 	});
 
 	describe('storage info', () => {
 		it('can retrieve storage info', () => {
 			const Rounds = 2;
-
-			// Arrange:
 			return runDbTest(
 				{
 					block: test.db.createDbBlock(Default_Height),
 					transactions: test.db.createDbTransactions(Rounds, test.random.publicKey(), test.random.address())
 				},
 				db => db.storageInfo(),
-				storageInfo => expect(storageInfo).to.deep.equal({ numBlocks: 1, numTransactions: Rounds * 8, numAccounts: 0 })
+				storageInfo => {
+					expect(Object.keys(storageInfo).length).to.equal(4);
+					expect(storageInfo.numBlocks).to.equal(1);
+					expect(storageInfo.numTransactions).to.equal(Rounds * 8);
+					expect(storageInfo.numAccounts).to.equal(0);
+
+					expect(Object.keys(storageInfo.database).length).to.equal(5);
+					['numIndexes', 'numObjects', 'dataSize', 'indexSize', 'storageSize'].forEach(key => {
+						const value = storageInfo.database[key];
+						const message = `storage database property ${key}`;
+						expect(value, message).to.not.equal(undefined);
+						expect(value, message).to.not.equal(0);
+					});
+				}
 			);
 		});
 	});
 
 	describe('chain info', () => {
 		it('can retrieve chain info', () =>
-			// Assert:
 			runDbTest(
 				{ chainStatistic: test.db.createChainStatistic(1357, 2468, 3579) },
 				db => db.chainStatisticCurrent(),
@@ -206,13 +225,14 @@ describe('catapult db', () => {
 
 		const { createObjectId } = test.db;
 
-		const createBlock = (objectId, height, signerPublicKey, beneficiaryAddress) => ({
+		const createBlock = (objectId, height, signerPublicKey, beneficiaryAddress, timestamp) => ({
 			_id: createObjectId(objectId),
 			meta: {},
 			block: {
 				height,
 				signerPublicKey: signerPublicKey ? Buffer.from(signerPublicKey) : undefined,
-				beneficiaryAddress: beneficiaryAddress ? Buffer.from(beneficiaryAddress) : undefined
+				beneficiaryAddress: beneficiaryAddress ? Buffer.from(beneficiaryAddress) : undefined,
+				timestamp: timestamp || undefined
 			}
 		});
 
@@ -233,13 +253,13 @@ describe('catapult db', () => {
 		it('returns expected structure', () => {
 			// Arrange:
 			const dbBlocks = [
-				createBlock(10, 100, account1.publicKey, account2.address)
+				createBlock(10, 100, account1.publicKey, account2.address, 12345)
 			];
 
 			// Act + Assert:
 			return runDbTest(
 				{ blocks: dbBlocks },
-				db => db.blocks(undefined, undefined, paginationOptions),
+				db => db.blocks(undefined, undefined, undefined, undefined, paginationOptions),
 				page => {
 					const expected_keys = ['id', 'meta', 'block'];
 					expect(Object.keys(page.data[0]).sort()).to.deep.equal(expected_keys.sort());
@@ -252,11 +272,15 @@ describe('catapult db', () => {
 			const dbBlocks = [
 				createBlock(10, 1),
 				createBlock(20, 1, account1.publicKey),
-				createBlock(30, 1, account1.publicKey, account2.address)
+				createBlock(30, 1, account1.publicKey, account2.address),
+				createBlock(40, 1, account1.publicKey, account2.address, 12345)
 			];
 
 			// Act + Assert:
-			return runTestAndVerifyIds(dbBlocks, db => db.blocks(undefined, undefined, paginationOptions), [10, 20, 30]);
+			return runTestAndVerifyIds(
+				dbBlocks,
+				db => db.blocks(undefined, undefined, undefined, undefined, paginationOptions), [10, 20, 30, 40]
+			);
 		});
 
 		it('all the provided filters are taken into account', () => {
@@ -264,11 +288,15 @@ describe('catapult db', () => {
 			const dbBlocks = [
 				createBlock(10, 1),
 				createBlock(20, 1, account1.publicKey),
-				createBlock(30, 1, account1.publicKey, account2.address)
+				createBlock(30, 1, account1.publicKey, account2.address),
+				createBlock(40, 1, account1.publicKey, account2.address, 12345)
 			];
 
 			// Act + Assert:
-			return runTestAndVerifyIds(dbBlocks, db => db.blocks(account1.publicKey, account2.address, paginationOptions), [30]);
+			return runTestAndVerifyIds(
+				dbBlocks,
+				db => db.blocks(account1.publicKey, account2.address, 12345, 23456, paginationOptions), [40]
+			);
 		});
 
 		describe('respects offset', () => {
@@ -290,14 +318,14 @@ describe('catapult db', () => {
 				options.sortDirection = 1;
 
 				// Act + Assert:
-				return runTestAndVerifyIds(dbBlocks(), db => db.blocks(undefined, undefined, options), [30]);
+				return runTestAndVerifyIds(dbBlocks(), db => db.blocks(undefined, undefined, undefined, undefined, options), [30]);
 			});
 
 			it('lt', () => {
 				options.sortDirection = -1;
 
 				// Act + Assert:
-				return runTestAndVerifyIds(dbBlocks(), db => db.blocks(undefined, undefined, options), [10]);
+				return runTestAndVerifyIds(dbBlocks(), db => db.blocks(undefined, undefined, undefined, undefined, options), [10]);
 			});
 		});
 
@@ -320,7 +348,7 @@ describe('catapult db', () => {
 				// Act + Assert:
 				return runDbTest(
 					{ blocks: dbBlocks() },
-					db => db.blocks(undefined, undefined, options),
+					db => db.blocks(undefined, undefined, undefined, undefined, options),
 					blocksPage => {
 						expect(blocksPage.data[0].id).to.deep.equal(createObjectId(10));
 						expect(blocksPage.data[1].id).to.deep.equal(createObjectId(20));
@@ -340,7 +368,7 @@ describe('catapult db', () => {
 				// Act + Assert:
 				return runDbTest(
 					{ blocks: dbBlocks() },
-					db => db.blocks(undefined, undefined, options),
+					db => db.blocks(undefined, undefined, undefined, undefined, options),
 					blocksPage => {
 						expect(blocksPage.data[0].id).to.deep.equal(createObjectId(30));
 						expect(blocksPage.data[1].id).to.deep.equal(createObjectId(20));
@@ -361,7 +389,7 @@ describe('catapult db', () => {
 				// Act + Assert:
 				return runDbTest(
 					{ blocks: dbBlocks() },
-					db => db.blocks(undefined, undefined, options),
+					db => db.blocks(undefined, undefined, undefined, undefined, options),
 					() => {
 						expect(queryPagedDocumentsSpy.calledOnce).to.equal(true);
 						expect(Object.keys(queryPagedDocumentsSpy.firstCall.args[2])[0]).to.equal('block.height');
@@ -380,7 +408,8 @@ describe('catapult db', () => {
 				];
 
 				// Act + Assert:
-				return runTestAndVerifyIds(dbBlocks, db => db.blocks(account1.publicKey, undefined, paginationOptions), [10]);
+				return runTestAndVerifyIds(dbBlocks, db =>
+					db.blocks(account1.publicKey, undefined, undefined, undefined, paginationOptions), [10]);
 			});
 
 			it('beneficiaryAddress', () => {
@@ -391,7 +420,49 @@ describe('catapult db', () => {
 				];
 
 				// Act + Assert:
-				return runTestAndVerifyIds(dbBlocks, db => db.blocks(undefined, account1.address, paginationOptions), [10]);
+				return runTestAndVerifyIds(dbBlocks, db =>
+					db.blocks(undefined, account1.address, undefined, undefined, paginationOptions), [10]);
+			});
+
+			it('fromTimestamp', () => {
+				// Arrange:
+				const dbBlocks = [
+					createBlock(10, 1, account1.publicKey, account1.address, 12345),
+					createBlock(20, 1, account1.publicKey, account1.address, 23456),
+					createBlock(30, 1, account1.publicKey, account1.address, 34567)
+				];
+
+				// Act + Assert:
+				return runTestAndVerifyIds(dbBlocks, db =>
+					db.blocks(undefined, undefined, 23456, undefined, paginationOptions), [20, 30]);
+			});
+
+			it('toTimestamp', () => {
+				// Arrange:
+				const dbBlocks = [
+					createBlock(10, 1, account1.publicKey, account1.address, 12345),
+					createBlock(20, 1, account1.publicKey, account1.address, 23456),
+					createBlock(30, 1, account1.publicKey, account1.address, 34567)
+				];
+
+				// Act + Assert:
+				return runTestAndVerifyIds(dbBlocks, db =>
+					db.blocks(undefined, undefined, undefined, 23456, paginationOptions), [10, 20]);
+			});
+
+			it('fromTimestamp && toTimestamp', () => {
+				// Arrange:
+				const dbBlocks = [
+					createBlock(10, 1, account1.publicKey, account1.address, 12345),
+					createBlock(20, 1, account1.publicKey, account1.address, 23456),
+					createBlock(30, 1, account1.publicKey, account1.address, 34567),
+					createBlock(40, 1, account1.publicKey, account1.address, 45678),
+					createBlock(50, 1, account1.publicKey, account1.address, 56789)
+				];
+
+				// Act + Assert:
+				return runTestAndVerifyIds(dbBlocks, db =>
+					db.blocks(undefined, undefined, 23456, 45678, paginationOptions), [20, 30, 40]);
 			});
 		});
 	});
@@ -412,7 +483,7 @@ describe('catapult db', () => {
 				block => expect(block).to.equal(undefined)
 			));
 
-		// use blockAtHeight tests as a proxy for testing support of different numeric types (Number, uint64, Long)
+		// use blockAtHeight tests as a proxy for testing support of different numeric types (Number, bigint, Long)
 
 		const assertCanRetrieveSimpleBlock = height => {
 			// Arrange:
@@ -427,7 +498,7 @@ describe('catapult db', () => {
 		};
 
 		it('can retrieve block without transactions at height (Number)', () => assertCanRetrieveSimpleBlock(Default_Height));
-		it('can retrieve block without transactions at height (uint64)', () => assertCanRetrieveSimpleBlock([Default_Height, 0]));
+		it('can retrieve block without transactions at height (bigint)', () => assertCanRetrieveSimpleBlock(BigInt(Default_Height)));
 		it('can retrieve block without transactions at height (Long)', () => assertCanRetrieveSimpleBlock(Long.fromNumber(Default_Height)));
 
 		it('can retrieve block with transactions at height', () => {
@@ -511,7 +582,7 @@ describe('catapult db', () => {
 				block => expect(block).to.equal(undefined)
 			));
 
-		// use blockAtHeight tests as a proxy for testing support of different numeric types (Number, uint64, Long)
+		// use blockAtHeight tests as a proxy for testing support of different numeric types (Number, bigint, Long)
 
 		const assertCanRetrieveSimpleBlock = height => {
 			// Arrange:
@@ -526,7 +597,7 @@ describe('catapult db', () => {
 		};
 
 		it('can retrieve block with statement merkle tree at height (Number)', () => assertCanRetrieveSimpleBlock(Default_Height));
-		it('can retrieve block with statement merkle tree at height (uint64)', () => assertCanRetrieveSimpleBlock([Default_Height, 0]));
+		it('can retrieve block with statement merkle tree at height (bigint)', () => assertCanRetrieveSimpleBlock(BigInt(Default_Height)));
 		it('can retrieve block with statement merkle tree at height (Long)', () =>
 			assertCanRetrieveSimpleBlock(Long.fromNumber(Default_Height)));
 
@@ -553,7 +624,7 @@ describe('catapult db', () => {
 				block => expect(block).to.equal(undefined)
 			));
 
-		// use blockAtHeight tests as a proxy for testing support of different numeric types (Number, uint64, Long)
+		// use blockAtHeight tests as a proxy for testing support of different numeric types (Number, bigint, Long)
 
 		const assertCanRetrieveSimpleBlock = height => {
 			// Arrange:
@@ -568,7 +639,8 @@ describe('catapult db', () => {
 		};
 
 		it('can retrieve block with transaction merkle tree at height (Number)', () => assertCanRetrieveSimpleBlock(Default_Height));
-		it('can retrieve block with transaction merkle tree at height (uint64)', () => assertCanRetrieveSimpleBlock([Default_Height, 0]));
+		it('can retrieve block with transaction merkle tree at height (bigint)', () =>
+			assertCanRetrieveSimpleBlock(BigInt(Default_Height)));
 		it('can retrieve block with transaction merkle tree at height (Long)', () =>
 			assertCanRetrieveSimpleBlock(Long.fromNumber(Default_Height)));
 
@@ -679,7 +751,7 @@ describe('catapult db', () => {
 		});
 	});
 
-	const createTransactionHash = id => catapult.utils.convert.hexToUint8(`${'00'.repeat(16)}${id.toString(16)}`.slice(-32));
+	const createTransactionHash = id => utils.hexToUint8(`${'00'.repeat(16)}${id.toString(16)}`.slice(-32));
 
 	const createSeedTransactions = (numTransactionsPerHeight, heights, options) => {
 		// notice that generated transactions only contain what was used by transactionsAtHeight for filtering (meta.height)
@@ -689,7 +761,7 @@ describe('catapult db', () => {
 			const aggregateId = test.db.createObjectId(id);
 			const hash = new Binary(Buffer.from(createTransactionHash(id++)));
 			const meta = { height: Long.fromNumber(height), hash, addresses: [] };
-			transactions.push({ _id: aggregateId, meta, transaction: { type } });
+			transactions.push({ _id: aggregateId, meta, transaction: { type: type.value } });
 
 			const numDependentDocuments = (options || {}).numDependentDocuments || 0;
 			for (let j = 0; j < numDependentDocuments; ++j) {
@@ -703,7 +775,7 @@ describe('catapult db', () => {
 
 		for (let i = 0; i < numTransactionsPerHeight; ++i) {
 			// transactionsAtHeight only worked for both aggregates, so pick each type alternatively
-			const type = 0 === i % 2 ? EntityType.aggregateComplete : EntityType.aggregateBonded;
+			const type = 0 === i % 2 ? TransactionType.AGGREGATE_COMPLETE : TransactionType.AGGREGATE_BONDED;
 			heights.forEach(height => { addTransactionAtHeight(height, type); });
 		}
 
@@ -712,7 +784,6 @@ describe('catapult db', () => {
 
 	/**
 	 * It creates the blocks for the given transactions.
-	 *
 	 * @param {object[]} transactions the transactions to know the required blocks
 	 * @returns {object[]} the block of the transactions to be stored
 	 */
@@ -724,7 +795,6 @@ describe('catapult db', () => {
 
 	/**
 	 * It copies the transactions adding the blocks meta.
-	 *
 	 * @param {object[]} transactions the transactions without the blocks' meta.
 	 * @param {object[]} blocks the blocks of the transactions.
 	 * @returns {object[]} the transactions with the blocks' meta like the db would return after joining the results.
@@ -975,7 +1045,7 @@ describe('catapult db', () => {
 		const assertTransactions = (expectedTransactions, ids) => runDbTest(
 			// Arrange: seed with transactions with markerIds: 20000 - 20011
 			createDbEntities(),
-			db => db.findNamesByIds(ids, 0x12345, { id: 'markerId', name: 'markerName', parentId: 'parentMarkerId' }),
+			db => db.findNamesByIds(ids, new TransactionType(0x12345), { id: 'markerId', name: 'markerName', parentId: 'parentMarkerId' }),
 			transactions => {
 				// Assert:
 				expect(transactions.length).to.equal(expectedTransactions.length);
@@ -991,14 +1061,14 @@ describe('catapult db', () => {
 
 		it('returns empty array for unknown ids', () =>
 			// Act + Assert: query for markerId outside seed range
-			assertTransactions([], [[123, 456]]));
+			assertTransactions([], [123n]));
 
 		it('returns single matching entry', () => {
 			// Act + Assert: query for markerId in seed range (20000-20011)
 			// note: there are multiple transactions with same markerId, so this also checks that only non-duplicates are returned
 			const expected = [createExpected(15010, 20010)];
 
-			return assertTransactions(expected, [[20010, 0]]);
+			return assertTransactions(expected, [20010n]);
 		});
 
 		it('returns multiple matching entries', () => {
@@ -1006,7 +1076,7 @@ describe('catapult db', () => {
 			// note: there are multiple transactions with same markerId, so this also checks that only non-duplicates are returned
 			const expected = [createExpected(15008, 20008), createExpected(15005, 20005), createExpected(15003, 20003)];
 
-			return assertTransactions(expected, [[20003, 0], [20005, 0], [20008, 0]]);
+			return assertTransactions(expected, [20003n, 20005n, 20008n]);
 		});
 
 		it('returns only matching entries', () => {
@@ -1014,7 +1084,7 @@ describe('catapult db', () => {
 			// note: there are multiple transactions with same markerId, so this also checks that only non-duplicates are returned
 			const expected = [createExpected(15008, 20008), createExpected(15003, 20003)];
 
-			return assertTransactions(expected, [[20003, 0], [123, 456], [20008, 0]]);
+			return assertTransactions(expected, [20003n, 123n, 20008n]);
 		});
 
 		it('does not promote MongoDb.Long to regular `number` for small enough numbers and ends up returning Long always', () => {
@@ -1027,7 +1097,7 @@ describe('catapult db', () => {
 			};
 			return runDbTest(
 				dbEntity,
-				db => db.findNamesByIds([23], 0x12345, { id: 'id', name: 'name', parentId: 'parentId' }),
+				db => db.findNamesByIds([23], new TransactionType(0x12345), { id: 'id', name: 'name', parentId: 'parentId' }),
 				tuples => {
 					expect(tuples[0].parentId instanceof Long).to.be.equal(true);
 				}
@@ -1438,7 +1508,7 @@ describe('catapult db', () => {
 		it('returns expected structure', () => {
 			// Arrange:
 			const dbTransactions = [
-				createTransaction(10, [account1.address], 123, account1.publicKey, account2.address, EntityType.transfer)
+				createTransaction(10, [account1.address], 123, account1.publicKey, account2.address, TransactionType.TRANSFER)
 			];
 			const blocks = createBlocks(dbTransactions);
 
@@ -1495,20 +1565,20 @@ describe('catapult db', () => {
 			// Arrange:
 			const dbTransactions = [
 				// Aggregate
-				createTransaction(10, [], 1, 0, 0, EntityType.aggregateComplete),
-				createInnerTransaction(100, 30, 0, 0, EntityType.mosaicDefinition),
-				createInnerTransaction(200, 30, 0, 0, EntityType.mosaicSupplyChange),
+				createTransaction(10, [], 1, 0, 0, TransactionType.AGGREGATE_COMPLETE),
+				createInnerTransaction(100, 30, 0, 0, TransactionType.MOSAIC_DEFINITION),
+				createInnerTransaction(200, 30, 0, 0, TransactionType.MOSAIC_SUPPLY_CHANGE),
 
-				createTransaction(20, [], 1, 0, 0, EntityType.aggregateBonded),
-				createInnerTransaction(300, 30, 0, 0, EntityType.transfer),
-				createInnerTransaction(400, 30, 0, 0, EntityType.mosaicDefinition),
+				createTransaction(20, [], 1, 0, 0, TransactionType.AGGREGATE_BONDED),
+				createInnerTransaction(300, 30, 0, 0, TransactionType.TRANSFER),
+				createInnerTransaction(400, 30, 0, 0, TransactionType.MOSAIC_DEFINITION),
 
-				createTransaction(30, [], 1, 0, 0, EntityType.aggregateComplete),
-				createInnerTransaction(500, 30, 0, 0, EntityType.registerNamespace)
+				createTransaction(30, [], 1, 0, 0, TransactionType.AGGREGATE_COMPLETE),
+				createInnerTransaction(500, 30, 0, 0, TransactionType.NAMESPACE_REGISTRATION)
 			];
 
 			const filters = {
-				transactionTypes: [EntityType.transfer, EntityType.mosaicDefinition, EntityType.aggregateComplete]
+				transactionTypes: [TransactionType.TRANSFER, TransactionType.MOSAIC_DEFINITION, TransactionType.AGGREGATE_COMPLETE]
 			};
 
 			// Act + Assert:
@@ -1521,7 +1591,7 @@ describe('catapult db', () => {
 				createTransaction(10, [account1.address], 1),
 				createTransaction(20, [account1.address], 1, account1.publicKey),
 				createTransaction(30, [account1.address], 1, account1.publicKey, account1.address),
-				createTransaction(40, [account1.address], 1, account1.publicKey, account1.address, EntityType.transfer)
+				createTransaction(40, [account1.address], 1, account1.publicKey, account1.address, TransactionType.TRANSFER)
 			];
 
 			// Act + Assert:
@@ -1535,14 +1605,14 @@ describe('catapult db', () => {
 				createTransaction(20, [account1.address], 1),
 				createTransaction(30, [account1.address], 1, account1.publicKey),
 				createTransaction(40, [account1.address], 1, account1.publicKey, account1.address),
-				createTransaction(50, [account1.address], 1, account1.publicKey, account1.address, EntityType.transfer),
-				createTransaction(60, [account1.address], 1, account1.publicKey, account1.address, EntityType.transfer, [
+				createTransaction(50, [account1.address], 1, account1.publicKey, account1.address, TransactionType.TRANSFER),
+				createTransaction(60, [account1.address], 1, account1.publicKey, account1.address, TransactionType.TRANSFER, [
 					{ id: 10, amount: 100 }
 				]),
-				createTransaction(70, [account1.address], 1, account1.publicKey, account1.address, EntityType.transfer, [
+				createTransaction(70, [account1.address], 1, account1.publicKey, account1.address, TransactionType.TRANSFER, [
 					{ id: 10, amount: 200 }
 				]),
-				createTransaction(80, [account1.address], 1, account1.publicKey, account1.address, EntityType.transfer, [
+				createTransaction(80, [account1.address], 1, account1.publicKey, account1.address, TransactionType.TRANSFER, [
 					{ id: 10, amount: 300 }
 				])
 			];
@@ -1551,7 +1621,7 @@ describe('catapult db', () => {
 				height: 1,
 				signerPublicKey: account1.publicKey,
 				recipientAddress: account1.address,
-				transactionTypes: [EntityType.transfer],
+				transactionTypes: [TransactionType.TRANSFER],
 				transferMosaicId: 10,
 				fromTransferAmount: 101,
 				toTransferAmount: 299
@@ -1792,25 +1862,25 @@ describe('catapult db', () => {
 				// Arrange:
 				const dbTransactions = [
 					// Non aggregate
-					createTransaction(10, [], 1, 0, 0, EntityType.transfer),
-					createTransaction(20, [], 1, 0, 0, EntityType.accountLink),
+					createTransaction(10, [], 1, 0, 0, TransactionType.TRANSFER),
+					createTransaction(20, [], 1, 0, 0, TransactionType.ACCOUNT_KEY_LINK),
 
 					// Aggregate
-					createTransaction(30, [], 1, 0, 0, EntityType.aggregateBonded),
-					createInnerTransaction(100, 30, 0, 0, EntityType.mosaicDefinition),
-					createInnerTransaction(200, 30, 0, 0, EntityType.mosaicSupplyChange),
+					createTransaction(30, [], 1, 0, 0, TransactionType.AGGREGATE_BONDED),
+					createInnerTransaction(100, 30, 0, 0, TransactionType.MOSAIC_DEFINITION),
+					createInnerTransaction(200, 30, 0, 0, TransactionType.MOSAIC_SUPPLY_CHANGE),
 
-					createTransaction(40, [], 1, 0, 0, EntityType.aggregateComplete),
-					createInnerTransaction(300, 40, 0, 0, EntityType.transfer),
-					createInnerTransaction(400, 40, 0, 0, EntityType.transfer),
+					createTransaction(40, [], 1, 0, 0, TransactionType.AGGREGATE_COMPLETE),
+					createInnerTransaction(300, 40, 0, 0, TransactionType.TRANSFER),
+					createInnerTransaction(400, 40, 0, 0, TransactionType.TRANSFER),
 
-					createTransaction(50, [], 1, 0, 0, EntityType.aggregateBonded),
-					createInnerTransaction(500, 50, 0, 0, EntityType.registerNamespace),
-					createInnerTransaction(600, 50, 0, 0, EntityType.aliasAddress)
+					createTransaction(50, [], 1, 0, 0, TransactionType.AGGREGATE_BONDED),
+					createInnerTransaction(500, 50, 0, 0, TransactionType.NAMESPACE_REGISTRATION),
+					createInnerTransaction(600, 50, 0, 0, TransactionType.ADDRESS_ALIAS)
 				];
 
 				const filters = {
-					transactionTypes: [EntityType.mosaicDefinition, EntityType.aggregateComplete, EntityType.transfer]
+					transactionTypes: [TransactionType.MOSAIC_DEFINITION, TransactionType.AGGREGATE_COMPLETE, TransactionType.TRANSFER]
 				};
 
 				// Act + Assert:
@@ -1821,9 +1891,12 @@ describe('catapult db', () => {
 				// Arrange:
 				const dbTransactions = [
 					// Non aggregate
-					createTransaction(10, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 1 }]),
-					createTransaction(20, [], 1, 0, 0, EntityType.transfer, [{ id: 20, amount: 1 }]),
-					createTransaction(30, [], 1, 0, 0, EntityType.accountMetadata, [{ id: 10, amount: 1 }, { id: 20, amount: 1 }])
+					createTransaction(10, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 1 }]),
+					createTransaction(20, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 20, amount: 1 }]),
+					createTransaction(30, [], 1, 0, 0, TransactionType.ACCOUNT_ADDRESS_METADATA, [
+						{ id: 10, amount: 1 },
+						{ id: 20, amount: 1 }
+					])
 				];
 
 				const filters = { transferMosaicId: 20 };
@@ -1836,9 +1909,9 @@ describe('catapult db', () => {
 				// Arrange:
 				const dbTransactions = [
 					// Non aggregate
-					createTransaction(10, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 5 }]),
-					createTransaction(20, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 6 }]),
-					createTransaction(30, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 7 }])
+					createTransaction(10, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 5 }]),
+					createTransaction(20, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 6 }]),
+					createTransaction(30, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 7 }])
 				];
 
 				const filters = { transferMosaicId: 10, fromTransferAmount: 6 };
@@ -1851,9 +1924,9 @@ describe('catapult db', () => {
 				// Arrange:
 				const dbTransactions = [
 					// Non aggregate
-					createTransaction(10, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 5 }]),
-					createTransaction(20, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 6 }]),
-					createTransaction(30, [], 1, 0, 0, EntityType.transfer, [{ id: 10, amount: 7 }])
+					createTransaction(10, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 5 }]),
+					createTransaction(20, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 6 }]),
+					createTransaction(30, [], 1, 0, 0, TransactionType.TRANSFER, [{ id: 10, amount: 7 }])
 				];
 
 				const filters = { transferMosaicId: 10, toTransferAmount: 6 };
@@ -1931,10 +2004,10 @@ describe('catapult db', () => {
 	});
 
 	describe('accounts', () => {
-		const addressTest1 = address.stringToAddress('SBZ22LWA7GDZLPLQF7PXTMNLWSEZ7ZRVGRMWLXQ');
-		const addressTest2 = address.stringToAddress('NAR3W7B4BCOZSZMFIZRYB3N5YGOUSWIYJCJ6HDA');
-		const addressTest3 = address.stringToAddress('SAAM2O7SSJ2A7AU3DZJMSTTRFZT5TFDPQ3ZIIJX');
-		const addressTest4 = address.stringToAddress('SAMZMPX33DFIIVOCNJYMF5KJTGLAEVNKHHFROLX');
+		const addressTest1 = new Address('SBZ22LWA7GDZLPLQF7PXTMNLWSEZ7ZRVGRMWLXQ').bytes;
+		const addressTest2 = new Address('NAR3W7B4BCOZSZMFIZRYB3N5YGOUSWIYJCJ6HDA').bytes;
+		const addressTest3 = new Address('SAAM2O7SSJ2A7AU3DZJMSTTRFZT5TFDPQ3ZIIJX').bytes;
+		const addressTest4 = new Address('SAMZMPX33DFIIVOCNJYMF5KJTGLAEVNKHHFROLX').bytes;
 		const mosaicIdTest1 = Long.fromNumber(12345678);
 		const mosaicIdTest2 = Long.fromNumber(87654321);
 
@@ -2655,40 +2728,59 @@ describe('catapult db', () => {
 
 	// endregion
 
-	// region utils
+	// region lookup public keys
 
-	describe('utils', () => {
-		it('can retrieve account public key from account address', () => {
-			// Arrange:
-			const accountPublicKeyOne = test.random.publicKey();
-			const accountAddressOne = keyToAddress(accountPublicKeyOne);
-			const accountPublicKeyTwo = test.random.publicKey();
-			const accountAddressTwo = keyToAddress(accountPublicKeyTwo);
+	describe('lookup public keys', () => {
+		const accountPublicKeys = [
+			test.random.publicKey(), test.random.publicKey(), test.random.publicKey(), test.random.publicKey()
+		];
+		const accountAddresses = accountPublicKeys.map(keyToAddress);
 
-			const accountDbEntities = [
-				{
-					meta: {},
-					account: {
-						address: new Binary(accountAddressOne),
-						publicKey: new Binary(accountPublicKeyOne)
-					}
-				},
-				{
-					meta: {},
-					account: {
-						address: new Binary(accountAddressTwo),
-						publicKey: new Binary(accountPublicKeyTwo)
-					}
-				}
-			];
-
-			// Act + Assert:
-			return runDbTest(
-				{ accounts: accountDbEntities },
-				db => db.addressToPublicKey(accountAddressOne),
-				accountDbEntity => { expect(accountDbEntity.account.publicKey.buffer.equals(accountPublicKeyOne)).to.be.equal(true); }
-			);
+		const makeDbEntity = index => ({
+			meta: {},
+			account: {
+				address: new Binary(accountAddresses[index]),
+				publicKey: new Binary(accountPublicKeys[index])
+			}
 		});
+
+		it('returns empty array when no addresses are known', () => runDbTest(
+			// Arrange: four accounts in database, three random accounts queried
+			{ accounts: [0, 1, 2, 3].map(makeDbEntity) },
+			// Act:
+			db => db.lookupPublicKeys([0, 1, 2].map(() => keyToAddress(test.random.publicKey()))),
+			// Assert:
+			accountDbEntities => {
+				expect(accountDbEntities.length).to.equal(0);
+			}
+		));
+
+		it('returns all public key mappings when all are known', () => runDbTest(
+			// Arrange: four accounts in database, three known accounts queried
+			{ accounts: [0, 1, 2, 3].map(makeDbEntity) },
+			// Act:
+			db => db.lookupPublicKeys([0, 1, 3].map(index => accountAddresses[index])),
+			// Assert:
+			accountDbEntities => {
+				expect(accountDbEntities.length).to.equal(3);
+				expect(accountDbEntities[0].account).to.deep.equal(makeDbEntity(0).account);
+				expect(accountDbEntities[1].account).to.deep.equal(makeDbEntity(1).account);
+				expect(accountDbEntities[2].account).to.deep.equal(makeDbEntity(3).account);
+			}
+		));
+
+		it('returns only known public key mappings when some are known', () => runDbTest(
+			// Arrange: three accounts in database, two known queried, one unknown queried
+			{ accounts: [0, 1, 3].map(makeDbEntity) },
+			// Act:
+			db => db.lookupPublicKeys([0, 2, 3].map(index => accountAddresses[index])),
+			// Assert:
+			accountDbEntities => {
+				expect(accountDbEntities.length).to.equal(2);
+				expect(accountDbEntities[0].account).to.deep.equal(makeDbEntity(0).account);
+				expect(accountDbEntities[1].account).to.deep.equal(makeDbEntity(3).account);
+			}
+		));
 	});
 
 	// endregion

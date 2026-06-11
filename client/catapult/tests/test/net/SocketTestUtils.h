@@ -68,7 +68,7 @@ namespace catapult { namespace test {
 		boost::asio::ip::tcp::acceptor& get() const;
 
 		/// Gets a strand that should be used when calling the acceptor.
-		boost::asio::io_context::strand& strand() const;
+		ionet::Strand& strand() const;
 
 		/// Returns \c true if the underlying acceptor is stopped.
 		bool isStopped() const;
@@ -189,6 +189,9 @@ namespace catapult { namespace test {
 
 	/// Asserts that \a readCode indicates the socket was closed during read.
 	void AssertSocketClosedDuringRead(ionet::SocketOperationCode readCode);
+
+	/// Wait for read complete or log the \a readComplete value.
+	void waitForReadComplete(const std::atomic_bool& readComplete);
 
 	// endregion
 }}

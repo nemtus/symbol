@@ -1,20 +1,30 @@
-const tweetnacl = require('./external/tweetnacl-nacl-fast-keccak');
-const { PrivateKey, PublicKey, Signature } = require('../CryptoTypes');
+import { PrivateKey, PublicKey, Signature } from '../CryptoTypes.js';
+import ed25519 from '../impl/ed25519.js';
+import { deepCompare } from '../utils/arrayHelpers.js';
+
+const HASH_MODE = 'Keccak';
 
 /**
  * Represents an ED25519 private and public key.
  */
-class KeyPair {
+export class KeyPair {
 	/**
 	 * Creates a key pair from a private key.
 	 * @param {PrivateKey} privateKey Private key.
 	 */
 	constructor(privateKey) {
+		/**
+		 * @private
+		 */
 		this._privateKey = privateKey;
 
 		const reversedPrivateKeyBytes = new Uint8Array([...privateKey.bytes]);
 		reversedPrivateKeyBytes.reverse();
-		this._keyPair = tweetnacl.sign.keyPair.fromSeed(reversedPrivateKeyBytes);
+
+		/**
+		 * @private
+		 */
+		this._keyPair = ed25519.get().keyPairFromSeed(HASH_MODE, reversedPrivateKeyBytes);
 	}
 
 	/**
@@ -39,19 +49,26 @@ class KeyPair {
 	 * @returns {Signature} Message signature.
 	 */
 	sign(message) {
-		return new Signature(tweetnacl.sign.detached(message, this._keyPair.secretKey));
+		return new Signature(ed25519.get().sign(HASH_MODE, message, this._keyPair));
 	}
 }
 
 /**
  * Verifies signatures signed by a single key pair.
  */
-class Verifier {
+export class Verifier {
 	/**
 	 * Creates a verifier from a public key.
 	 * @param {PublicKey} publicKey Public key.
 	 */
 	constructor(publicKey) {
+		if (0 === deepCompare(new Uint8Array(PublicKey.SIZE), publicKey.bytes))
+			throw new Error('public key cannot be zero');
+
+		/**
+		 * Public key used for signature verification.
+		 * @type {PublicKey}
+		 */
 		this.publicKey = publicKey;
 	}
 
@@ -62,8 +79,6 @@ class Verifier {
 	 * @returns {boolean} true if the message signature verifies.
 	 */
 	verify(message, signature) {
-		return tweetnacl.sign.detached.verify(message, signature.bytes, this.publicKey.bytes);
+		return ed25519.get().verify(HASH_MODE, message, signature.bytes, this.publicKey.bytes);
 	}
 }
-
-module.exports = { KeyPair, Verifier };

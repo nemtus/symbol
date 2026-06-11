@@ -1,11 +1,14 @@
 defaultCiPipeline {
-	platform = ['ubuntu']
+	operatingSystem = ['ubuntu']
+	instanceSize = 'medium'
+
 	ciBuildDockerfile = 'javascript.Dockerfile'
 
 	packageId = 'client-rest'
 
 	publisher = 'docker'
+	dockerImageName = 'symbolplatform/symbol-rest'
 
-	codeCoverageTool = 'nyc'
+	codeCoverageTool = 'c8'
 	minimumCodeCoverage = 90
 }

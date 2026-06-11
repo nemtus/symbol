@@ -19,14 +19,14 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const dbFacade = require('./dbFacade');
-const routeResultTypes = require('./routeResultTypes');
-const catapult = require('../catapult-sdk/index');
-const errors = require('../server/errors');
+import dbFacade from './dbFacade.js';
+import routeResultTypes from './routeResultTypes.js';
+import catapult from '../catapult-sdk/index.js';
+import errors from '../server/errors.js';
+import { utils } from 'symbol-sdk';
+import { Address } from 'symbol-sdk/symbol';
 
-const { address } = catapult.model;
 const { buildAuditPath, indexOfLeafWithHash } = catapult.crypto.merkle;
-const { convert, uint64 } = catapult.utils;
 const packetHeader = catapult.packet.header;
 const constants = {
 	sizes: {
@@ -38,7 +38,7 @@ const constants = {
 	}
 };
 
-const isObjectId = str => 24 === str.length && convert.isHexString(str);
+const isObjectId = str => 24 === str.length && utils.isHexString(str);
 
 const namedParserMap = {
 	objectId: str => {
@@ -48,46 +48,54 @@ const namedParserMap = {
 		return str;
 	},
 	uint: str => {
-		const result = convert.tryParseUint(str);
+		const result = utils.tryParseUint(str);
 		if (undefined === result)
 			throw Error('must be non-negative number');
 
 		return result;
 	},
-	uint64: str => uint64.fromString(str),
-	uint64hex: str => uint64.fromHex(str),
+	uint64: str => {
+		const value = BigInt(str);
+		if (0n > value)
+			throw Error('must be non-negative');
+
+		return value;
+	},
+	uint64hex: str => {
+		if (16 !== str.length)
+			throw Error('must be 8 hex digits in length');
+
+		return BigInt(`0x${str}`);
+	},
 	address: str => {
 		if (constants.sizes.addressEncoded === str.length)
-			return address.stringToAddress(str);
-		// if (constants.sizes.addressDecoded * 2 === str.length)
-		// 	return convert.hexToUint8(str);
+			return new Address(str).bytes;
+
 		throw Error(`invalid length of address '${str.length}'`);
 	},
 	publicKey: str => {
 		if (constants.sizes.hexPublicKey === str.length)
-			return convert.hexToUint8(str);
+			return utils.hexToUint8(str);
 
 		throw Error(`invalid length of publicKey '${str.length}'`);
 	},
 	accountId: str => {
 		if (constants.sizes.hexPublicKey === str.length)
-			return ['publicKey', convert.hexToUint8(str)];
+			return ['publicKey', utils.hexToUint8(str)];
 		if (constants.sizes.addressEncoded === str.length)
-			return ['address', address.stringToAddress(str)];
-		// if (constants.sizes.addressDecoded * 2 === str.length)
-		// 	return ['address', convert.hexToUint8(str)];
+			return ['address', new Address(str).bytes];
 
 		throw Error(`invalid length of account id '${str.length}'`);
 	},
 	hash256: str => {
 		if (2 * constants.sizes.hash256 === str.length)
-			return convert.hexToUint8(str);
+			return utils.hexToUint8(str);
 
 		throw Error(`invalid length of hash256 '${str.length}'`);
 	},
 	hash512: str => {
 		if (2 * constants.sizes.hash512 === str.length)
-			return convert.hexToUint8(str);
+			return utils.hexToUint8(str);
 
 		throw Error(`invalid length of hash512 '${str.length}'`);
 	},
@@ -164,7 +172,7 @@ const routeUtils = {
 		};
 
 		if (args.pageSize) {
-			const numericPageSize = convert.tryParseUint(args.pageSize);
+			const numericPageSize = utils.tryParseUint(args.pageSize);
 			if (undefined === numericPageSize)
 				throw errors.createInvalidArgumentError('pageSize is not a valid unsigned integer');
 
@@ -174,7 +182,7 @@ const routeUtils = {
 		}
 
 		if (args.pageNumber) {
-			const numericPageNumber = convert.tryParseUint(args.pageNumber);
+			const numericPageNumber = utils.tryParseUint(args.pageNumber);
 			if (undefined === numericPageNumber)
 				throw errors.createInvalidArgumentError('pageNumber is not a valid unsigned integer');
 
@@ -199,81 +207,48 @@ const routeUtils = {
 		/**
 		 * Creates an array handler that forwards an array.
 		 * @param {object} id Array identifier.
-		 * @param {object} res Restify response object.
-		 * @param {Function} next Restify next callback handler.
 		 * @returns {Function} An appropriate array handler.
 		 */
-		sendArray(id, res, next) {
+		sendArray(id) {
 			return array => {
 				if (!Array.isArray(array))
-					res.send(errors.createInternalError(`error retrieving data for id: '${id}'`));
-				else
-					res.send({ payload: array, type });
-
-				next();
+					throw errors.createInternalError(`error retrieving data for id: '${id}'`);
+				return { payload: array, type };
 			};
 		},
 
 		/**
 		 * Creates an object handler that either forwards an object corresponding to an identifier
-		 * or sends a not found error if no such object exists.
+		 * or throws a not found error if no such object exists.
 		 * @param {object} id Object identifier.
-		 * @param {object} res Restify response object.
-		 * @param {Function} next Restify next callback handler.
 		 * @returns {Function} An appropriate object handler.
 		 */
-		sendOne(id, res, next) {
-			const sendOneObject = object => {
+		sendOne(id) {
+			const resolveOne = object => {
 				if (!object)
-					res.send(errors.createNotFoundError(id));
-				else
-					res.send({ payload: object, type });
+					throw errors.createResourceNotFoundError(id);
+				return { payload: object, type };
 			};
 
 			return object => {
 				if (Array.isArray(object)) {
 					if (2 <= object.length)
-						res.send(errors.createInternalError(`error retrieving data for id: '${id}' (length ${object.length})`));
-					else
-						sendOneObject(object.length && object[0]);
-				} else {
-					sendOneObject(object);
+						throw errors.createInternalError(`error retrieving data for id: '${id}' (length ${object.length})`);
+					return resolveOne(object.length && object[0]);
 				}
-
-				next();
+				return resolveOne(object);
 			};
 		},
 
 		/**
 		 * Creates a page handler that forwards a paginated result.
-		 * @param {object} res Restify response object.
-		 * @param {Function} next Restify next callback handler.
 		 * @returns {Function} An appropriate object handler.
 		 */
-		sendPage(res, next) {
+		sendPage() {
 			return page => {
 				if (!isPage(page))
-					res.send(errors.createInternalError('error retrieving data'));
-				else
-					res.send({ payload: page, type, structure: 'page' });
-				next();
-			};
-		},
-
-		/**
-		 * Creates a text handler that forwards a plain text result.
-		 * @param {object} res Restify response object.
-		 * @param {Function} next Restify next callback handler.
-		 * @returns {Function} An appropriate object handler.
-		 */
-		sendPlainText(res, next) {
-			return data => {
-				if (!data)
-					res.send(errors.createInternalError('error retrieving plain text'));
-				else
-					res.setHeader('content-type', 'text/plain');
-				res.send(data);
-				next();
+					throw errors.createInternalError('error retrieving data');
+				return { payload: page, type, structure: 'page' };
 			};
 		}
 	}),
@@ -296,21 +271,23 @@ const routeUtils = {
 			routes.post += `/${routeInfo.postfixes.plural}`;
 		}
 
-		server.get(routes.get, (req, res, next) => {
-			const key = routeUtils.parseArgument(req.params, routeInfo.singular, parser);
-			return documentRetriever([key]).then(sender.sendOne(req.params[routeInfo.singular], res, next));
+		server.get(routes.get, async (request, reply) => {
+			const key = routeUtils.parseArgument(request.params, routeInfo.singular, parser);
+			const result = await documentRetriever([key]);
+			return reply.send(sender.sendOne(request.params[routeInfo.singular])(result));
 		});
 
-		server.post(routes.post, (req, res, next) => {
-			const keys = routeUtils.parseArgumentAsArray(req.params, routeInfo.plural, parser);
-			return documentRetriever(keys).then(sender.sendArray(req.params[routeInfo.plural], res, next));
+		server.post(routes.post, async (request, reply) => {
+			const keys = routeUtils.parseArgumentAsArray(request.params, routeInfo.plural, parser);
+			const result = await documentRetriever(keys);
+			return reply.send(sender.sendArray(request.params[routeInfo.plural])(result));
 		});
 	},
 
 	/**
 	 * Adds PUT route for sending a packet to an api server.
- 	 * @param {object} server Server on which to register the routes.
- 	 * @param {object} connections Api server connection pool.
+	 * @param {object} server Server on which to register the routes.
+	 * @param {object} connections Api server connection pool.
 	 * @param {object} routeInfo Information about the route.
 	 * @param {Function} parser Parser to use to parse the route parameters into a packet payload.
 	 */
@@ -322,14 +299,10 @@ const routeUtils = {
 			return Buffer.concat(buffers, length);
 		};
 
-		server.put(routeInfo.routeName, (req, res, next) => {
-			const packetBuffer = createPacketFromBuffer(parser(req.params), routeInfo.packetType);
-			return connections.lease()
-				.then(connection => connection.send(packetBuffer))
-				.then(() => {
-					res.send(202, { message: `packet ${routeInfo.packetType} was pushed to the network via ${routeInfo.routeName}` });
-					next();
-				});
+		server.put(routeInfo.routeName, async (request, reply) => {
+			const packetBuffer = createPacketFromBuffer(parser(request.params), routeInfo.packetType);
+			await connections.lease().then(connection => connection.send(packetBuffer));
+			reply.code(202).send({ message: `packet ${routeInfo.packetType} was pushed to the network via ${routeInfo.routeName}` });
 		});
 	},
 
@@ -338,60 +311,37 @@ const routeUtils = {
 	 * @param {module:db/CatapultDb} db Catapult database.
 	 * @param {string} blockMetaCountField Field name for block meta count.
 	 * @param {string} blockMetaTreeField Field name for block meta merkle tree.
-	 * @returns {Function} Restify response function to process merkle path requests.
+	 * @returns {Function} Fastify-native async handler for merkle path requests.
 	 */
-	blockRouteMerkleProcessor: (db, blockMetaCountField, blockMetaTreeField) => (req, res, next) => {
-		const height = routeUtils.parseArgument(req.params, 'height', 'uint64');
-		const hash = routeUtils.parseArgument(req.params, 'hash', 'hash256');
+	blockRouteMerkleProcessor: (db, blockMetaCountField, blockMetaTreeField) => async (request, reply) => {
+		const height = routeUtils.parseArgument(request.params, 'height', 'uint64');
+		const hash = routeUtils.parseArgument(request.params, 'hash', 'hash256');
 
-		return dbFacade.runHeightDependentOperation(db, height, () => db.blockWithMerkleTreeAtHeight(height, blockMetaTreeField))
-			.then(result => {
-				if (!result.isRequestValid) {
-					res.send(errors.createNotFoundError(uint64.toString(height)));
-					return next();
-				}
+		const result = await dbFacade.runHeightDependentOperation(
+			db,
+			height,
+			() => db.blockWithMerkleTreeAtHeight(height, blockMetaTreeField)
+		);
 
-				const block = result.payload;
-				const errorMessage = `hash '${req.params.hash}' not included in block height '${uint64.toString(height)}'`;
-				if (!block.meta[blockMetaCountField]) {
-					res.send(errors.createInvalidArgumentError(errorMessage));
-					return next();
-				}
+		if (!result.isRequestValid)
+			throw errors.createResourceNotFoundError(height);
 
-				const merkleTree = {
-					count: block.meta[blockMetaCountField],
-					nodes: block.meta[blockMetaTreeField].map(merkleHash => merkleHash.buffer)
-				};
+		const block = result.payload;
+		const errorMessage = `hash '${request.params.hash}' not included in block height '${height}'`;
+		if (!block.meta[blockMetaCountField])
+			throw errors.createInvalidArgumentError(errorMessage);
 
-				if (0 > indexOfLeafWithHash(hash, merkleTree)) {
-					res.send(errors.createInvalidArgumentError(errorMessage));
-					return next();
-				}
+		const merkleTree = {
+			count: block.meta[blockMetaCountField],
+			nodes: block.meta[blockMetaTreeField].map(merkleHash => merkleHash.buffer)
+		};
 
-				const merklePath = buildAuditPath(hash, merkleTree);
+		if (0 > indexOfLeafWithHash(hash, merkleTree))
+			throw errors.createInvalidArgumentError(errorMessage);
 
-				res.send({
-					payload: { merklePath },
-					type: routeResultTypes.merkleProofInfo
-				});
-
-				return next();
-			});
-	},
-
-	/**
-	 * Returns account public key from account address .
-	 * @param {module:db/CatapultDb} db Catapult database.
-	 * @param {Uint8Array} accountAddress Account address.
-	 * @returns {Promise<Uint8Array>} Account public key.
-	 */
-	addressToPublicKey: (db, accountAddress) => db.addressToPublicKey(accountAddress)
-		.then(result => {
-			if (!result)
-				return Promise.reject(Error('account not found'));
-
-			return result.account.publicKey.buffer;
-		})
+		const merklePath = buildAuditPath(hash, merkleTree);
+		return reply.send({ payload: { merklePath }, type: routeResultTypes.merkleProofInfo });
+	}
 };
 
-module.exports = routeUtils;
+export default routeUtils;

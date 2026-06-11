@@ -1,11 +1,15 @@
 defaultCiPipeline {
-	platform = ['ubuntu']
-	ciBuildDockerfile = 'javascript.Dockerfile'
+	// First OS is the default for CI
+	operatingSystem = ['ubuntu', 'fedora', 'windows']
+	instanceSize = 'medium'
+
+	environment = 'javascript'
+	otherEnvironments = ['javascript-fedora-lts', 'javascript-windows-lts']
 
 	packageId = 'sdk-javascript'
 
 	publisher = 'npm'
 
-	codeCoverageTool = 'nyc'
+	codeCoverageTool = 'c8'
 	minimumCodeCoverage = 90
 }

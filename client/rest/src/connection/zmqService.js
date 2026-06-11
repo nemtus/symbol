@@ -19,12 +19,100 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const zmqUtils = require('./zmqUtils');
-const zmq = require('zeromq');
+import zmqUtils from './zmqUtils.js';
+import zmq from 'zeromq';
+import EventEmitter from 'events';
+
+/**
+ * Wrapper for a zmq socket that provides an exception-safe interface.
+ */
+class ZmqSocketWrapper extends EventEmitter {
+	/**
+	 * Creates an instance of ZmqSocketWrapper.
+	 * @param {string} key Socket key.
+	 * @param {Function} subscriberFactory Subscriber factory.
+	 */
+	constructor(key, subscriberFactory) {
+		super();
+		this.key = key;
+		this.innerSocket = subscriberFactory ? subscriberFactory() : new zmq.Subscriber();
+		this.innerSocket.linger = 0;
+		this.eventsLoopActive = false;
+	}
+
+	/**
+	 * Connects the socket to the given address.
+	 * @param {string} address Address to connect.
+	 */
+	connect(address) {
+		this.innerSocket.connect(address);
+	}
+
+	/**
+	 * Subscribes to the given filter.
+	 * @param {string} filter Filter.
+	 */
+	subscribe(filter) {
+		this.innerSocket.subscribe(filter);
+		const startMessaging = async () => {
+			try {
+				while (!this.innerSocket.closed) {
+					const frames = await this.innerSocket.receive(); // eslint-disable-line no-await-in-loop
+					this.emit('message', ...frames);
+				}
+			} catch (err) {
+				if (!this.innerSocket.closed)
+					this.emit('message:error', err);
+			}
+		};
+		startMessaging();
+	}
+
+	/**
+	 * Starts monitoring the socket for events and emits them.
+	 */
+	monitor() {
+		this.eventsLoopActive = true;
+		const startMonitoring = async () => {
+			try {
+				while (this.eventsLoopActive) {
+					const event = await this.innerSocket.events.receive(); // eslint-disable-line no-await-in-loop
+					const eventName = event.type;
+					const eventValue = eventName.endsWith('error') && event.error ? event.error.errno : event.value;
+					this.emit(eventName, eventValue, event.address);
+				}
+			} catch (err) {
+				if (this.eventsLoopActive)
+					this.emit('monitor:error', err);
+			}
+		};
+		startMonitoring();
+	}
+
+	/**
+	 * Stops monitoring the socket for events.
+	 */
+	unmonitor() {
+		this.eventsLoopActive = false;
+	}
+
+	/**
+	 * Closes the socket and ignores any errors.
+	 */
+	close() {
+		this.eventsLoopActive = false;
+		try {
+			this.innerSocket.close();
+		} catch (err) {
+			// ignore errors during close
+		}
+	}
+}
+
+export { ZmqSocketWrapper };
 
 const createZmqSocket = (key, zmqConfig, logger, currentSocketCount) => {
-	const zsocket = zmq.socket('sub');
-	zsocket.key = key;
+	const zsocket = new ZmqSocketWrapper(key, () => new zmq.Subscriber());
 	zmqUtils.prepareZsocket(zsocket, zmqConfig, logger);
 
 	zsocket.connect(`tcp://${zmqConfig.host}:${zmqConfig.port}`);
@@ -32,13 +120,13 @@ const createZmqSocket = (key, zmqConfig, logger, currentSocketCount) => {
 	return zsocket;
 };
 
-const findSubscriptionInfo = (key, emitter, codec, channelDescriptors) => {
+const findSubscriptionInfo = (key, emitter, channelDescriptors) => {
 	const [topicCategory, topicParam] = key.split('/');
 	if (!(topicCategory in channelDescriptors))
 		throw new Error(`unknown topic category ${topicCategory}`);
 
 	const descriptor = channelDescriptors[topicCategory];
-	const handler = descriptor.handler(codec, data => { emitter.emit(key, data); });
+	const handler = descriptor.handler(data => { emitter.emit(key, data); });
 	const filter = descriptor.filter(topicParam);
 	return { filter, handler };
 };
@@ -46,18 +134,17 @@ const findSubscriptionInfo = (key, emitter, codec, channelDescriptors) => {
 /**
  * Service for creating channel-specific zmq sockets.
  * @param {object} zmqConfig Configuration for configuring sockets.
- * @param {object} codec Codec used to deserialize zmq messages.
  * @param {object} channelDescriptors Registered message channel descriptors.
  * @param {object} logger Level-based logger object.
  * @returns {object} Newly created zmq connection service that is a stripped down EventEmitter.
  */
-module.exports.createZmqConnectionService = (zmqConfig, codec, channelDescriptors, logger) =>
+export default (zmqConfig, channelDescriptors, logger) =>
 	zmqUtils.createMultisocketEmitter((key, emitter, currentSocketCount) => {
 		if (currentSocketCount === (!zmqConfig.maxSubscriptions ? 500 : zmqConfig.maxSubscriptions))
 			throw new Error('Max subscriptions reached.');
 
 		logger.info(`subscribing to ${key}`);
-		const subscriptionInfo = findSubscriptionInfo(key, emitter, codec, channelDescriptors);
+		const subscriptionInfo = findSubscriptionInfo(key, emitter, channelDescriptors);
 
 		const zsocket = createZmqSocket(key, zmqConfig, logger, currentSocketCount);
 		// the second param (handler) gets called with the provided args in the message, which vary depending on the defined handler type

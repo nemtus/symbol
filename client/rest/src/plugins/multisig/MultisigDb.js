@@ -19,7 +19,7 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-class MultisigDb {
+export default class MultisigDb {
 	/**
 	 * Creates MultisigDb around CatapultDb.
 	 * @param {module:db/CatapultDb} db Catapult db instance.
@@ -32,8 +32,8 @@ class MultisigDb {
 
 	/**
 	 * Retrieves the multisig entries for given account addresses.
-	 * @param {array<{Uint8Array}>} addresses Addresses.
-	 * @returns {Promise.<array>} Multisig entries for all addresses.
+	 * @param {Array<Uint8Array>} addresses Addresses.
+	 * @returns {Promise<Array<object>>} Multisig entries for all addresses.
 	 */
 	multisigsByAddresses(addresses) {
 		const buffers = addresses.map(address => Buffer.from(address));
@@ -42,5 +42,3 @@ class MultisigDb {
 
 	// endregion
 }
-
-module.exports = MultisigDb;

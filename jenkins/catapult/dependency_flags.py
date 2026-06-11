@@ -14,7 +14,6 @@ DEPENDENCY_FLAGS = {
 	'google_benchmark': ['-DBENCHMARK_ENABLE_GTEST_TESTS=OFF'],
 
 	'mongodb_mongo-c-driver': [
-		'-DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF',
 		'-DENABLE_MONGODB_AWS_AUTH=OFF',
 		'-DENABLE_TESTS=OFF',
 		'-DENABLE_EXAMPLES=OFF',
@@ -38,7 +37,11 @@ DEPENDENCY_FLAGS = {
 WINDOWS_DEPENDENCY_FLAGS = {
 	'facebook_rocksdb': ['-DROCKSDB_INSTALL_ON_WINDOWS=ON'],
 
-	'google_googletest': ['-Dgtest_force_shared_crt=on']
+	'google_googletest': ['-Dgtest_force_shared_crt=on'],
+
+	'mongodb_mongo-c-driver': ['-DENABLE_EXTRA_ALIGNMENT=0'],
+	'mongodb_mongo-cxx-driver': ['-DENABLE_TESTS=OFF'],
+	'zeromq_libzmq': ['-DCMAKE_POLICY_VERSION_MINIMUM=3.5']
 }
 
 
@@ -48,3 +51,26 @@ def get_dependency_flags(dependency_name):
 		flags += WINDOWS_DEPENDENCY_FLAGS.get(dependency_name, [])
 
 	return flags
+
+
+def get_boost_disabled_libraries():
+	return [
+		'context',
+		'contract',
+		'coroutine',
+		'fiber',
+		'graph',
+		'graph_parallel',
+		'headers',
+		'iostreams',
+		'json',
+		'mpi',
+		'nowide',
+		'process',
+		'python',
+		'stacktrace',
+		'test',
+		'timer',
+		'type_erasure',
+		'wave'
+	]

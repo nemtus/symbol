@@ -1,23 +1,23 @@
-const { PublicKey } = require('../src/CryptoTypes');
-const { TransactionDescriptorProcessor } = require('../src/TransactionDescriptorProcessor');
-const { expect } = require('chai');
+import TransactionDescriptorProcessor from '../src/TransactionDescriptorProcessor.js';
+import { expect } from 'chai';
 
 describe('TransactionDescriptorProcessor', () => {
 	// region test utils
 
-	const createProcessor = () => {
+	const createProcessor = extendedDescriptor => {
 		const transactionDescriptor = {
 			type: 'transfer',
 			timestamp: 12345,
 			signer: 'signerName',
 			recipient: 'recipientName',
-			message: 'hello world'
+			message: 'hello world',
+			...(extendedDescriptor || {})
 		};
 		const typeParsingRules = new Map();
-		typeParsingRules.set(PublicKey, name => `${name} PUBLICKEY`);
+		typeParsingRules.set('PublicKey', name => `${name} PUBLICKEY`);
 
 		const processor = new TransactionDescriptorProcessor(transactionDescriptor, typeParsingRules);
-		processor.setTypeHints({ signer: PublicKey, timestamp: Number });
+		processor.setTypeHints({ signer: 'PublicKey', timestamp: 'Number' });
 		return processor;
 	};
 
@@ -32,11 +32,11 @@ describe('TransactionDescriptorProcessor', () => {
 			deadline: undefined === deadlineValue ? 300 : deadlineValue
 		};
 		const typeParsingRules = new Map();
-		typeParsingRules.set(Number, value => value + 42);
+		typeParsingRules.set('Number', value => value + 42);
 
 		const typeConverter = value => ('number' === typeof value ? value * 2 : value);
 		const processor = new TransactionDescriptorProcessor(transactionDescriptor, typeParsingRules, typeConverter);
-		processor.setTypeHints({ timestamp: Number });
+		processor.setTypeHints({ timestamp: 'Number' });
 		return processor;
 	};
 
@@ -165,6 +165,17 @@ describe('TransactionDescriptorProcessor', () => {
 			expect(() => { processor.copyTo(transaction); }).to.throw('transaction does not have attribute');
 		});
 
+		it('cannot copy when descriptor contains computed field', () => {
+			// Arrange:
+			const processor = createProcessor({ messageEnvelopeSizeComputed: 123 });
+			const transaction = {
+				type: null, timestamp: null, signer: null, recipient: null, message: null
+			};
+
+			// Act + Assert:
+			expect(() => { processor.copyTo(transaction); }).to.throw('cannot explicitly set computed field');
+		});
+
 		it('can copy to when transaction contains exact fields in descriptor', () => {
 			// Arrange:
 			const processor = createProcessor();
@@ -231,13 +242,13 @@ describe('TransactionDescriptorProcessor', () => {
 			const transactionDescriptor = {
 				type: 'transfer',
 				signer: 'signerName',
-				mosaics: [(1, 2), (3, 5)]
+				mosaics: [[1, 2], [3, 5]]
 			};
 			const typeParsingRules = new Map();
-			typeParsingRules.set(PublicKey, name => `${name} PUBLICKEY`);
+			typeParsingRules.set('PublicKey', name => `${name} PUBLICKEY`);
 
 			const processor = new TransactionDescriptorProcessor(transactionDescriptor, typeParsingRules);
-			processor.setTypeHints({ signer: PublicKey });
+			processor.setTypeHints({ signer: 'PublicKey' });
 
 			const transaction = {
 				type: null, signer: null, mosaics: []
@@ -250,7 +261,7 @@ describe('TransactionDescriptorProcessor', () => {
 			expect(transaction).to.deep.equal({
 				type: 'transfer',
 				signer: 'signerName PUBLICKEY',
-				mosaics: [(1, 2), (3, 5)]
+				mosaics: [[1, 2], [3, 5]]
 			});
 		});
 
@@ -292,7 +303,7 @@ describe('TransactionDescriptorProcessor', () => {
 			};
 
 			// Act:
-			processor.setTypeHints({ recipient: PublicKey });
+			processor.setTypeHints({ recipient: 'PublicKey' });
 			processor.copyTo(transaction);
 
 			// Assert:

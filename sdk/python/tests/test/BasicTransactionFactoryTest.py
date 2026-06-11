@@ -17,8 +17,16 @@ class AbstractBasicTransactionFactoryExSignatureTest:
 		pass
 
 	@staticmethod
+	def transaction_type_name():
+		return 'transfer_transaction_v1'
+
+	@staticmethod
 	def create_transaction(factory):
 		return factory.create
+
+	@staticmethod
+	def deserialize_transaction(factory):
+		return factory.deserialize
 
 
 class BasicTransactionFactoryExSignatureTest(AbstractBasicTransactionFactoryExSignatureTest):
@@ -32,7 +40,7 @@ class BasicTransactionFactoryExSignatureTest(AbstractBasicTransactionFactoryExSi
 
 		# Act:
 		transaction = self.create_transaction(factory)({
-			'type': 'transfer_transaction',
+			'type': self.transaction_type_name(),
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY
 		})
 
@@ -47,9 +55,29 @@ class BasicTransactionFactoryExSignatureTest(AbstractBasicTransactionFactoryExSi
 		# Act + Assert:
 		with self.assertRaises(ValueError):
 			self.create_transaction(factory)({
-				'type': 'xtransfer_transaction',
+				'type': f'x{self.transaction_type_name()}',
 				'signer_public_key': TEST_SIGNER_PUBLIC_KEY
 			})
+
+	# endregion
+
+	# region deserialize
+
+	def test_can_deserialize_transaction_from_buffer(self):
+		# Arrange: create a transaction and serialize it to a buffer
+		factory = self.create_factory()
+
+		transaction = self.create_transaction(factory)({
+			'type': self.transaction_type_name(),
+			'signer_public_key': TEST_SIGNER_PUBLIC_KEY
+		})
+		payload = transaction.serialize()
+
+		# Act: deserialize a transaction from the buffer
+		transaction_deserialized = self.deserialize_transaction(factory)(payload)
+
+		# Assert: the two transactions are equal
+		self.assertEqual(transaction.__dict__, transaction_deserialized.__dict__)
 
 	# endregion
 
@@ -63,7 +91,7 @@ class BasicTransactionFactoryTest(BasicTransactionFactoryExSignatureTest):
 		# Arrange:
 		factory = self.create_factory()
 		transaction = self.create_transaction(factory)({
-			'type': 'transfer_transaction',
+			'type': self.transaction_type_name(),
 			'signer_public_key': TEST_SIGNER_PUBLIC_KEY
 		})
 		signature = TestUtils.random_byte_array(Signature)
@@ -80,6 +108,26 @@ class BasicTransactionFactoryTest(BasicTransactionFactoryExSignatureTest):
 		self.assertEqual(signature.bytes, transaction.signature.bytes)
 
 		self.assert_signature(transaction, signature, signed_transaction_payload)
+
+	# endregion
+
+	# region to_json
+
+	def test_can_create_transaction_json_representation(self):
+		# Arrange:
+		factory = self.create_factory()
+		transaction = self.create_transaction(factory)({
+			'type': self.transaction_type_name(),
+			'signer_public_key': TEST_SIGNER_PUBLIC_KEY
+		})
+		signature = TestUtils.random_byte_array(Signature)
+		factory.attach_signature(transaction, signature)
+
+		# Act:
+		transaction_payload = factory.to_json(transaction)
+
+		# Assert:
+		self.assert_signature(transaction, signature, transaction_payload)
 
 	# endregion
 

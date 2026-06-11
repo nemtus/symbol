@@ -1,5 +1,6 @@
 import argparse
 import sys
+from os import sep
 from pathlib import Path
 
 from configuration import load_compiler_configuration
@@ -65,6 +66,9 @@ class SanitizerEnvironment:
 			'strict_string_checks': 'true',
 			'new_delete_type_mismatch': 'false',
 			'detect_leaks': 'true',
+
+			# disable alloc_dealloc_mismatch for address sanitizer until https://github.com/llvm/llvm-project/issues/52771 is fixed
+			'alloc_dealloc_mismatch': '0'
 		})
 
 
@@ -132,6 +136,8 @@ def handle_core_file(process_manager, core_path, test_exe_filepath, base_output_
 
 
 def main():
+	# pylint: disable=too-many-locals
+
 	parser = argparse.ArgumentParser(description='catapult test runner')
 	parser.add_argument('--compiler-configuration', help='path to compiler configuration yaml', required=True)
 	parser.add_argument('--exe-path', help='path to executables', required=True)
@@ -156,8 +162,18 @@ def main():
 	process_manager.list_dir(args.source_path)
 	process_manager.list_dir(output_path)
 
-	environment_manager.set_env_var('LD_LIBRARY_PATH', f'{output_path}/lib:{output_path}/deps')
+	if EnvironmentManager.is_windows_platform():
+		path = environment_manager.get_env_var('PATH')
+		environment_manager.set_env_var('PATH', f'{path};{output_path}/lib;{output_path}/deps')
+	else:
+		environment_manager.set_env_var('LD_LIBRARY_PATH', f'{output_path}/lib:{output_path}/deps')
 	logs_path = Path(args.out_dir) / 'logs'
+
+	# There seems to be a bug in gtest where specifying the `--gtest_output=` parameter causes
+	# llvm-symbolizer not to resolves its libraries.
+	# Setting the GTEST_OUTPUT environment variable to the output directory works.
+	# Gtest will automatically add the test name to GTEST_OUTPUT for the output file of each tests.
+	environment_manager.set_env_var('GTEST_OUTPUT', f'xml:{logs_path}{sep}')
 
 	failed_test_suites = []
 	test_filter = 'test*' if not EnvironmentManager.is_windows_platform() else 'test*.exe'
@@ -166,7 +182,6 @@ def main():
 
 		test_args = [
 			test_exe_filepath,
-			f'--gtest_output=xml:{base_output_filepath}.xml',
 			Path(args.exe_path) if EnvironmentManager.is_windows_platform() else Path(args.exe_path) / '..' / 'lib'
 		]
 

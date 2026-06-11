@@ -1,0 +1,55 @@
+name: publish @nemtus/symbol-sdk
+
+# Single, trusted publish path for the scoped mirror package.
+# Publishing uses npm Trusted Publishing (OIDC) — NO long-lived NPM_TOKEN.
+# The `npm-production` environment carries a required-reviewers protection rule,
+# so every publish (manual or triggered by mirror-sync) pauses for approval.
+#
+# npmjs.com Trusted Publisher config must match:
+#   repository: nemtus/symbol
+#   workflow:   publish.yml
+#   environment: npm-production
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-production
+    permissions:
+      id-token: write   # required for npm Trusted Publishing (OIDC)
+      contents: read
+    defaults:
+      run:
+        working-directory: ./sdk/javascript
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          registry-url: 'https://registry.npmjs.org'
+
+      # OIDC trusted publishing requires npm CLI >= 11.5.1.
+      - name: Upgrade npm to OIDC-capable version
+        run: npm install -g npm@latest
+
+      - name: Apply nemtus rename layer (@nemtus/symbol-sdk)
+        run: bash ../../.github/scripts/apply-nemtus-patch.sh
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Build artifacts referenced by package.json "files": dist/* and ts/src/*.
+      - name: Build browser bundle (dist/*)
+        run: npm run bundle
+
+      - name: Build TypeScript declarations (ts/src/*)
+        run: npx tsc -p ./tsconfig/build-bindings.json
+
+      - name: Publish to npm (OIDC, provenance)
+        run: npm publish --access public

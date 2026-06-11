@@ -1,17 +1,23 @@
-const { Bip32 } = require('../../src/Bip32');
-const {
+import { Bip32 } from '../../src/Bip32.js';
+import {
 	Hash256, PrivateKey, PublicKey, Signature
-} = require('../../src/CryptoTypes');
-const { SymbolFacade } = require('../../src/facade/SymbolFacade');
-const { Network } = require('../../src/symbol/Network');
-const { expect } = require('chai');
-const crypto = require('crypto');
+} from '../../src/CryptoTypes.js';
+import { SymbolFacade } from '../../src/facade/SymbolFacade.js';
+import { Address, Network } from '../../src/symbol/Network.js';
+/* eslint-disable no-unused-vars */
+import TransactionFactory from '../../src/symbol/TransactionFactory.js';
+/* eslint-enable no-unused-vars */
+import * as sc from '../../src/symbol/models.js';
+import * as descriptors from '../../src/symbol/models_ts.js';
+import { sha3_256 } from '@noble/hashes/sha3.js';
+import { expect } from 'chai';
+import crypto from 'crypto';
 
 describe('Symbol Facade', () => {
 	// region real transactions
 
 	const createRealTransfer = facade => facade.transactionFactory.create({
-		type: 'transfer_transaction',
+		type: 'transfer_transaction_v1',
 		signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 		fee: 1000000n,
 		deadline: 41998024783n,
@@ -23,14 +29,14 @@ describe('Symbol Facade', () => {
 
 	const createRealAggregate = facade => {
 		const aggregate = facade.transactionFactory.create({
-			type: 'aggregate_complete_transaction',
+			type: 'aggregate_complete_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			fee: 2000000n,
 			deadline: 42238390163n,
 			transactionsHash: '71554638F578358B1D3FC4369AC625DB491AD5E5D4424D6DBED9FFC7411A37FE'
 		});
 		const transfer = facade.transactionFactory.createEmbedded({
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			recipientAddress: 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 			mosaics: [
@@ -43,7 +49,7 @@ describe('Symbol Facade', () => {
 
 	const createRealEmbeddedTransactions = facade => [
 		{
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			recipientAddress: 'TCIDK4CGCHGVZHLNTOKJ32MFEZWMFBCWUJIAXCA',
 			mosaics: [
@@ -51,7 +57,7 @@ describe('Symbol Facade', () => {
 			]
 		},
 		{
-			type: 'secret_proof_transaction',
+			type: 'secret_proof_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			recipientAddress: 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
 			secret: 'BE254D2744329BBE20F9CF6DA61043B4CEF8C2BC000000000000000000000000',
@@ -59,7 +65,7 @@ describe('Symbol Facade', () => {
 			proof: '41FB'
 		},
 		{
-			type: 'address_alias_transaction',
+			type: 'address_alias_transaction_v1',
 			signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
 			namespaceId: 0xA95F1F8A96159516n,
 			address: 'TASYMBOLLK6FSL7GSEMQEAWN7VW55ZSZU2Q2Q5Y',
@@ -67,12 +73,101 @@ describe('Symbol Facade', () => {
 		}
 	].map(descriptor => facade.transactionFactory.createEmbedded(descriptor));
 
+	const createRealAggregateSwap = facade => facade.transactionFactory.create({
+		type: 'aggregate_complete_transaction_v1',
+		signerPublicKey: '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+		fee: 36000n,
+		deadline: 26443750218n,
+		transactionsHash: '641CB7E431F1D44094A43E1CE8265E6BD1DF1C3B0B64797CDDAA0A375FCD3C08',
+		transactions: [
+			facade.transactionFactory.createEmbedded({
+				type: 'transfer_transaction_v1',
+				signerPublicKey: '29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3',
+				recipientAddress: 'TBEZ3VKFBMKQSW7APBVL5NWNBEU7RR466PRRTDQ',
+				mosaics: [
+					{ mosaicId: 0xE74B99BA41F4AFEEn, amount: 20000000n }
+				]
+			}),
+			facade.transactionFactory.createEmbedded({
+				type: 'transfer_transaction_v1',
+				signerPublicKey: '4C94E8B0A1DAB8573BCB6632E676F742E0D320FC8102F20FB7FB13BCAE9A9F60',
+				recipientAddress: 'TDFR3Q3H5W4OPOSHALVDY3RF4ZQNH44LIUIHYTQ',
+				mosaics: [
+					{ mosaicId: 0x798A29F48E927C83n, amount: 100n }
+				]
+			})
+		]
+	});
+
+	// endregion
+
+	// region test utils
+
+	const attachSignature = (facade, transaction, signature) => {
+		facade.transactionFactory.static.attachSignature(transaction, signature);
+	};
+
+	const addCosignTransactionTests = testDescriptor => {
+		const assertCanCosignTransaction = detached => {
+			// Arrange:
+			const signerPrivateKey = new PrivateKey('F4BC233E183E8CEA08D0A604A3DC67FF3261D1E6EBF84D233488BC53D89C50B7');
+			const cosignerPrivateKey = new PrivateKey('BE7B98F835A896136ADDAF04220F28CB4925D24F0675A21421BF213C180BEF86');
+			const facade = new SymbolFacade('testnet');
+
+			const transaction = createRealAggregateSwap(facade);
+			const signature = testDescriptor.signTransaction(facade, signerPrivateKey, transaction);
+			attachSignature(facade, transaction, signature);
+
+			// Act:
+			const cosignature = testDescriptor.cosignTransaction(facade, cosignerPrivateKey, transaction, detached);
+
+			// Assert: check common fields
+			const expectedPublicKeyBytes = new PublicKey('29856F43A5C4CBDE42F2FAC775A6F915E9E5638CF458E9352E7B410B662473A3').bytes;
+			const expectedSignatureBytes = new Signature('204BD2C4F86B66313E5C5F817FD650B108826D53EDEFC8BDFF936E4D6AA07E38'
+					+ '5F819CF0BF22D14D4AA2011AD07BC0FE6023E2CB48DC5D82A6A1FF1348FA3E0B').bytes;
+
+			expect(cosignature.version).to.equal(0n);
+			expect(cosignature.signerPublicKey).to.deep.equal(new sc.PublicKey(expectedPublicKeyBytes));
+			expect(cosignature.signature).to.deep.equal(new sc.Signature(expectedSignatureBytes));
+			return cosignature;
+		};
+
+		it(`${testDescriptor.testNamePrefix}as attached cosignature`, () => {
+			// Act:
+			const cosignature = assertCanCosignTransaction();
+
+			// Assert: cosignature should be suitable for attaching to an aggregate
+			expect(cosignature.size).to.equal(104);
+			expect(Object.prototype.hasOwnProperty.call(cosignature, '_parentHash')).to.equal(false);
+		});
+
+		it(`${testDescriptor.testNamePrefix}as detached cosignature`, () => {
+			// Act:
+			const cosignature = /** @type {sc.DetachedCosignature} */ (assertCanCosignTransaction(true));
+
+			// Assert: cosignature should be detached
+			const expectedHashBytes = new Hash256('214DFF47469D462E1D9A03232C2582C7E44DE026A287F98529CC74DE9BD69641').bytes;
+
+			expect(cosignature.size).to.equal(136);
+			expect(Object.prototype.hasOwnProperty.call(cosignature, '_parentHash')).to.equal(true);
+			expect(cosignature.parentHash).to.deep.equal(new sc.Hash256(expectedHashBytes));
+		});
+	};
+
 	// endregion
 
 	// region constants
 
 	it('has correct BIP32 constants', () => {
 		expect(SymbolFacade.BIP32_CURVE_NAME).to.equal('ed25519');
+	});
+
+	it('has correct static accessor', () => {
+		// Arrange:
+		const facade = new SymbolFacade('testnet');
+
+		// Assert:
+		expect(SymbolFacade).to.deep.equal(facade.static);
 	});
 
 	it('has correct KeyPair', () => {
@@ -108,7 +203,7 @@ describe('Symbol Facade', () => {
 		// Act:
 		const facade = new SymbolFacade('testnet');
 		const transaction = facade.transactionFactory.create({
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: new Uint32Array(PublicKey.SIZE)
 		});
 
@@ -128,12 +223,12 @@ describe('Symbol Facade', () => {
 
 	it('can create around unknown network', () => {
 		// Arrange:
-		const network = new Network('foo', 0xDE);
+		const network = new Network('foo', 0xDE, new Date(), Hash256.zero());
 
 		// Act:
 		const facade = new SymbolFacade(network);
 		const transaction = facade.transactionFactory.create({
-			type: 'transfer_transaction',
+			type: 'transfer_transaction_v1',
 			signerPublicKey: new Uint32Array(PublicKey.SIZE)
 		});
 
@@ -147,6 +242,221 @@ describe('Symbol Facade', () => {
 
 	// endregion
 
+	// region now
+
+	it('can create current timestamp for network via now', () => {
+		for (;;) {
+			// Arrange: affinitize test to run so that whole test runs within the context of the same millisecond
+			const startTime = new Date().getTime();
+			const facade = new SymbolFacade('testnet');
+
+			// Act:
+			const nowFromFacade = facade.now();
+			const nowFromNetwork = facade.network.fromDatetime(new Date(Date.now()));
+
+			const endTime = new Date().getTime();
+			if (startTime !== endTime)
+				continue; // eslint-disable-line no-continue
+
+			// Assert:
+			expect(nowFromFacade).to.deep.equal(nowFromNetwork);
+			expect(0n < nowFromFacade.timestamp).to.equal(true);
+			break;
+		}
+	});
+
+	// endregion
+
+	// region createPublicAccount / createAccount
+
+	describe('account wrappers', () => {
+		it('can create public account from public key', () => {
+			// Arrange:
+			const facade = new SymbolFacade('testnet');
+			const publicKey = new PublicKey('E29C5934F44482E7A9F50725C8681DE6CA63F49E5562DB7E5BC9EABA31356BAD');
+
+			// Act:
+			const account = facade.createPublicAccount(publicKey);
+
+			// Assert:
+			expect(account.address).to.deep.equal(new Address('TABDOFVM2QYIMVNQII6UJWU7Y66GZI4LQTMN4PI'));
+			expect(account.publicKey).to.deep.equal(publicKey);
+		});
+
+		it('can create account from private key', () => {
+			// Arrange:
+			const facade = new SymbolFacade('testnet');
+			const publicKey = new PublicKey('E29C5934F44482E7A9F50725C8681DE6CA63F49E5562DB7E5BC9EABA31356BAD');
+			const privateKey = new PrivateKey('E88283CE35FE74C89FFCB2D8BFA0A2CF6108BDC0D07606DEE34D161C30AC2F1E');
+
+			// Act:
+			const account = facade.createAccount(privateKey);
+
+			// Assert:
+			expect(account.address).to.deep.equal(new Address('TABDOFVM2QYIMVNQII6UJWU7Y66GZI4LQTMN4PI'));
+			expect(account.publicKey).to.deep.equal(publicKey);
+			expect(account.keyPair.publicKey).to.deep.equal(publicKey);
+			expect(account.keyPair.privateKey).to.deep.equal(privateKey);
+		});
+
+		it('can create message encoder', () => {
+			// Arrange:
+			const facade = new SymbolFacade('testnet');
+			const account = facade.createAccount(new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC'));
+
+			// Act:
+			const encoder = account.messageEncoder();
+
+			// Assert: message encoder matches the account
+			expect(encoder.publicKey).to.deep.equal(account.publicKey);
+		});
+
+		it('can sign transaction', () => {
+			// Arrange:
+			const facade = new SymbolFacade('testnet');
+			const account = facade.createAccount(new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC'));
+
+			const transaction = createRealTransfer(facade);
+
+			// Sanity:
+			expect(transaction.signature).to.deep.equal(Signature.zero());
+
+			// Act:
+			const signature = account.signTransaction(transaction);
+			const isVerified = facade.verifyTransaction(transaction, signature);
+
+			// Assert:
+			expect(isVerified).to.equal(true);
+		});
+
+		addCosignTransactionTests({
+			testNamePrefix: 'can cosign transaction ',
+			signTransaction: (facade, privateKey, transaction) => facade.createAccount(privateKey).signTransaction(transaction),
+			cosignTransaction: (facade, privateKey, transaction, detached) =>
+				facade.createAccount(privateKey).cosignTransaction(transaction, detached)
+		});
+
+		addCosignTransactionTests({
+			testNamePrefix: 'can cosign transaction hash ',
+			signTransaction: (facade, privateKey, transaction) => facade.createAccount(privateKey).signTransaction(transaction),
+			cosignTransaction: (facade, privateKey, transaction, detached) => {
+				const transactionHash = facade.hashTransaction(transaction);
+				return facade.createAccount(privateKey).cosignTransactionHash(transactionHash, detached);
+			}
+		});
+	});
+
+	// endregion
+
+	// region create from typed descriptor
+
+	it('can create transaction from typed descriptor', () => {
+		// Arrange:
+		const facade = new SymbolFacade('testnet');
+		const nowTimestamp = facade.now();
+
+		const signerPublicKey = new PublicKey('87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8');
+		const typedDescriptor = new descriptors.TransferTransactionV1Descriptor(
+			new Address('TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I'),
+			[
+				new descriptors.UnresolvedMosaicDescriptor(new sc.UnresolvedMosaicId(0x7CDF3B117A3C40CCn), new sc.Amount(1000000n))
+			],
+			'hello symbol'
+		);
+
+		// Act:
+		const transaction = (/** @type {sc.TransferTransactionV1} */ (facade.createTransactionFromTypedDescriptor(
+			typedDescriptor,
+			signerPublicKey,
+			100,
+			60 * 60
+		)));
+
+		// Assert:
+		expect(transaction.type).to.equal(sc.TransactionType.TRANSFER);
+		expect(transaction.version).to.equal(1);
+		expect(transaction.network).to.deep.equal(sc.NetworkType.TESTNET);
+		expect(transaction.message).to.deep.equal(new TextEncoder().encode('hello symbol'));
+
+		expect(transaction.signerPublicKey).to.deep.equal(signerPublicKey);
+		expect(transaction.fee.value).to.equal(BigInt(transaction.size * 100));
+
+		// - check deadline is in range (within 10s)
+		const minRawDeadline = nowTimestamp.timestamp + (60n * 60n * 1000n);
+		expect(minRawDeadline <= transaction.deadline.value).to.equal(true);
+		expect(transaction.deadline.value <= (minRawDeadline + 10000n)).to.equal(true);
+	});
+
+	const assertAggregateSizeCalculation = (descriptorCosignatureCount, reservedCosignatureCount, expectedCosignatureCount) => {
+		// Arrange:
+		const facade = new SymbolFacade('testnet');
+
+		const signerPublicKey = new PublicKey('87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8');
+		const typedDescriptor = new descriptors.AggregateCompleteTransactionV1Descriptor(
+			new Hash256('157D3C15A677030DBD106C0C16556E305F3796B66F684715E0C18FC178DC8026'),
+			[],
+			descriptorCosignatureCount ? Array.from(Array(descriptorCosignatureCount), () => new sc.Cosignature()) : undefined
+		);
+
+		// Act:
+		const transaction = facade.createTransactionFromTypedDescriptor(
+			typedDescriptor,
+			signerPublicKey,
+			100,
+			60 * 60,
+			reservedCosignatureCount
+		);
+
+		// Assert: check size and fee
+		expect(transaction.size).to.equal(168 + (104 * descriptorCosignatureCount));
+		expect(transaction.fee.value).to.equal(BigInt((168 + (104 * expectedCosignatureCount)) * 100));
+	};
+
+	it('can create aggregate transaction from typed descriptor with explicit cosignatures', () => {
+		assertAggregateSizeCalculation(3, 0, 3);
+	});
+
+	it('can create aggregate transaction from typed descriptor with implicit cosignatures', () => {
+		assertAggregateSizeCalculation(0, 4, 4);
+	});
+
+	it('can create aggregate transaction from typed descriptor with both explicit and implicit cosignatures', () => {
+		// Assert: maximum of two values should be used in fee calculation
+		assertAggregateSizeCalculation(3, 4, 4);
+		assertAggregateSizeCalculation(4, 3, 4);
+		assertAggregateSizeCalculation(4, 4, 4);
+	});
+
+	it('can create embedded transaction from typed descriptor', () => {
+		// Arrange:
+		const facade = new SymbolFacade('testnet');
+
+		const signerPublicKey = new PublicKey('87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8');
+		const typedDescriptor = new descriptors.TransferTransactionV1Descriptor(
+			new Address('TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I'),
+			[
+				new descriptors.UnresolvedMosaicDescriptor(new sc.UnresolvedMosaicId(0x7CDF3B117A3C40CCn), new sc.Amount(1000000n))
+			],
+			'hello symbol'
+		);
+
+		// Act:
+		const transaction = (/** @type {sc.EmbeddedTransferTransactionV1} */ (facade.createEmbeddedTransactionFromTypedDescriptor(
+			typedDescriptor,
+			signerPublicKey
+		)));
+
+		// Assert:
+		expect(transaction.type).to.equal(sc.TransactionType.TRANSFER);
+		expect(transaction.version).to.equal(1);
+		expect(transaction.network).to.deep.equal(sc.NetworkType.TESTNET);
+		expect(transaction.message).to.deep.equal(new TextEncoder().encode('hello symbol'));
+
+		expect(transaction.signerPublicKey).to.deep.equal(signerPublicKey);
+	});
+
+	// endregion
+
 	// region hash transaction / sign transaction
 
 	const assertCanHashTransaction = (transactionFactory, expectedHash) => {
@@ -156,7 +466,7 @@ describe('Symbol Facade', () => {
 
 		const transaction = transactionFactory(facade);
 		const signature = facade.signTransaction(new SymbolFacade.KeyPair(privateKey), transaction);
-		facade.transactionFactory.constructor.attachSignature(transaction, signature);
+		attachSignature(facade, transaction, signature);
 
 		// Act:
 		const hashValue = facade.hashTransaction(transaction);
@@ -166,11 +476,11 @@ describe('Symbol Facade', () => {
 	};
 
 	it('can hash transaction', () => {
-		assertCanHashTransaction(createRealTransfer, new Hash256('600D0CF8C95CDEEB1BC81EFEB9D50BB853F474AC2226E1BEB83E235716C8E16E'));
+		assertCanHashTransaction(createRealTransfer, new Hash256('86E006F0D400A781A15D0293DFC15897078351A2F7731D49A865A63C2010DE44'));
 	});
 
 	it('can hash aggregate transaction', () => {
-		assertCanHashTransaction(createRealAggregate, new Hash256('194578BACECBE33A18EE6D1BE02D61B1CC86F57D57C4D22F7783D27EB33FF225'));
+		assertCanHashTransaction(createRealAggregate, new Hash256('D074716D62F4CDF1CE219D7E0580DC2C030102E216ECE2037FA28A3BC5726BD0'));
 	});
 
 	const assertCanSignTransaction = (transactionFactory, expectedSignature) => {
@@ -192,19 +502,19 @@ describe('Symbol Facade', () => {
 
 	it('can sign transaction', () => {
 		assertCanSignTransaction(createRealTransfer, new Signature([
-			'5BF0C9DC0D97FDE7FF6F99F1EFADF50DD77C1FA54CFC704FB23295C8F6908B6D',
-			'1F9BA1FB2DB267543805F14C83B7A9D4255D8AECC6046DDBE225115A6DF16002'
+			'24A3788AFD0223083D47ED14F17A2499A7939CD62C4B3288C40CF2736B13F404',
+			'8486680DD574C9F7DB56F453464058CB22349ACBFAECAE16A31EF0725FFF6104'
 		].join('')));
 	});
 
 	it('can sign aggregate transaction', () => {
 		assertCanSignTransaction(createRealAggregate, new Signature([
-			'116BA7B83280BC1752440A5CFBF71612385DFDFA0363A5B220E20C0CA0C6307A',
-			'35C979BB120BAB85E58B1C880DDFB7A96A922D1A2828B5C6CC9556C27571190C'
+			'40C5C9F0BAF74E64877982C411D0D16665E18D463B66204081D846564FC6CAE1',
+			'3F1F75C688CBD2D34263DA166537A90B4F371C1B38DDF00414AB0F5D78C3CD0F'
 		].join('')));
 	});
 
-	const assertCanVerifyTransaction = transactionFactory => {
+	const assertCanVerifyTransaction = (transactionFactory, sign) => {
 		// Arrange:
 		const privateKey = new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC');
 		const facade = new SymbolFacade('testnet');
@@ -215,19 +525,101 @@ describe('Symbol Facade', () => {
 		expect(transaction.signature).to.deep.equal(Signature.zero());
 
 		// Act:
-		const signature = facade.signTransaction(new SymbolFacade.KeyPair(privateKey), transaction);
+		const signature = sign(facade, new SymbolFacade.KeyPair(privateKey), transaction);
 		const isVerified = facade.verifyTransaction(transaction, signature);
 
 		// Assert:
 		expect(isVerified).to.equal(true);
 	};
 
-	it('can verify transaction', () => {
-		assertCanVerifyTransaction(createRealTransfer);
+	const assertCanVerifySignedTransaction = transactionFactory => {
+		assertCanVerifyTransaction(transactionFactory, (facade, keyPair, transaction) => facade.signTransaction(keyPair, transaction));
+	};
+
+	it('can verify signed transaction', () => {
+		assertCanVerifySignedTransaction(createRealTransfer);
 	});
 
-	it('can verify aggregate transaction', () => {
-		assertCanVerifyTransaction(createRealAggregate);
+	it('can verify signed aggregate transaction', () => {
+		assertCanVerifySignedTransaction(createRealAggregate);
+	});
+
+	const assertCanVerifySignedTransactionSigningPayload = transactionFactory => {
+		assertCanVerifyTransaction(transactionFactory, (facade, keyPair, transaction) => {
+			const signingPayload = facade.extractSigningPayload(transaction);
+			return keyPair.sign(signingPayload);
+		});
+	};
+
+	it('can verify signed transaction signing payload', () => {
+		assertCanVerifySignedTransactionSigningPayload(createRealTransfer);
+	});
+
+	it('can verify signed aggregate transaction signing payload', () => {
+		assertCanVerifySignedTransactionSigningPayload(createRealAggregate);
+	});
+
+	// endregion
+
+	// region conditional aggregate data buffers
+
+	it('respects conditional aggregate data buffer', () => {
+		const calculateExpectedTransactionHash = (network, transaction, aggregateDataSize) => {
+			// this mimics SymbolFacade.hashTransaction as a way to implicitly check the version-dependent aggregate data size
+			const hasher = sha3_256.create();
+			hasher.update(transaction.signature.bytes);
+			hasher.update(transaction.signerPublicKey.bytes);
+			hasher.update(network.generationHashSeed.bytes);
+
+			const serializedTransaction = transaction.serialize();
+			hasher.update(serializedTransaction.subarray(108, 108 + aggregateDataSize)); // 108 is TRANSACTION_HEADER_SIZE
+			return new Hash256(hasher.digest());
+		};
+
+		const assertAggregateTransactionHash = (version, aggregateDataSize) => {
+			// Arrange:
+			const privateKey = new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC');
+			const facade = new SymbolFacade('testnet');
+
+			const transaction = createRealAggregate(facade);
+			transaction.version = version;
+			const signature = facade.signTransaction(new SymbolFacade.KeyPair(privateKey), transaction);
+			attachSignature(facade, transaction, signature);
+
+			// Act:
+			const hashValue = facade.hashTransaction(transaction);
+
+			// Assert:
+			const expectedHash = calculateExpectedTransactionHash(facade.network, transaction, aggregateDataSize);
+			expect(hashValue).to.deep.equal(expectedHash);
+		};
+
+		assertAggregateTransactionHash(1, 52);
+		assertAggregateTransactionHash(2, 52);
+		assertAggregateTransactionHash(3, 56);
+		assertAggregateTransactionHash(4, 56);
+	});
+
+	// endregion
+
+	// region cosignTransaction
+
+	describe('can cosign transaction', () => {
+		addCosignTransactionTests({
+			testNamePrefix: '',
+			signTransaction: (facade, privateKey, transaction) => facade.signTransaction(new SymbolFacade.KeyPair(privateKey), transaction),
+			cosignTransaction: (facade, privateKey, transaction, detached) =>
+				facade.cosignTransaction(new SymbolFacade.KeyPair(privateKey), transaction, detached)
+		});
+
+		addCosignTransactionTests({
+			testNamePrefix: 'hash ',
+			signTransaction: (facade, privateKey, transaction) => facade.signTransaction(new SymbolFacade.KeyPair(privateKey), transaction),
+			cosignTransaction: (facade, privateKey, transaction, detached) => {
+				const transactionHash = facade.hashTransaction(transaction);
+				return facade.static.cosignTransactionHash(new SymbolFacade.KeyPair(privateKey), transactionHash, detached);
+			}
+		});
 	});
 
 	// endregion

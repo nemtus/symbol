@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 
 The changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v2.5.1] - 23-Sept-2025
+
+### Added
+- add support for aggregate transaction v3.
+
+### Fixed
+- WebSocket transaction is missing the maxFee property, which was getting dropped.
+
+## [v2.5.0] - 19-Feb-2025
+
+### Added
+
+- Light REST which provides a limited set of endpoints and only communicates with the catapult server.
+- Coinbase Mesh(Rosetta) support for Symbol.
+- Coinbase Mesh(Rosetta) support for NEM.
+
+### Changed
+
+- Upgrade to MongoDB 7.x.
+- Update REST image to Node.js 20.
+- Migrate REST project from CJS to ES6.
+- Replace custom REST serialization to use Javascript SDK.
+
+## [v2.4.4] - 05-Apr-2024
+
+### Added
+
+- Support to filter blocks by timestamp
+- Metal decode support
+
+### Changed
+
+- Upgrade to MongoDb 6.x
+- Update rest image to Nodejs 18
+
+## [v2.4.3] - 06-Apr-2023
+
+### Fixed
+
+- Mongodb driver 4.x, fix mongodb shown as down in /node/health
+- Reduced the Rest Gateway docker image size
+- Exclude protocol treasury from the circulating supply
+- Report MongoDB database size in /node/storage
+- Report network inflation schedule in /network/inflation
+- Report inflation reward at height in /network/inflation/at/:height
+
+## [v2.4.2] - 26-Oct-2022
+
+### Fixed
+
+- Replace yarn with npm
+- Remove spammer and tools subpackages
+- Add nodeMetadata object to config that is served up over /node/metadata
+- Replace js-sha3 with noble
+- Cache parsed server configuration objects
+
 ## [v2.4.0] - 16-Nov-2021
 
 ### Fixed
@@ -315,10 +371,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 - Initial code release.
 
-[0.7.14]: https://github.com/nemtech/catapult-rest/compare/v0.7.13...v0.7.14
-[0.7.13]: https://github.com/nemtech/catapult-rest/compare/v0.7.12...v0.7.13
-[0.7.12]: https://github.com/nemtech/catapult-rest/compare/v0.7.11...v0.7.12
-[0.7.11]: https://github.com/nemtech/catapult-rest/compare/v0.7.8...v0.7.11
-[0.7.8]: https://github.com/nemtech/catapult-rest/compare/v0.7.7...v0.7.8
-[0.7.7]: https://github.com/nemtech/catapult-rest/compare/v0.7.5...v0.7.7
-[0.7.5]: https://github.com/nemtech/catapult-rest/releases/tag/v0.7.5
+[2.5.1]: https://github.com/symbol/symbol/compare/rest%2Fv2.5.0...rest%2Fv2.5.1
+[2.5.0]: https://github.com/symbol/symbol/compare/rest%2Fv2.4.4...rest%2Fv2.5.0
+[2.4.4]: https://github.com/symbol/symbol/compare/rest%2Fv2.4.3...rest%2Fv2.4.4
+[2.4.3]: https://github.com/symbol/symbol/releases/tag/rest%2Fv2.4.3
