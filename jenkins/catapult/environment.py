@@ -4,11 +4,15 @@ import sys
 from pathlib import Path
 
 
-def rm_failure_handler(func, path, excinfo):
+def rm_onerror_handler(func, path, excinfo):
+	rm_onexc_handler(func, path, excinfo[1])
+
+
+def rm_onexc_handler(func, path, exception):
 	del func
 	del path
-	if excinfo[0] != FileNotFoundError:
-		raise excinfo[1]
+	if not isinstance(exception, FileNotFoundError):
+		raise exception
 
 
 class EnvironmentManager:
@@ -22,24 +26,20 @@ class EnvironmentManager:
 		if self.dry_run:
 			return '<SYSTEM_BIN_PATH>'
 
-		for descriptor in [('ubuntu', '/usr/lib/x86_64-linux-gnu'), ('fedora', '/usr/lib64')]:
+		for descriptor in [('ubuntu', '/usr/lib/x86_64-linux-gnu'), ('fedora', '/usr/lib64'), ('ubuntu arm64', '/usr/lib/aarch64-linux-gnu')]:
 			if Path(descriptor[1]).exists():
 				self._print_command('system_bin_path', ['detected', descriptor[1], 'for', descriptor[0]])
 				return descriptor[1]
 
 		raise RuntimeError('unable to detect system bin path')
 
-	@property
-	def local_lib_path(self):
+	def get_env_var(self, key):
+		self._print_command('get_env_var', [key])
+
 		if self.dry_run:
-			return '<LOCAL_LIB_PATH>'
+			return f'env:{key}'
 
-		for descriptor in [('fedora', '/usr/local/lib64'), ('ubuntu', '/usr/local/lib')]:
-			if Path(descriptor[1]).exists():
-				self._print_command('local_lib_path', ['detected', descriptor[1], 'for', descriptor[0]])
-				return descriptor[1]
-
-		raise RuntimeError('unable to detect local lib path')
+		return os.environ[key]
 
 	def set_env_var(self, key, value):
 		self._print_command('set_env_var', [key, value])
@@ -75,7 +75,8 @@ class EnvironmentManager:
 		if self.dry_run:
 			return
 
-		shutil.rmtree(path, onerror=rm_failure_handler)
+		kwargs = {'onexc': rm_onexc_handler} if sys.version_info >= (3, 12) else {'onerror': rm_onerror_handler}
+		shutil.rmtree(path, **kwargs)
 
 	# endregion
 

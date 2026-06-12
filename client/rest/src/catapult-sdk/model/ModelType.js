@@ -19,13 +19,12 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const SchemaType = require('../utils/SchemaType');
+import SchemaType from '../utils/SchemaType.js';
 
 /**
  * Catapult model extended schema property types.
- * @enum {numeric}
- * @extends module:utils/SchemaType
- * @exports model/ModelType
+ * @enum {number}
+ * @augments module:utils/SchemaType
  */
 const ModelType = {
 	/** Schema property type indicating a binary value. */
@@ -68,4 +67,4 @@ const ModelType = {
 Object.assign(ModelType, SchemaType);
 ModelType.max = ModelType.encodedAddress;
 
-module.exports = ModelType;
+export default ModelType;

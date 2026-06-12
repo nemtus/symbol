@@ -19,16 +19,15 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { MockServer, test } = require('./utils/routeTestUtils');
-const catapult = require('../../src/catapult-sdk/index');
-const routeResultTypes = require('../../src/routes/routeResultTypes');
-const routeUtils = require('../../src/routes/routeUtils');
-const transactionRoutes = require('../../src/routes/transactionRoutes');
-const { expect } = require('chai');
-const sinon = require('sinon');
-
-const { address } = catapult.model;
-const { convert } = catapult.utils;
+import MockServer from './utils/MockServer.js';
+import test from './utils/routeTestUtils.js';
+import routeResultTypes from '../../src/routes/routeResultTypes.js';
+import routeUtils from '../../src/routes/routeUtils.js';
+import transactionRoutes from '../../src/routes/transactionRoutes.js';
+import { expect } from 'chai';
+import sinon from 'sinon';
+import { utils } from 'symbol-sdk';
+import { Address } from 'symbol-sdk/symbol';
 
 const TransactionGroups = {
 	confirmed: 'confirmed',
@@ -85,7 +84,11 @@ describe('transaction routes', () => {
 					const req = { params: { group: TransactionGroups.confirmed, transactionId: '12345' } };
 
 					// Act + Assert:
-					expect(() => mockServer.callRoute(route, req)).to.throw('invalid length of transaction id \'12345\'');
+					return mockServer.callRoute(route, req).then(() => {
+						expect(mockServer.done.calledOnce).to.equal(true);
+						expect(mockServer.done.firstCall.args[0].message).to.include('invalid length of transaction id \'12345\'');
+						expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+					});
 				});
 
 				it('calls parseArgument with correct parser for id', () => runParseArgumentParamTest(validObjectId, 'objectId'));
@@ -125,11 +128,11 @@ describe('transaction routes', () => {
 						const req = { params: { group: 'nonExistingGroup', transactionId: validObjectId } };
 
 						// Act:
-						mockServer.callRoute(route, req);
-
-						// Assert:
-						expect(mockServer.next.calledOnce).to.equal(true);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+						return mockServer.callRoute(route, req).then(() => {
+							// Assert:
+							expect(mockServer.done.calledOnce).to.equal(true);
+							expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
+						});
 					});
 				});
 
@@ -148,7 +151,7 @@ describe('transaction routes', () => {
 								payload: fakeTransaction,
 								type: routeResultTypes.transaction
 							});
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 
@@ -160,13 +163,13 @@ describe('transaction routes', () => {
 						return mockServer.callRoute(route, req).then(() => {
 							// Assert:
 							expect(dbTransactionsByHashesFake.calledOnce).to.equal(true);
-							expect(dbTransactionsByHashesFake.firstCall.args[1]).to.deep.equal([convert.hexToUint8(validHash)]);
+							expect(dbTransactionsByHashesFake.firstCall.args[1]).to.deep.equal([utils.hexToUint8(validHash)]);
 
 							expect(mockServer.send.firstCall.args[0]).to.deep.equal({
 								payload: fakeTransaction,
 								type: routeResultTypes.transaction
 							});
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 				});
@@ -174,10 +177,10 @@ describe('transaction routes', () => {
 
 			describe('paginated', () => {
 				const testAddressString = 'SBZ22LWA7GDZLPLQF7PXTMNLWSEZ7ZRVGRMWLXQ';
-				const testAddress = address.stringToAddress(testAddressString);
+				const testAddress = new Address(testAddressString).bytes;
 
 				const testPublickeyString = '7DE16AEDF57EB9561D3E6EFA4AE66F27ABDA8AEC8BC020B6277360E31619DCE7';
-				const testPublickey = convert.hexToUint8(testPublickeyString);
+				const testPublickey = utils.hexToUint8(testPublickeyString);
 
 				const fakeTransaction = { meta: { addresses: [] }, transaction: { type: 12345 } };
 				const fakePaginatedTransaction = {
@@ -223,7 +226,7 @@ describe('transaction routes', () => {
 								type: routeResultTypes.transaction,
 								structure: 'page'
 							});
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 				});
@@ -257,14 +260,14 @@ describe('transaction routes', () => {
 					};
 
 					const testCases = [
-						{ filter: 'height', param: '15', value: [15, 0] },
-						{ filter: 'fromHeight', param: '10', value: [10, 0] },
-						{ filter: 'toHeight', param: '20', value: [20, 0] },
+						{ filter: 'height', param: '15', value: 15n },
+						{ filter: 'fromHeight', param: '10', value: 10n },
+						{ filter: 'toHeight', param: '20', value: 20n },
 						{ filter: 'address', param: testAddressString, value: testAddress },
 						{ filter: 'signerPublicKey', param: testPublickeyString, value: testPublickey },
 						{ filter: 'recipientAddress', param: testAddressString, value: testAddress },
 						{ filter: 'embedded', param: 'true', value: true },
-						{ filter: 'transferMosaicId', param: '0000000000001000', value: [4096, 0] }
+						{ filter: 'transferMosaicId', param: '0000000000001000', value: 4096n }
 					];
 
 					testCases.forEach(testCase => {
@@ -291,8 +294,8 @@ describe('transaction routes', () => {
 
 						// Act + Assert
 						return mockServer.callRoute(route, req).then(() => {
-							expect(dbTransactionsFake.firstCall.args[1].fromTransferAmount).to.deep.equal([12345, 0]);
-							expect(dbTransactionsFake.firstCall.args[1].transferMosaicId).to.deep.equal([4096, 0]);
+							expect(dbTransactionsFake.firstCall.args[1].fromTransferAmount).to.deep.equal(12345n);
+							expect(dbTransactionsFake.firstCall.args[1].transferMosaicId).to.deep.equal(4096n);
 						});
 					});
 
@@ -307,8 +310,8 @@ describe('transaction routes', () => {
 
 						// Act + Assert
 						return mockServer.callRoute(route, req).then(() => {
-							expect(dbTransactionsFake.firstCall.args[1].toTransferAmount).to.deep.equal([12345, 0]);
-							expect(dbTransactionsFake.firstCall.args[1].transferMosaicId).to.deep.equal([4096, 0]);
+							expect(dbTransactionsFake.firstCall.args[1].toTransferAmount).to.deep.equal(12345n);
+							expect(dbTransactionsFake.firstCall.args[1].transferMosaicId).to.deep.equal(4096n);
 						});
 					});
 				});
@@ -356,9 +359,10 @@ describe('transaction routes', () => {
 						};
 
 						// Act + Assert
-						mockServer.callRoute(route, req);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(409);
-						expect(mockServer.next.firstCall.args[0].message).to.equal(errorMessage);
+						return mockServer.callRoute(route, req).then(() => {
+							expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+							expect(mockServer.done.firstCall.args[0].message).to.equal(errorMessage);
+						});
 					});
 
 					it('address and recipient address', () => {
@@ -367,9 +371,10 @@ describe('transaction routes', () => {
 						};
 
 						// Act + Assert
-						mockServer.callRoute(route, req);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(409);
-						expect(mockServer.next.firstCall.args[0].message).to.equal(errorMessage);
+						return mockServer.callRoute(route, req).then(() => {
+							expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+							expect(mockServer.done.firstCall.args[0].message).to.equal(errorMessage);
+						});
 					});
 				});
 
@@ -385,10 +390,11 @@ describe('transaction routes', () => {
 						};
 
 						// Act + Assert
-						mockServer.callRoute(route, req);
-						expect(mockServer.next.calledOnce).to.equal(true);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(409);
-						expect(mockServer.next.firstCall.args[0].message).to.equal(errorMessage);
+						return mockServer.callRoute(route, req).then(() => {
+							expect(mockServer.done.calledOnce).to.equal(true);
+							expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+							expect(mockServer.done.firstCall.args[0].message).to.equal(errorMessage);
+						});
 					});
 
 					it('does not allow filtering by toTransferAmount if transferMosaicId is not provided', () => {
@@ -400,10 +406,11 @@ describe('transaction routes', () => {
 						};
 
 						// Act + Assert
-						mockServer.callRoute(route, req);
-						expect(mockServer.next.calledOnce).to.equal(true);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(409);
-						expect(mockServer.next.firstCall.args[0].message).to.equal(errorMessage);
+						return mockServer.callRoute(route, req).then(() => {
+							expect(mockServer.done.calledOnce).to.equal(true);
+							expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+							expect(mockServer.done.firstCall.args[0].message).to.equal(errorMessage);
+						});
 					});
 				});
 
@@ -420,9 +427,9 @@ describe('transaction routes', () => {
 
 						// Act + Assert
 						return mockServer.callRoute(route, req).then(() => {
-							expect(dbTransactionsFake.firstCall.args[1].fromTransferAmount).to.deep.equal([0, 0]);
-							expect(dbTransactionsFake.firstCall.args[1].toTransferAmount).to.deep.equal([0, 0]);
-							expect(dbTransactionsFake.firstCall.args[1].transferMosaicId).to.deep.equal([4096, 0]);
+							expect(dbTransactionsFake.firstCall.args[1].fromTransferAmount).to.deep.equal(0n);
+							expect(dbTransactionsFake.firstCall.args[1].toTransferAmount).to.deep.equal(0n);
+							expect(dbTransactionsFake.firstCall.args[1].transferMosaicId).to.deep.equal(4096n);
 						});
 					});
 				});
@@ -455,11 +462,11 @@ describe('transaction routes', () => {
 						const req = { params: { group: 'nonExistingGroup' } };
 
 						// Act:
-						mockServer.callRoute(route, req);
-
-						// Assert:
-						expect(mockServer.next.calledOnce).to.equal(true);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+						return mockServer.callRoute(route, req).then(() => {
+							// Assert:
+							expect(mockServer.done.calledOnce).to.equal(true);
+							expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
+						});
 					});
 				});
 			});
@@ -491,7 +498,11 @@ describe('transaction routes', () => {
 				const req = { params: { group: TransactionGroups.confirmed } };
 
 				// Act + Assert:
-				expect(() => mockServer.callRoute(route, req)).to.throw('either ids or hashes must be provided');
+				return mockServer.callRoute(route, req).then(() => {
+					expect(mockServer.done.calledOnce).to.equal(true);
+					expect(mockServer.done.firstCall.args[0].message).to.include('either ids or hashes must be provided');
+					expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+				});
 			});
 
 			it('throws if both ids and hashes are provided', () => {
@@ -499,7 +510,11 @@ describe('transaction routes', () => {
 				const req = { params: { group: TransactionGroups.confirmed, transactionIds: [], hashes: [] } };
 
 				// Act + Assert:
-				expect(() => mockServer.callRoute(route, req)).to.throw('either ids or hashes must be provided');
+				return mockServer.callRoute(route, req).then(() => {
+					expect(mockServer.done.calledOnce).to.equal(true);
+					expect(mockServer.done.firstCall.args[0].message).to.include('either ids or hashes must be provided');
+					expect(mockServer.done.firstCall.args[0].statusCode).to.equal(409);
+				});
 			});
 
 			describe('checks correct group is provided', () => {
@@ -535,11 +550,11 @@ describe('transaction routes', () => {
 					const req = { params: { group: 'nonExistingGroup', transactionIds: [validObjectId] } };
 
 					// Act:
-					mockServer.callRoute(route, req);
-
-					// Assert:
-					expect(mockServer.next.calledOnce).to.equal(true);
-					expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+					return mockServer.callRoute(route, req).then(() => {
+						// Assert:
+						expect(mockServer.done.calledOnce).to.equal(true);
+						expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
+					});
 				});
 			});
 
@@ -580,7 +595,7 @@ describe('transaction routes', () => {
 							payload: fakeTransactions,
 							type: routeResultTypes.transaction
 						});
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -592,13 +607,13 @@ describe('transaction routes', () => {
 					return mockServer.callRoute(route, req).then(() => {
 						// Assert:
 						expect(dbTransactionsByHashesFake.calledOnce).to.equal(true);
-						expect(dbTransactionsByHashesFake.firstCall.args[1]).to.deep.equal([convert.hexToUint8(validHash)]);
+						expect(dbTransactionsByHashesFake.firstCall.args[1]).to.deep.equal([utils.hexToUint8(validHash)]);
 
 						expect(mockServer.send.firstCall.args[0]).to.deep.equal({
 							payload: fakeTransactions,
 							type: routeResultTypes.transaction
 						});
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -610,13 +625,13 @@ describe('transaction routes', () => {
 					return mockServer.callRoute(route, req).then(() => {
 						// Assert:
 						expect(dbTransactionsByHashesFake.calledOnce).to.equal(true);
-						expect(dbTransactionsByHashesFake.firstCall.args[1]).to.deep.equal([convert.hexToUint8(validHash)]);
+						expect(dbTransactionsByHashesFake.firstCall.args[1]).to.deep.equal([utils.hexToUint8(validHash)]);
 
 						expect(mockServer.send.firstCall.args[0]).to.deep.equal({
 							payload: fakeTransactions,
 							type: routeResultTypes.transaction
 						});
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 			});

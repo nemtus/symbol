@@ -7,6 +7,10 @@ from pathlib import Path
 
 import pytest
 
+from symbolchain.facade.SymbolFacade import SymbolFacade
+from testvectors.BlockFactory import BlockFactory as SymbolBlockFactory
+from testvectors.ReceiptFactory import ReceiptFactory
+
 # region common test utils
 
 
@@ -15,7 +19,7 @@ def prepare_test_cases(network_name, includes=None, excludes=None):
 	schemas_path = Path(os.environ.get('SCHEMAS_PATH', '.')) / network_name / 'models'
 
 	if not schemas_path.exists():
-		raise Exception(f'could not find any cases because {schemas_path} does not exist')
+		raise RuntimeError(f'could not find any cases because {schemas_path} does not exist')
 
 	for filepath in schemas_path.glob('*.json'):
 		if includes and not any(include in filepath.name for include in includes):
@@ -30,7 +34,7 @@ def prepare_test_cases(network_name, includes=None, excludes=None):
 			cases += json.load(infile)
 
 	if not cases:
-		raise Exception(f'could not find any cases in {schemas_path}')
+		raise RuntimeError(f'could not find any cases in {schemas_path}')
 
 	return cases
 
@@ -42,8 +46,8 @@ def to_hex_string(binary):
 def generate_pretty_id(val):
 	return val['test_name']
 
-
 # endregion
+
 
 # region create from descriptor
 
@@ -52,7 +56,7 @@ def fixup_descriptor_common(descriptor, module):
 
 	for key, value in descriptor.items():
 		# skip false positive due to ABC123 value that should be treated as plain string
-		if 'value' == key and 'namespace_metadata_transaction' == descriptor.get('type'):
+		if 'value' == key and 'namespace_metadata_transaction_v1' == descriptor.get('type'):
 			continue
 
 		if isinstance(value, str) and hex_string_pattern.match(value):
@@ -91,27 +95,61 @@ def fixup_descriptor_symbol(descriptor, module, facade):
 	descriptor['signature'] = getattr(module, 'Signature')(descriptor['signature'])
 	fixup_descriptor_common(descriptor, module)
 
-	if 'transactions' in descriptor:
-		descriptor['transactions'] = [
-			facade.transaction_factory.create_embedded(child_descriptor) for child_descriptor in descriptor['transactions']
-		]
+	if 'transactions' not in descriptor:
+		return
 
-		if 'cosignatures' in descriptor:
-			descriptor['cosignatures'] = [
-				fixup_cosignature_symbol(cosignature_descriptor, module) for cosignature_descriptor in descriptor['cosignatures']
-			]
+	descriptor['transactions'] = [
+		facade.transaction_factory.create_embedded(child_descriptor) for child_descriptor in descriptor['transactions']
+	]
+
+	if 'cosignatures' not in descriptor:
+		return
+
+	descriptor['cosignatures'] = [
+		fixup_cosignature_symbol(cosignature_descriptor, module) for cosignature_descriptor in descriptor['cosignatures']
+	]
 
 
-def is_key_in_formatted_string(transaction, key):
-	if key in str(transaction):
+def fixup_block_descriptor_symbol(descriptor, module, facade):
+	descriptor['signature'] = getattr(module, 'Signature')(descriptor['signature'])
+	fixup_descriptor_common(descriptor, module)
+
+	if 'transactions' not in descriptor:
+		return
+
+	block_transactions = []
+	for block_transaction_descriptor in descriptor['transactions']:
+		fixup_descriptor_symbol(block_transaction_descriptor, module, facade)
+		block_transactions.append(facade.transaction_factory.create(block_transaction_descriptor))
+
+	descriptor['transactions'] = block_transactions
+
+
+def is_key_in_formatted_string(model, key):
+	if key in str(model):
 		return True
 
-	return 'parent_name' == key and getattr(transaction, key) is None
+	return 'parent_name' == key and getattr(model, key) is None
+
+
+def is_key_in_json_object(model, key):
+	json_object = model.to_json()
+	if key in json_object:
+		return True
+
+	return 'parent_name' == key and getattr(model, key) is None
+
+
+def _assert_conversions(descriptor, model):
+	assert all(is_key_in_formatted_string(model, key) for key in descriptor.keys())
+	assert all(is_key_in_json_object(model, key) for key in descriptor.keys())
+
+	# assert no exception
+	json.dumps(model.to_json())
 
 
 def assert_create_from_descriptor(item, module, facade_name, fixup_descriptor):
 	# Arrange:
-	comment = item.get('comment', '')
 	payload_hex = item['payload']
 
 	facade_module = importlib.import_module(f'symbolchain.facade.{facade_name}')
@@ -126,8 +164,42 @@ def assert_create_from_descriptor(item, module, facade_name, fixup_descriptor):
 	transaction_buffer = transaction.serialize()
 
 	# Assert:
-	assert payload_hex == to_hex_string(transaction_buffer), comment
-	assert all(is_key_in_formatted_string(transaction, key) for key in descriptor.keys()), comment
+	assert payload_hex == to_hex_string(transaction_buffer)
+	_assert_conversions(descriptor, transaction)
+
+
+def create_symbol_descriptor(original_descriptor, fixup_descriptor):
+	facade = SymbolFacade('testnet')
+	descriptor = original_descriptor
+	fixup_descriptor(descriptor, importlib.import_module('symbolchain.sc'), facade)
+
+	return facade.network, descriptor
+
+
+def assert_create_symbol_block_from_descriptor(item, fixup_descriptor):  # pylint: disable=invalid-name
+	# Arrange:
+	network, descriptor = create_symbol_descriptor(item['descriptor'], fixup_descriptor)
+
+	# Act:
+	block = SymbolBlockFactory(network).create(descriptor)
+	block_buffer = block.serialize()
+
+	# Assert:
+	assert item['payload'] == to_hex_string(block_buffer)
+	_assert_conversions(descriptor, block)
+
+
+def assert_create_symbol_receipt_from_descriptor(item, fixup_descriptor):  # pylint: disable=invalid-name
+	# Arrange:
+	_, descriptor = create_symbol_descriptor(item['descriptor'], fixup_descriptor)
+
+	# Act:
+	receipt, descriptor = ReceiptFactory().create(descriptor)
+	receipt_buffer = receipt.serialize()
+
+	# Assert:
+	assert item['payload'] == to_hex_string(receipt_buffer)
+	_assert_conversions(descriptor, receipt)
 
 
 @pytest.mark.parametrize('item', prepare_test_cases('nem'), ids=generate_pretty_id)
@@ -135,19 +207,62 @@ def test_create_from_descriptor_nem(item):
 	assert_create_from_descriptor(item, importlib.import_module('symbolchain.nc'), 'NemFacade', fixup_descriptor_nem)
 
 
-@pytest.mark.parametrize('item', prepare_test_cases('symbol'), ids=generate_pretty_id)
+@pytest.mark.parametrize('item', prepare_test_cases('symbol', includes=['transactions']), ids=generate_pretty_id)
 def test_create_from_descriptor_symbol(item):  # pylint: disable=invalid-name
 	assert_create_from_descriptor(item, importlib.import_module('symbolchain.sc'), 'SymbolFacade', fixup_descriptor_symbol)
 
 
+@pytest.mark.parametrize('item', prepare_test_cases('symbol', includes=['blocks']), ids=generate_pretty_id)
+def test_create_blocks_from_descriptor_symbol(item):  # pylint: disable=invalid-name
+	assert_create_symbol_block_from_descriptor(item, fixup_block_descriptor_symbol)
+
+
+def no_fixup(_1, _2, _3):
+	pass
+
+
+@pytest.mark.parametrize('item', prepare_test_cases('symbol', includes=['receipts']), ids=generate_pretty_id)
+def test_create_receipts_from_descriptor_symbol(item):  # pylint: disable=invalid-name
+	assert_create_symbol_receipt_from_descriptor(item, no_fixup)
+
 # endregion
+
+
+# region create from constructor
+
+def assert_create_from_constructor(schema_name, module):
+	# Arrange:
+	schema_class = getattr(module, schema_name)
+
+	# Act:
+	transaction = schema_class()
+
+	size = transaction.size
+	transaction_buffer = transaction.serialize()
+
+	# Assert:
+	assert 0 != size
+	assert 0 != len(transaction_buffer)
+	assert size == len(transaction_buffer)
+
+
+@pytest.mark.parametrize('item', set(test_case['schema_name'] for test_case in prepare_test_cases('nem')))
+def test_create_from_constructor_nem(item):
+	assert_create_from_constructor(item, importlib.import_module('symbolchain.nc'))
+
+
+@pytest.mark.parametrize('item', set(test_case['schema_name'] for test_case in prepare_test_cases('symbol')))
+def test_create_from_constructor_symbol(item):  # pylint: disable=invalid-name
+	assert_create_from_constructor(item, importlib.import_module('symbolchain.sc'))
+
+# endregion
+
 
 # region roundtrip
 
 def assert_roundtrip(item, module):
 	# Arrange:
 	schema_name = item['schema_name']
-	comment = item.get('comment', '')
 	payload_hex = item['payload']
 	payload = unhexlify(payload_hex)
 
@@ -158,11 +273,12 @@ def assert_roundtrip(item, module):
 	transaction_buffer = transaction.serialize()
 
 	# Assert:
-	assert payload_hex == to_hex_string(transaction_buffer), comment
-	assert len(transaction_buffer) == transaction.size, comment
+	assert payload_hex == to_hex_string(transaction_buffer)
+	assert len(transaction_buffer) == transaction.size
 
-	if schema_name.endswith('Transaction'):
-		assert_roundtrip({'schema_name': 'TransactionFactory', 'payload': payload_hex, 'comment': comment}, module)
+	# - additionally pass all transactions through TransactionFactory builder ([:-2] to ignore "v1", "v2" suffix)
+	if schema_name[:-2].endswith('Transaction'):
+		assert_roundtrip({'schema_name': 'TransactionFactory', 'payload': payload_hex}, module)
 
 
 @pytest.mark.parametrize('item', prepare_test_cases('nem'), ids=generate_pretty_id)

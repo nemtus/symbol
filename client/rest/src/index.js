@@ -19,86 +19,25 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const catapult = require('./catapult-sdk/index');
-const { createConnectionService } = require('./connection/connectionService');
-const { createZmqConnectionService } = require('./connection/zmqService');
-const CatapultDb = require('./db/CatapultDb');
-const dbFormattingRules = require('./db/dbFormattingRules');
-const routeSystem = require('./plugins/routeSystem');
-const allRoutes = require('./routes/allRoutes');
-const bootstrapper = require('./server/bootstrapper');
-const formatters = require('./server/formatters');
-const messageFormattingRules = require('./server/messageFormattingRules');
-const sshpk = require('sshpk');
-const winston = require('winston');
-const fs = require('fs');
-
-const createLoggingTransportConfiguration = loggingConfig => {
-	const transportConfig = Object.assign({}, loggingConfig);
-
-	// map specified formats into a winston function
-	delete transportConfig.formats;
-	const logFormatters = loggingConfig.formats.map(name => winston.format[name]());
-	transportConfig.format = winston.format.combine(...logFormatters);
-	return transportConfig;
-};
-
-const configureLogging = config => {
-	const transports = [new winston.transports.File(createLoggingTransportConfiguration(config.file))];
-	if ('production' !== process.env.NODE_ENV)
-		transports.push(new winston.transports.Console(createLoggingTransportConfiguration(config.console)));
-
-	// configure default logger so that it adds timestamp to all logs
-	winston.configure({
-		format: winston.format.timestamp(),
-		transports
-	});
-};
-
-const validateConfig = config => {
-	if (config.crossDomain && (!config.crossDomain.allowedHosts || !config.crossDomain.allowedMethods))
-		throw Error('provided CORS configuration is incomplete');
-};
-
-const loadConfig = () => {
-	let configFiles = process.argv.slice(2);
-	if (0 === configFiles.length)
-		configFiles = ['../resources/rest.json'];
-
-	let config;
-	configFiles.forEach(configFile => {
-		winston.info(`loading config from ${configFile}`);
-		const partialConfig = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-		if (config) {
-			// override config
-			catapult.utils.objects.checkSchemaAgainstTemplate(config, partialConfig);
-			catapult.utils.objects.deepAssign(config, partialConfig);
-		} else {
-			// primary config
-			config = partialConfig;
-		}
-	});
-
-	validateConfig(config);
-
-	return config;
-};
-
-const createServiceManager = () => {
-	const shutdownHandlers = [];
-	return {
-		pushService: (object, shutdownHandlerName) => {
-			shutdownHandlers.push(() => { object[shutdownHandlerName](); });
-		},
-		stopAll: () => {
-			while (0 < shutdownHandlers.length)
-				shutdownHandlers.pop()();
-		}
-	};
-};
+import catapult from './catapult-sdk/index.js';
+import createConnectionService from './connection/connectionService.js';
+import createZmqConnectionService from './connection/zmqService.js';
+import CatapultDb from './db/CatapultDb.js';
+import dbFormattingRules from './db/dbFormattingRules.js';
+import routeSystem from './plugins/routeSystem.js';
+import allRoutes from './routes/allRoutes.js';
+import bootstrapper from './server/bootstrapper.js';
+import formatters from './server/formatters.js';
+import messageFormattingRules from './server/messageFormattingRules.js';
+import runProcess from './server/process.js';
+import sshpk from 'sshpk';
+import { NetworkLocator } from 'symbol-sdk';
+import { Network } from 'symbol-sdk/symbol';
+import winston from 'winston';
+import fs from 'fs';
 
 const connectToDbWithRetry = (db, config) => catapult.utils.future.makeRetryable(
-	() => db.connect(config.url, config.name, config.connectionPoolSize),
+	() => db.connect(config.url, config.name, config.connectionPoolSize, config.connectionTimeout),
 	config.maxConnectionAttempts,
 	(i, err) => {
 		const waitTime = (2 ** (i - 1)) * config.baseRetryDelay;
@@ -112,10 +51,7 @@ const createServer = config => {
 		json: dbFormattingRules,
 		ws: messageFormattingRules
 	});
-	return {
-		server: bootstrapper.createServer(config, formatters.create(modelSystem.formatters), config.throttling),
-		codec: modelSystem.codec
-	};
+	return bootstrapper.createServer(config, formatters.create(modelSystem.formatters), config.throttling);
 };
 
 const registerRoutes = (server, db, services) => {
@@ -123,6 +59,7 @@ const registerRoutes = (server, db, services) => {
 	const servicesView = {
 		config: {
 			network: services.config.network,
+			restEndpoint: `${services.config.protocol}://localhost:${services.config.port}`,
 			pageSize: {
 				min: services.config.db.pageSizeMin || 10,
 				max: services.config.db.pageSizeMax || 100,
@@ -134,80 +71,74 @@ const registerRoutes = (server, db, services) => {
 			deployment: services.config.deployment,
 
 			uncirculatingAccountPublicKeys: services.config.uncirculatingAccountPublicKeys,
-			nodeMetadata: services.config.nodeMetadata
+			nodeMetadata: services.config.nodeMetadata,
+
+			metal: services.config.metal,
+
+			rosetta: services.config.rosetta
 		},
 		connections: services.connectionService
 	};
 
 	// 2. configure extension routes
-	const { transactionStates, messageChannelDescriptors } = routeSystem.configure(services.config.extensions, server, db, servicesView);
+	const { transactionStates, messageChannelDescriptors } = routeSystem.configure(
+		[].concat(services.config.extensions, services.config.routeExtensions),
+		server,
+		db,
+		servicesView
+	);
 
 	// 3. augment services with extension-dependent config and services
 	servicesView.config.transactionStates = transactionStates;
-	servicesView.zmqService = createZmqConnectionService(services.config.websocket.mq, services.codec, messageChannelDescriptors, winston);
+	servicesView.zmqService = createZmqConnectionService(services.config.websocket.mq, messageChannelDescriptors, winston);
 
 	// 4. configure basic routes
 	allRoutes.register(server, db, servicesView);
 };
 
 (() => {
-	const config = loadConfig();
+	let configFiles = process.argv.slice(2);
+	if (0 === configFiles.length)
+		configFiles = ['../resources/rest.json'];
 
-	configureLogging(config.logging);
-	winston.verbose('finished loading rest server config', config);
+	runProcess(configFiles, (config, serviceManager) => {
+		// Loading and caching certificates.
+		config.apiNode = {
+			...config.apiNode,
+			certificate: fs.readFileSync(config.apiNode.tlsClientCertificatePath),
+			key: fs.readFileSync(config.apiNode.tlsClientKeyPath),
+			caCertificate: fs.readFileSync(config.apiNode.tlsCaCertificatePath)
+		};
+		const nodeCertKey = sshpk.parsePrivateKey(config.apiNode.key);
+		config.apiNode.nodePublicKey = nodeCertKey.toPublic().part.A.data;
 
-	// Loading and caching certificates.
-	config.apiNode = {
-		...config.apiNode,
-		certificate: fs.readFileSync(config.apiNode.tlsClientCertificatePath),
-		key: fs.readFileSync(config.apiNode.tlsClientKeyPath),
-		caCertificate: fs.readFileSync(config.apiNode.tlsCaCertificatePath)
-	};
-	const nodeCertKey = sshpk.parsePrivateKey(config.apiNode.key);
-	config.apiNode.nodePublicKey = nodeCertKey.toPublic().part.A.data;
+		const network = NetworkLocator.findByName(Network.NETWORKS, config.network.name);
+		const db = new CatapultDb({
+			networkId: network.identifier,
 
-	const network = catapult.model.networkInfo.networks[config.network.name];
-	if (!network) {
-		winston.error(`no network found with name: '${config.network.name}'`);
-		return;
-	}
-
-	const serviceManager = createServiceManager();
-	const db = new CatapultDb({
-		networkId: network.id,
-
-		// to be removed when old pagination is not used anymore
-		// json settings should also be moved from config.db to config.api or similar
-		pageSizeMin: config.db.pageSizeMin,
-		pageSizeMax: config.db.pageSizeMax
-	});
-
-	serviceManager.pushService(db, 'close');
-
-	winston.info(`connecting to ${config.db.url} (database:${config.db.name})`);
-	connectToDbWithRetry(db, config.db)
-		.then(() => {
-			winston.info('registering routes');
-			const serverAndCodec = createServer(config);
-			const { server } = serverAndCodec;
-			serviceManager.pushService(server, 'close');
-
-			const connectionConfig = {
-				apiNode: config.apiNode
-			};
-			const connectionService = createConnectionService(connectionConfig, winston.verbose);
-			registerRoutes(server, db, { codec: serverAndCodec.codec, config, connectionService });
-
-			winston.info(`listening on port ${config.port}`);
-			server.listen(config.port);
-		})
-		.catch(err => {
-			winston.error('rest server is exiting due to error', err);
-			serviceManager.stopAll();
+			// to be removed when old pagination is not used anymore
+			// json settings should also be moved from config.db to config.api or similar
+			pageSizeMin: config.db.pageSizeMin,
+			pageSizeMax: config.db.pageSizeMax
 		});
 
-	process.on('SIGINT', () => {
-		winston.info('SIGINT detected, shutting down rest server');
-		serviceManager.stopAll();
+		serviceManager.pushService(db, 'close');
+
+		winston.info(`connecting to ${config.db.url} (database:${config.db.name})`);
+		return connectToDbWithRetry(db, config.db)
+			.then(() => {
+				winston.info('registering routes');
+				const server = createServer(config);
+				serviceManager.pushService(server, 'close');
+
+				const connectionConfig = {
+					apiNode: config.apiNode
+				};
+				const connectionService = createConnectionService(connectionConfig, winston.verbose);
+				registerRoutes(server, db, { config, connectionService });
+
+				winston.info(`listening on port ${config.port}`);
+				server.listen(config.port);
+			});
 	});
 })();

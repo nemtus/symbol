@@ -1,13 +1,16 @@
 defaultCiPipeline {
-	platform = ['ubuntu-xlarge']
+	operatingSystem = ['ubuntu']
+	instanceSize = 'xlarge'
+
 	ciBuildDockerfile = 'cpp.Dockerfile'
 	dockerArgs = '--env=CC=gcc \
 		--env=CCACHE_DIR=/ccache \
 		--env=CXX=g++ \
-		--volume=/jenkins_cache/ccache/ci:/ccache:rw \
-		--volume=/jenkins_cache/conan/gcc:/conan \
+		--volume="/jenkins_cache/ccache/$ARCHITECTURE/ci:/ccache:rw" \
+		--volume="/jenkins_cache/conan/$ARCHITECTURE/gcc:/conan" \
 		--add-host=db:127.0.0.1 \
-		--ip6 2001:db8:1::20'
+		--ip6 2001:db8:85a3::8a2e:370:7334 \
+		--network=my-network'
 
 	packageId = 'client-catapult'
 }

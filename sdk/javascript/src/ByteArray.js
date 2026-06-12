@@ -1,9 +1,15 @@
-const converter = require('./utils/converter');
+import { hexToUint8, uint8ToHex } from './utils/converter.js';
 
 /**
  * Represents a fixed size byte array.
  */
-class ByteArray {
+export default class ByteArray {
+	/**
+	 * Byte array name (required because `constructor.name` is dropped during minification).
+	 * @type {string}
+	 */
+	static NAME = 'ByteArray';
+
 	/**
 	 * Creates a byte array.
 	 * @param {number} fixedSize Size of the array.
@@ -12,11 +18,15 @@ class ByteArray {
 	constructor(fixedSize, arrayInput) {
 		let rawBytes = arrayInput;
 		if ('string' === typeof rawBytes)
-			rawBytes = converter.hexToUint8(rawBytes);
+			rawBytes = hexToUint8(rawBytes);
 
 		if (fixedSize !== rawBytes.length)
 			throw RangeError(`bytes was size ${rawBytes.length} but must be ${fixedSize}`);
 
+		/**
+		 * Underlying bytes.
+		 * @type {Uint8Array<ArrayBuffer>}
+		 */
 		this.bytes = new Uint8Array(rawBytes);
 	}
 
@@ -25,8 +35,14 @@ class ByteArray {
 	 * @returns {string} String representation of this object
 	 */
 	toString() {
-		return converter.uint8ToHex(this.bytes);
+		return uint8ToHex(this.bytes);
+	}
+
+	/**
+	 * Returns representation of this object that can be stored in JSON.
+	 * @returns {string} JSON-safe representation of this object.
+	 */
+	toJson() {
+		return this.toString();
 	}
 }
-
-module.exports = { ByteArray };

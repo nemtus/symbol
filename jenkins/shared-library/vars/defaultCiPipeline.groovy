@@ -1,55 +1,62 @@
-/* groovylint-disable NestedBlockDepth */
 import java.nio.file.Paths
 import org.jenkinsci.plugins.badge.EmbeddableBadgeConfig
 
 // groovylint-disable-next-line MethodSize
 void call(Closure body) {
-	Map params = [:]
+	Map jenkinsfileParams = [:]
 	body.resolveStrategy = Closure.DELEGATE_FIRST
-	body.delegate = params
+	body.delegate = jenkinsfileParams
 	body()
 
-	String packageRootPath = findJenkinsfilePath()
+	final String packageRootPath = findJenkinsfilePath()
 
 	pipeline {
 		parameters {
-			gitParameter branchFilter: 'origin/(.*)',
-				defaultValue: "${env.GIT_BRANCH}",
-				name: 'MANUAL_GIT_BRANCH',
-				type: 'PT_BRANCH',
-				selectedValue: 'TOP',
-				sortMode: 'ASCENDING',
-				useRepository: "${helper.resolveRepoName()}"
-			choice name: 'PLATFORM',
-				choices: params.platform ?: 'ubuntu',
-				description: 'Run on specific platform'
+			choice name: 'OPERATING_SYSTEM',
+				choices: jenkinsfileParams.operatingSystem ?: ['ubuntu'],
+				description: 'Operating System'
 			choice name: 'BUILD_CONFIGURATION',
 				choices: ['release-private', 'release-public'],
 				description: 'build configuration'
+			choice name: 'ARCHITECTURE',
+				choices: ['arm64', 'amd64'],
+				description: 'Computer architecture'
 			choice name: 'TEST_MODE',
 				choices: ['code-coverage', 'test'],
 				description: 'test mode'
+			choice name: 'CI_ENVIRONMENT',
+				choices: resolveCiEnvironment(jenkinsfileParams),
+				description: 'ci environment'
 			booleanParam name: 'SHOULD_PUBLISH_IMAGE', description: 'true to publish image', defaultValue: false
+			booleanParam name: 'SHOULD_PUBLISH_FAIL_JOB_STATUS', description: 'true to publish job status if failed', defaultValue: false
+			booleanParam name: 'SHOULD_RUN_ALL_TEST', description: 'true to run all the test stage', defaultValue: false
 		}
 
 		agent {
-			// PLATFORM can be null on first job due to https://issues.jenkins.io/browse/JENKINS-41929
-			label env.PLATFORM == null ? "${params.platform[0]}-agent" : "${env.PLATFORM}-agent"
+			node {
+				// ARCHITECTURE can be null on first job due to https://issues.jenkins.io/browse/JENKINS-41929
+				label """${
+					env.OPERATING_SYSTEM = env.OPERATING_SYSTEM ?: "${jenkinsfileParams.operatingSystem[0]}"
+					env.ARCHITECTURE = env.ARCHITECTURE ?: 'arm64'
+					return helper.resolveAgentName(env.OPERATING_SYSTEM, env.ARCHITECTURE, jenkinsfileParams.instanceSize ?: 'medium')
+				}"""
+				customWorkspace "${helper.resolveWorkspacePath(env.OPERATING_SYSTEM)}"
+			}
 		}
 
 		options {
 			ansiColor('css')
 			timestamps()
+			timeout(time: 3, unit: 'HOURS')
 		}
 
 		environment {
-			DOCKERHUB_CREDENTIALS_ID = 'docker-hub-token-symbolserverbot'
+			DOCKER_CREDENTIALS_ID = 'docker-hub-token-symbolserverbot'
 			NPM_CREDENTIALS_ID = 'NPM_TOKEN_ID'
 			PYTHON_CREDENTIALS_ID = 'PYPI_TOKEN_ID'
 			TEST_PYTHON_CREDENTIALS_ID = 'TEST_PYPI_TOKEN_ID'
 			DEV_BRANCH = 'dev'
 			RELEASE_BRANCH = 'main'
-			GITHUB_EMAIL = 'jenkins@symbol.dev'
 
 			LINT_SETUP_SCRIPT_FILEPATH = 'scripts/ci/setup_lint.sh'
 			LINT_SCRIPT_FILEPATH = 'scripts/ci/lint.sh'
@@ -69,15 +76,17 @@ void call(Closure body) {
 		stages {
 			stage('setup environment') {
 				steps {
-					runScript('git submodule update --remote')
+					script {
+						runScript('git submodule update --remote')
+						author = sh(script: 'git log -1 --pretty=format:\'%an\'', returnStdout: true).trim()
+					}
 				}
 			}
 			stage('CI pipeline') {
 				agent {
-					dockerfile {
-						dir 'jenkins/docker'
-						filename "${params.ciBuildDockerfile}"
-						args params.dockerArgs == null ? '' : "${params.dockerArgs}"
+					docker {
+						image jobHelper.resolveBuildImageName(params.CI_ENVIRONMENT ?: resolveCiEnvironment(jenkinsfileParams)[0])
+						args jenkinsfileParams.dockerArgs ?: ''
 
 						// using the same node and the same workspace mounted to the container
 						reuseNode true
@@ -86,19 +95,38 @@ void call(Closure body) {
 				stages {
 					stage('display environment') {
 						steps {
-							println("Parameters: ${params}")
-							sh 'printenv'
+							println("Jenkinsfile parameters: ${jenkinsfileParams}")
+							runScript(isUnix() ? 'printenv' : 'set')
 						}
 					}
 					stage('checkout') {
 						when {
-							expression { helper.isManualBuild(env.MANUAL_GIT_BRANCH) }
+							triggeredBy 'UserIdCause'
 						}
 						steps {
 							script {
-								sh "git checkout ${helper.resolveBranchName(env.MANUAL_GIT_BRANCH)}"
-								sh "git reset --hard origin/${helper.resolveBranchName(env.MANUAL_GIT_BRANCH)}"
+								runScript("git reset --hard origin/${env.BRANCH_NAME}")
 								helper.runInitializeScriptIfPresent()
+							}
+						}
+					}
+					stage('setup docker environment') {
+						steps {
+							script {
+								helper.runInitializeScriptIfPresent()
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									final String ownerName = helper.resolveOrganizationName()
+									final String gitHubRepositoryName = helper.resolveRepositoryName()
+
+									if (null == jenkinsfileParams.isPublicGitHubRepo) {
+										jenkinsfileParams.isPublicGitHubRepo = githubHelper.isGitHubRepositoryPublic(ownerName, gitHubRepositoryName)
+									}
+
+									// Only configure private artifact repository for private release
+									if (!helper.isPublicBuild(env.BUILD_CONFIGURATION)) {
+										configureArtifactRepository(jobHelper.resolveCiEnvironmentName(jenkinsfileParams), jenkinsfileParams.isPublicGitHubRepo)
+									}
+								}
 							}
 						}
 					}
@@ -110,7 +138,19 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							verifyCommitMessage()
+							script {
+								helper.runStepRelativeToPackageRoot '.', {
+									final String[] exemptAuthor = ['github-actions[bot]', 'dependabot[bot]']
+
+									println("Last commit author: ${author}")
+									if (exemptAuthor.contains(author)) {
+										println("Disabling max body line length rule for ${author}")
+										env.GITLINT_IGNORE = 'body-max-line-length'
+									}
+
+									verifyCommitMessage()
+								}
+							}
 						}
 					}
 					stage('setup lint') {
@@ -120,15 +160,19 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRoot packageRootPath, {
-								setupBuild(env.LINT_SETUP_SCRIPT_FILEPATH)
+							script {
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									githubHelper.executeGitAuthenticatedCommand {
+										setupBuild(env.LINT_SETUP_SCRIPT_FILEPATH)
+									}
+								}
 							}
 						}
 					}
 					stage('run lint') {
 						when { expression { return fileExists(resolvePath(packageRootPath, env.LINT_SCRIPT_FILEPATH)) } }
 						steps {
-							runStepRelativeToPackageRootWithBadge packageRootPath, "${params.packageId}", 'lint', {
+							runStepRelativeToPackageRootWithBadge packageRootPath, "${jenkinsfileParams.packageId}", 'lint', {
 								linter(env.LINT_SCRIPT_FILEPATH)
 							}
 						}
@@ -140,8 +184,10 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRoot packageRootPath, {
-								setupBuild(env.BUILD_SETUP_SCRIPT_FILEPATH)
+							script {
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									setupBuild(env.BUILD_SETUP_SCRIPT_FILEPATH)
+								}
 							}
 						}
 					}
@@ -152,7 +198,7 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRootWithBadge packageRootPath, "${params.packageId}", 'build', {
+							runStepRelativeToPackageRootWithBadge packageRootPath, "${jenkinsfileParams.packageId}", 'build', {
 								buildCode(env.BUILD_SCRIPT_FILEPATH)
 							}
 						}
@@ -164,26 +210,33 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRoot packageRootPath, {
-								setupTests(env.TEST_SETUP_SCRIPT_FILEPATH)
+							script {
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									setupTests(env.TEST_SETUP_SCRIPT_FILEPATH)
+								}
 							}
 						}
 					}
 					stage('run tests') {
 						steps {
-							runStepRelativeToPackageRootWithBadge packageRootPath, "${params.packageId}", 'test', {
+							runStepRelativeToPackageRootWithBadge packageRootPath, "${jenkinsfileParams.packageId}", 'test', {
 								runTests(env.TEST_SCRIPT_FILEPATH)
 							}
 						}
 					}
 					stage('run tests (examples)') {
 						when {
-							expression {
-								return fileExists(resolvePath(packageRootPath, env.TEST_EXAMPLES_SCRIPT_FILEPATH))
+							allOf {
+								expression {
+									return params.SHOULD_RUN_ALL_TEST?.toBoolean()
+								}
+								expression {
+									return fileExists(resolvePath(packageRootPath, env.TEST_EXAMPLES_SCRIPT_FILEPATH))
+								}
 							}
 						}
 						steps {
-							runStepRelativeToPackageRootWithBadge packageRootPath, "${params.packageId}", 'examples', {
+							runStepRelativeToPackageRootWithBadge packageRootPath, "${jenkinsfileParams.packageId}", 'examples', {
 								runTests(env.TEST_EXAMPLES_SCRIPT_FILEPATH)
 							}
 						}
@@ -195,7 +248,7 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRootWithBadge packageRootPath, "${params.packageId}", 'vectors', {
+							runStepRelativeToPackageRootWithBadge packageRootPath, "${jenkinsfileParams.packageId}", 'vectors', {
 								runTests(env.TEST_VECTORS_SCRIPT_FILEPATH)
 							}
 						}
@@ -205,16 +258,24 @@ void call(Closure body) {
 							allOf {
 								expression {
 									// The branch indexing build TEST_MODE = null
-									return env.TEST_MODE == null || env.TEST_MODE == 'code-coverage'
+									return null == params.TEST_MODE || 'code-coverage' == params.TEST_MODE
 								}
 								expression {
-									return params.codeCoverageTool != null
+									return  null != jenkinsfileParams.codeCoverageTool
+								}
+								expression {
+									// If all the tests are not run then code coverage will fail to meet the required minimum
+									// Nightly builds will run all tests.
+									return (params.SHOULD_RUN_ALL_TEST?.toBoolean()
+										|| !fileExists(resolvePath(packageRootPath, env.TEST_EXAMPLES_SCRIPT_FILEPATH)))
 								}
 							}
 						}
 						steps {
-							runStepRelativeToPackageRoot packageRootPath, {
-								codeCoverage(params)
+							script {
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									codeCoverage(jenkinsfileParams)
+								}
 							}
 						}
 					}
@@ -225,9 +286,7 @@ void call(Closure body) {
 					stage('publish RC') {
 						when {
 							allOf {
-								expression {
-									return helper.isManualBuild(env.MANUAL_GIT_BRANCH)
-								}
+								triggeredBy 'UserIdCause'
 								expression {
 									return shouldPublishImage(env.SHOULD_PUBLISH_IMAGE)
 								}
@@ -239,8 +298,10 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRoot packageRootPath, {
-								publish(params, 'alpha')
+							script {
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									publish(jenkinsfileParams, 'alpha')
+								}
 							}
 						}
 					}
@@ -248,9 +309,7 @@ void call(Closure body) {
 						when {
 							allOf {
 								branch env.RELEASE_BRANCH
-								expression {
-									return helper.isManualBuild(env.MANUAL_GIT_BRANCH)
-								}
+								triggeredBy 'UserIdCause'
 								expression {
 									return shouldPublishImage(env.SHOULD_PUBLISH_IMAGE)
 								}
@@ -260,8 +319,10 @@ void call(Closure body) {
 							}
 						}
 						steps {
-							runStepRelativeToPackageRoot packageRootPath, {
-								publish(params, 'release')
+							script {
+								helper.runStepRelativeToPackageRoot packageRootPath, {
+									publish(jenkinsfileParams, 'release')
+								}
 							}
 						}
 					}
@@ -269,7 +330,6 @@ void call(Closure body) {
 			}
 		}
 		post {
-			//TODO: add notification
 			success {
 				echo "Build Success - ${env.JOB_BASE_NAME} - ${env.BUILD_ID} on ${env.BUILD_URL}"
 			}
@@ -279,13 +339,20 @@ void call(Closure body) {
 			aborted {
 				echo " ${env.JOB_BASE_NAME} Build - ${env.BUILD_ID} Aborted!"
 			}
+			unsuccessful {
+				script {
+					if (null != env.SHOULD_PUBLISH_FAIL_JOB_STATUS && env.SHOULD_PUBLISH_FAIL_JOB_STATUS.toBoolean()) {
+						helper.sendDiscordNotification(
+							"Jenkins Job Failed for ${currentBuild.fullDisplayName}",
+							"Build#${env.BUILD_NUMBER} has result of ${currentBuild.currentResult} in stage **${env.FAILED_STAGE_NAME}** " +
+									"with message: **${env.FAILURE_MESSAGE}**.",
+							env.BUILD_URL,
+							currentBuild.currentResult
+						)
+					}
+				}
+			}
 		}
-	}
-}
-
-void runStepRelativeToPackageRoot(String rootPath, Closure body) {
-	dir(rootPath) {
-		body()
 	}
 }
 
@@ -295,7 +362,7 @@ void runStepRelativeToPackageRootWithBadge(String rootPath, String packageId, St
 
 	Boolean isSuccess = false
 	try {
-		runStepRelativeToPackageRoot rootPath, body
+		helper.runStepRelativeToPackageRoot rootPath, body
 		badge.status = 'passing'
 		isSuccess = true
 	} finally {
@@ -311,4 +378,13 @@ String resolvePath(String rootPath, String path) {
 
 Boolean shouldPublishImage(String shouldPublish) {
 	return shouldPublish == null ? false : shouldPublish.toBoolean()
+}
+
+List<String> resolveCiEnvironment(Map params) {
+	String environmentName = jobHelper.resolveCiEnvironmentName(params)
+	List<String> environmentTags = params.otherEnvironments?.clone() ?: []
+
+	// default environment is LTS
+	environmentTags.add(0, "${environmentName}-${params.operatingSystem[0]}-lts")
+	return environmentTags
 }

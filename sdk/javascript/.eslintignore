@@ -1,1 +1,2 @@
-src/nem/external/**
+_build/**
+dist/**

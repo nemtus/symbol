@@ -1,3 +1,4 @@
 void call(String buildScriptFilename) {
-	runScript(buildScriptFilename)
+	final String architecture = helper.resolveBuildArchitecture()
+	runScript.withBash("${buildScriptFilename} ${architecture}")
 }

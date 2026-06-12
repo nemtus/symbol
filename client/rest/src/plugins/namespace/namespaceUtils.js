@@ -19,16 +19,16 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const namespaceUtils = {
+export default {
 	/**
 	 * Returns function for processing alias names requests.
 	 * @param {module:db/CatapultDb} catapultDb Catapult database.
-	 * @param {numeric} aliasType Alias type.
+	 * @param {number} aliasType Alias type.
 	 * @param {Function} getParams Function to parse request params into ids.
 	 * @param {Function} namespaceFilter Function to filter namespaces based on ids.
 	 * @param {string} aliasFieldName Alias field name to show in the results.
 	 * @param {string} schemaName Schema name to parse results.
-	 * @returns {Function} Restify response function to process alias names requests.
+	 * @returns {Function} Fastify response function to process alias names requests.
 	 */
 	aliasNamesRoutesProcessor: (
 		catapultDb,
@@ -37,7 +37,7 @@ const namespaceUtils = {
 		namespaceFilter,
 		aliasFieldName,
 		schemaName
-	) => (req, res, next) => {
+	) => async (request, reply) => {
 		const getNewestTransactions = transactions => {
 			const uniqueTransactions = [];
 			transactions.sort((lhs, rhs) => {
@@ -60,43 +60,37 @@ const namespaceUtils = {
 			namespaces.filter(n => transactions
 				.some(t => t.transaction.id.equals(n.namespace[`level${n.namespace.depth - 1}`])));
 
-		const ids = getParams(req);
+		const ids = getParams(request);
 
-		return catapultDb.activeNamespacesWithAlias(aliasType, ids).then(namespaces => {
-			const namespaceIds = [];
-			namespaces.forEach(n => {
-				namespaceIds.push(n.namespace.level0);
-				if (2 <= n.namespace.depth)
-					namespaceIds.push(n.namespace.level1);
-				if (3 <= n.namespace.depth)
-					namespaceIds.push(n.namespace.level2);
-			});
-
-			return catapultDb.registerNamespaceTransactionsByNamespaceIds(namespaceIds).then(transactions => {
-				const namespacesWithRegisterTransaction = getOnlyNamespacesWithRegisterTransaction(namespaces, transactions);
-				const uniqueTransactions = getNewestTransactions(transactions);
-				const namesTuples = ids.map(id => {
-					let aliasName;
-					const names = [];
-					namespacesWithRegisterTransaction.filter(n => namespaceFilter(n, id))
-						.forEach(n => {
-							aliasName = uniqueTransactions.find(t => t.namespaceId.equals(n.namespace.level0)).name;
-							if (2 <= n.namespace.depth)
-								aliasName += `.${uniqueTransactions.find(t => t.namespaceId.equals(n.namespace.level1)).name}`;
-							if (3 <= n.namespace.depth)
-								aliasName += `.${uniqueTransactions.find(t => t.namespaceId.equals(n.namespace.level2)).name}`;
-							if (-1 === names.indexOf(aliasName))
-								names.push(aliasName);
-						});
-					return { [aliasFieldName]: id, names };
-				});
-
-				res.send({ payload: { [schemaName]: namesTuples }, type: schemaName });
-
-				return next();
-			});
+		const namespaces = await catapultDb.activeNamespacesWithAlias(aliasType, ids);
+		const namespaceIds = [];
+		namespaces.forEach(n => {
+			namespaceIds.push(n.namespace.level0);
+			if (2 <= n.namespace.depth)
+				namespaceIds.push(n.namespace.level1);
+			if (3 <= n.namespace.depth)
+				namespaceIds.push(n.namespace.level2);
 		});
+
+		const transactions = await catapultDb.registerNamespaceTransactionsByNamespaceIds(namespaceIds);
+		const namespacesWithRegisterTransaction = getOnlyNamespacesWithRegisterTransaction(namespaces, transactions);
+		const uniqueTransactions = getNewestTransactions(transactions);
+		const namesTuples = ids.map(id => {
+			let aliasName;
+			const names = [];
+			namespacesWithRegisterTransaction.filter(n => namespaceFilter(n, id))
+				.forEach(n => {
+					aliasName = uniqueTransactions.find(t => t.namespaceId.equals(n.namespace.level0)).name;
+					if (2 <= n.namespace.depth)
+						aliasName += `.${uniqueTransactions.find(t => t.namespaceId.equals(n.namespace.level1)).name}`;
+					if (3 <= n.namespace.depth)
+						aliasName += `.${uniqueTransactions.find(t => t.namespaceId.equals(n.namespace.level2)).name}`;
+					if (-1 === names.indexOf(aliasName))
+						names.push(aliasName);
+				});
+			return { [aliasFieldName]: id, names };
+		});
+
+		return reply.send({ payload: { [schemaName]: namesTuples }, type: schemaName });
 	}
 };
-
-module.exports = namespaceUtils;

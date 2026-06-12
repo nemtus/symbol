@@ -1,36 +1,93 @@
-const { Address } = require('./Network');
-const { generateNamespaceId, generateMosaicId } = require('./idGenerator');
-const sc = require('./models');
-const { Hash256, PublicKey } = require('../CryptoTypes');
-const { RuleBasedTransactionFactory } = require('../RuleBasedTransactionFactory');
-const { uint8ToHex } = require('../utils/converter');
+import {
+	Address,
+	/* eslint-disable no-unused-vars */
+	Network
+	/* eslint-enable no-unused-vars */
+} from './Network.js';
+import { generateMosaicId, generateNamespaceId } from './idGenerator.js';
+import * as sc from './models.js';
+import {
+	Hash256,
+	PublicKey,
+	/* eslint-disable no-unused-vars */
+	Signature
+	/* eslint-enable no-unused-vars */
+} from '../CryptoTypes.js';
+import RuleBasedTransactionFactory from '../RuleBasedTransactionFactory.js';
+import { uint8ToHex } from '../utils/converter.js';
 
 /**
  * Factory for creating Symbol transactions.
  */
-class TransactionFactory {
+export default class TransactionFactory {
 	/**
 	 * Creates a factory for the specified network.
 	 * @param {Network} network Symbol network.
-	 * @param {Map} typeRuleOverrides Type rule overrides.
+	 * @param {Map<string, Function>|undefined} typeRuleOverrides Type rule overrides.
 	 */
-	constructor(network, typeRuleOverrides) {
-		this.factory = TransactionFactory.buildRules(typeRuleOverrides);
-		this.network = network;
+	constructor(network, typeRuleOverrides = undefined) {
+		/**
+		 * @private
+		 */
+		this._factory = TransactionFactory._buildRules(typeRuleOverrides); // eslint-disable-line no-underscore-dangle
+
+		/**
+		 * @private
+		 */
+		this._network = network;
 	}
 
-	_createAndExtend(transactionDescriptor, FactoryClass) {
-		const transaction = this.factory.createFromFactory(FactoryClass.createByName, {
+	/**
+	 * Gets class type.
+	 * @returns {typeof TransactionFactory} Class type.
+	 */
+	get static() { // eslint-disable-line class-methods-use-this
+		return TransactionFactory;
+	}
+
+	/**
+	 * Gets rule names with registered hints.
+	 * @returns {Array<string>} Rule names with registered hints.
+	 */
+	get ruleNames() {
+		return Array.from(this._factory.rules.keys());
+	}
+
+	/**
+	 * Looks up the friendly name for the specified transaction.
+	 * @param {sc.TransactionType} transactionType Transaction type.
+	 * @param {number} transactionVersion Transaction version.
+	 * @returns {string} Transaction friendly name.
+	 */
+	static lookupTransactionName(transactionType, transactionVersion) {
+		return `${sc.TransactionType.valueToKey(transactionType.value).toLowerCase()}_transaction_v${transactionVersion}`;
+	}
+
+	/**
+	 * Creates a transaction from a transaction descriptor.
+	 * @template TTransaction
+	 * @param {object} transactionDescriptor Transaction descriptor.
+	 * @param {boolean} autosort When set (default), descriptor arrays requiring ordering will be automatically sorted.
+	 *                           When unset, descriptor arrays will be presumed to be already sorted.
+	 * @param {{createByName: Function}} FactoryClass Factory class used to create the transaction.
+	 * @returns {TTransaction} Newly created transaction.
+	 * @private
+	 */
+	_createAndExtend(transactionDescriptor, autosort, FactoryClass) {
+		const transaction = this._factory.createFromFactory(FactoryClass.createByName, {
 			...transactionDescriptor,
-			network: this.network.identifier
+			network: this._network.identifier
 		});
+		if (autosort)
+			transaction.sort();
 
 		// autogenerate artifact ids
 		if (sc.TransactionType.NAMESPACE_REGISTRATION === transaction.type) {
-			const rawNamespaceId = generateNamespaceId(new TextDecoder().decode(transaction.name), transaction.parentId.value);
+			const parentId = sc.NamespaceRegistrationType.CHILD === transaction.registrationType ? transaction.parentId.value : 0n;
+			const rawNamespaceId = generateNamespaceId(new TextDecoder().decode(transaction.name), parentId);
 			transaction.id = new sc.NamespaceId(rawNamespaceId);
 		} else if (sc.TransactionType.MOSAIC_DEFINITION === transaction.type) {
-			const address = this.network.publicKeyToAddress(new PublicKey(transaction.signerPublicKey.bytes));
+			const address = this._network.publicKeyToAddress(new PublicKey(transaction.signerPublicKey.bytes));
 			transaction.id = new sc.MosaicId(generateMosaicId(address, transaction.nonce.value));
 		}
 
@@ -40,36 +97,72 @@ class TransactionFactory {
 	/**
 	 * Creates a transaction from a transaction descriptor.
 	 * @param {object} transactionDescriptor Transaction descriptor.
-	 * @returns {object} Newly created transaction.
+	 * @param {boolean} autosort When set (default), descriptor arrays requiring ordering will be automatically sorted.
+	 *                           When unset, descriptor arrays will be presumed to be already sorted.
+	 * @returns {sc.Transaction} Newly created transaction.
 	 */
-	create(transactionDescriptor) {
-		return this._createAndExtend(transactionDescriptor, sc.TransactionFactory);
+	create(transactionDescriptor, autosort = true) {
+		return this._createAndExtend(transactionDescriptor, autosort, sc.TransactionFactory);
 	}
 
 	/**
 	 * Creates an embedded transaction from a transaction descriptor.
 	 * @param {object} transactionDescriptor Transaction descriptor.
-	 * @returns {object} Newly created transaction.
+	 * @param {boolean} autosort When set (default), descriptor arrays requiring ordering will be automatically sorted.
+	 *                           When unset, descriptor arrays will be presumed to be already sorted.
+	 * @returns {sc.EmbeddedTransaction} Newly created transaction.
 	 */
-	createEmbedded(transactionDescriptor) {
-		return this._createAndExtend(transactionDescriptor, sc.EmbeddedTransactionFactory);
+	createEmbedded(transactionDescriptor, autosort = true) {
+		return this._createAndExtend(transactionDescriptor, autosort, sc.EmbeddedTransactionFactory);
+	}
+
+	/**
+	 * Deserializes a transaction from a binary payload.
+	 * @param {Uint8Array} payload Binary payload.
+	 * @returns {sc.Transaction} Deserialized transaction.
+	 */
+	static deserialize(payload) {
+		return sc.TransactionFactory.deserialize(payload);
+	}
+
+	/**
+	 * Deserializes an embedded transaction from a binary payload.
+	 * @param {Uint8Array} payload Binary payload.
+	 * @returns {sc.EmbeddedTransaction} Deserialized embedded transaction.
+	 */
+	static deserializeEmbedded(payload) {
+		return sc.EmbeddedTransactionFactory.deserialize(payload);
 	}
 
 	/**
 	 * Attaches a signature to a transaction.
-	 * @param {object} transaction Transaction object.
+	 * @param {sc.Transaction} transaction Transaction object.
 	 * @param {Signature} signature Signature to attach.
 	 * @returns {string} JSON transaction payload.
 	 */
 	static attachSignature(transaction, signature) {
 		transaction.signature = new sc.Signature(signature.bytes);
+		return TransactionFactory.toJson(transaction);
+	}
 
+	/**
+	 * Generates a JSON representation of transaction that can be sent to a node.
+	 * @param {sc.Transaction} transaction Transaction object.
+	 * @returns {string} JSON transaction payload.
+	 */
+	static toJson(transaction) {
 		const transactionBuffer = transaction.serialize();
 		const hexPayload = uint8ToHex(transactionBuffer);
 		const jsonPayload = `{"payload": "${hexPayload}"}`;
 		return jsonPayload;
 	}
 
+	/**
+	 * Tries to coerce an sdk type to a model type.
+	 * @param {object} value Value to convert.
+	 * @returns {sc.Address|undefined} Converted value or undefined.
+	 * @private
+	 */
 	static _symbolTypeConverter(value) {
 		if (value instanceof Address)
 			return new sc.UnresolvedAddress(value.bytes);
@@ -77,7 +170,13 @@ class TransactionFactory {
 		return undefined;
 	}
 
-	static buildRules(typeRuleOverrides) {
+	/**
+	 * Builds a rule based transaction factory.
+	 * @param {Map<string, Function>|undefined} typeRuleOverrides Type rule overrides.
+	 * @returns {RuleBasedTransactionFactory} Rule based transaction factory.
+	 * @private
+	 */
+	static _buildRules(typeRuleOverrides) {
 		const factory = new RuleBasedTransactionFactory(sc, this._symbolTypeConverter, typeRuleOverrides);
 		factory.autodetect();
 
@@ -107,5 +206,3 @@ class TransactionFactory {
 		return factory;
 	}
 }
-
-module.exports = { TransactionFactory };

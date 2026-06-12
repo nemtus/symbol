@@ -6,11 +6,12 @@
 // Signs aggregate transaction using private key provided in file specified via `--private` switch.
 //
 
-const { readContents, readPrivateKey } = require('./examples_utils');
-const { SymbolFacade } = require('../src/index').facade;
-const yargs = require('yargs');
-const fs = require('fs');
-const path = require('path');
+import { readContents, readPrivateKey } from './examples_utils.js';
+import { SymbolFacade } from '../src/symbol/index.js';
+import yargs from 'yargs';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 (() => {
 	const addEmbeddedTransfers = (facade, publicKey) => {
@@ -18,7 +19,7 @@ const path = require('path');
 
 		// obtain recipient from publicKey, so direct all transfers to 'self'
 		const recipientAddress = facade.network.publicKeyToAddress(publicKey);
-		const resourcesDirectory = path.join(__dirname, 'resources');
+		const resourcesDirectory = path.join(path.dirname(fileURLToPath(import.meta.url)), 'resources');
 
 		const filenames = fs.readdirSync(resourcesDirectory).filter(filename => filename.startsWith('part'));
 		filenames.sort();
@@ -26,7 +27,7 @@ const path = require('path');
 		return filenames.map(filename => {
 			const message = readContents(path.join(resourcesDirectory, filename));
 			const embeddedTransaction = facade.transactionFactory.createEmbedded({
-				type: 'transfer_transaction',
+				type: 'transfer_transaction_v1',
 				signerPublicKey: publicKey,
 				recipientAddress,
 				// note: additional 0 byte at the beginning is added for compatibility with explorer
@@ -41,16 +42,16 @@ const path = require('path');
 
 	const args = yargs(process.argv.slice(2))
 		.demandOption('private', 'path to file with private key')
-		.argv;
+		.parseSync();
 
 	const facade = new SymbolFacade('testnet');
 	const keyPair = readPrivateKey(args.private);
 
 	const embeddedTransactions = addEmbeddedTransfers(facade, keyPair.publicKey);
-	const merkleHash = facade.constructor.hashEmbeddedTransactions(embeddedTransactions);
+	const merkleHash = facade.static.hashEmbeddedTransactions(embeddedTransactions);
 
 	const aggregateTransaction = facade.transactionFactory.create({
-		type: 'aggregate_complete_transaction',
+		type: 'aggregate_complete_transaction_v3',
 		signerPublicKey: keyPair.publicKey,
 		fee: 0n,
 		deadline: 1n,
@@ -59,7 +60,7 @@ const path = require('path');
 	});
 
 	const signature = facade.signTransaction(keyPair, aggregateTransaction);
-	facade.transactionFactory.constructor.attachSignature(aggregateTransaction, signature);
+	facade.transactionFactory.static.attachSignature(aggregateTransaction, signature);
 
 	console.log(`Hash: ${facade.hashTransaction(aggregateTransaction)}\n`);
 	console.log(aggregateTransaction.toString());

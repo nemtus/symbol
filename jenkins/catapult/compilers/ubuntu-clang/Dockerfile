@@ -1,5 +1,5 @@
-# Use the latest Ubuntu 22.04 image.
-FROM ubuntu:22.04
+ARG FROM_IMAGE=ubuntu:25.10
+FROM ${FROM_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -11,11 +11,9 @@ RUN apt-get update >/dev/null && \
 	xz-utils \
 	wget 
 
-# Use the latest Clang version.
-ARG COMPILER_VERSION=14
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor > /etc/apt/trusted.gpg.d/clang.gpg  && \
-	echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${COMPILER_VERSION} main" > /etc/apt/sources.list.d/clang.list && \
-	apt-get update >/dev/null && \
+# Use the latest Clang version from Ubuntu.
+ARG COMPILER_VERSION=21
+RUN apt-get update >/dev/null && \
 	apt-get install -y \
 	clang-${COMPILER_VERSION} \
 	clang-tools-${COMPILER_VERSION} \
@@ -25,5 +23,10 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor > /etc/
 	update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${COMPILER_VERSION} 100 && \
 	update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${COMPILER_VERSION} 100 && \
 	update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
-	update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100 \
-	rm -rf /var/lib/apt/lists/*
+	update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100 && \
+	clang --version
+
+# set default user (used by jenkins)
+ARG HOME_DIR=/home/ubuntu
+USER ubuntu
+WORKDIR ${HOME_DIR}

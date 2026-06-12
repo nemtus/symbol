@@ -21,17 +21,17 @@
 
 /** @module db/CatapultDb */
 
-const connector = require('./connector');
-const { convertToLong, buildOffsetCondition, uniqueLongList } = require('./dbUtils');
-const catapult = require('../catapult-sdk/index');
-const MultisigDb = require('../plugins/multisig/MultisigDb');
-const MongoDb = require('mongodb');
+import connector from './connector.js';
+import { buildOffsetCondition, convertToLong, uniqueLongList } from './dbUtils.js';
+import MultisigDb from '../plugins/multisig/MultisigDb.js';
+import MongoDb from 'mongodb';
+import { NetworkLocator, PublicKey } from 'symbol-sdk';
+import { Network, models } from 'symbol-sdk/symbol';
 
-const { EntityType } = catapult.model;
 const { ObjectId } = MongoDb;
 
-const isAggregateType = document => EntityType.aggregateComplete === document.transaction.type
-	|| EntityType.aggregateBonded === document.transaction.type;
+const isAggregateType = document => models.TransactionType.AGGREGATE_COMPLETE.value === document.transaction.type
+	|| models.TransactionType.AGGREGATE_BONDED.value === document.transaction.type;
 
 const createSanitizer = () => ({
 	copyAndDeleteId: dbObject => {
@@ -97,7 +97,7 @@ const TransactionGroup = Object.freeze({
 	partial: 'partialTransactions'
 });
 
-class CatapultDb {
+export default class CatapultDb {
 	// region construction / connect / disconnect
 
 	constructor(options) {
@@ -105,6 +105,7 @@ class CatapultDb {
 		if (!this.networkId)
 			throw Error('network id is required');
 
+		this.network = NetworkLocator.findByIdentifier(Network.NETWORKS, this.networkId);
 		this.pagingOptions = {
 			pageSizeMin: options.pageSizeMin,
 			pageSizeMax: options.pageSizeMax,
@@ -113,8 +114,8 @@ class CatapultDb {
 		this.sanitizer = createSanitizer();
 	}
 
-	connect(url, dbName, connectionPoolSize) {
-		return connector.connectToDatabase(url, dbName, connectionPoolSize || 10)
+	connect(url, dbName, connectionPoolSize, timeout) {
+		return connector.connectToDatabase(url, dbName, connectionPoolSize || 10, timeout)
 			.then(client => {
 				this.client = client;
 				this.database = client.db();
@@ -125,11 +126,10 @@ class CatapultDb {
 		if (!this.database)
 			return Promise.resolve();
 
-		return new Promise(resolve => {
-			this.client.close(resolve);
-			this.client = undefined;
-			this.database = undefined;
-		});
+		const closePromise = this.client.close();
+		this.client = undefined;
+		this.database = undefined;
+		return closePromise;
 	}
 
 	// endregion
@@ -169,8 +169,24 @@ class CatapultDb {
 		const blockCountPromise = this.database.collection('blocks').estimatedDocumentCount();
 		const transactionCountPromise = this.database.collection('transactions').estimatedDocumentCount();
 		const accountCountPromise = this.database.collection('accounts').estimatedDocumentCount();
-		return Promise.all([blockCountPromise, transactionCountPromise, accountCountPromise])
-			.then(storageInfo => ({ numBlocks: storageInfo[0], numTransactions: storageInfo[1], numAccounts: storageInfo[2] }));
+		const dbStatsPromise = this.database.stats();
+
+		const formatDbStats = dbStats => ({
+			numIndexes: dbStats.indexes,
+			numObjects: dbStats.objects,
+
+			dataSize: dbStats.dataSize,
+			indexSize: dbStats.indexSize,
+			storageSize: dbStats.storageSize
+		});
+
+		return Promise.all([blockCountPromise, transactionCountPromise, accountCountPromise, dbStatsPromise])
+			.then(storageInfo => ({
+				numBlocks: storageInfo[0],
+				numTransactions: storageInfo[1],
+				numAccounts: storageInfo[2],
+				database: formatDbStats(storageInfo[3])
+			}));
 	}
 
 	chainStatisticCurrent() {
@@ -188,11 +204,15 @@ class CatapultDb {
 	 * Retrieves filtered and paginated blocks.
 	 * @param {Uint8Array} signerPublicKey Filters by signer public key
 	 * @param {Uint8Array} beneficiaryAddress Filters by beneficiary address
+	 * @param {bigint} fromTimestamp
+	 *        Filters blocks by only including blocks with a timestamp greater than or equal to provided value
+	 * @param {bigint} toTimestamp
+	 *        Filters blocks by only including blocks with a timestamp less than or equal to provided value
 	 * @param {object} options Options for ordering and pagination. Can have an `offset`, and must contain the `sortField`, `sortDirection`,
 	 * `pageSize` and `pageNumber`. 'sortField' must be within allowed 'sortingOptions'.
-	 * @returns {Promise.<object>} Blocks page.
+	 * @returns {Promise<object>} Blocks page.
 	 */
-	blocks(signerPublicKey, beneficiaryAddress, options) {
+	blocks(signerPublicKey, beneficiaryAddress, fromTimestamp, toTimestamp, options) {
 		const sortingOptions = {
 			id: '_id',
 			height: 'block.height'
@@ -210,6 +230,13 @@ class CatapultDb {
 		if (undefined !== beneficiaryAddress)
 			conditions['block.beneficiaryAddress'] = Buffer.from(beneficiaryAddress);
 
+		if (undefined !== fromTimestamp || undefined !== toTimestamp) {
+			conditions['block.timestamp'] = {};
+			if (undefined !== fromTimestamp)
+				conditions['block.timestamp'].$gte = convertToLong(fromTimestamp);
+			if (undefined !== toTimestamp)
+				conditions['block.timestamp'].$lte = convertToLong(toTimestamp);
+		}
 		const removeFields = ['meta.transactionMerkleTree', 'meta.statementMerkleTree'];
 
 		const sortConditions = { [sortingOptions[options.sortField]]: options.sortDirection };
@@ -227,7 +254,7 @@ class CatapultDb {
 
 	/**
 	 * Returns the blocks (or a projection of the blocks) for the given heights.
-	 * @param {Long[]} heights the array of long heights
+	 * @param {MongoDb.Long[]} heights the array of long heights
 	 * @param {object} projection optional projection, by default it excludes the transactionMerkleTree and statementMerkleTree fields
 	 * @returns {Promise} with the blocks objects or projections.
 	 */
@@ -253,7 +280,7 @@ class CatapultDb {
 
 	/**
 	 * Retrieves the fee multiplier for the last (higher on the chain) numBlocks blocks
-	 * @param {int} numBlocks Number of blocks to retrieve.
+	 * @param {number} numBlocks Number of blocks to retrieve.
 	 * @returns {Promise} Promise that resolves to feeMultiplier array
 	 */
 	latestBlocksFeeMultiplier(numBlocks) {
@@ -277,13 +304,13 @@ class CatapultDb {
 
 	/**
 	 * Makes a paginated query with the provided arguments.
-	 * @param {array<object>} queryConditions The conditions that determine the query results, may be empty.
-	 * @param {array<string>} removedFields Field names to be hidden from the query results, may be empty.
+	 * @param {Array<object>} queryConditions The conditions that determine the query results, may be empty.
+	 * @param {Array<string>} removedFields Field names to be hidden from the query results, may be empty.
 	 * @param {object} sortConditions Condition that describes the order of the results, must be set.
 	 * @param {string} collectionName Name of the collection to be queried.
 	 * @param {object} options Pagination options, must contain `pageSize` and `pageNumber` (starting at 1).
-	 * @param {function} mapper to transform each element of the page.
-	 * @returns {Promise.<object>} Page result, contains the attributes `data` with the actual results, and `paging` with pagination
+	 * @param {Function} mapper to transform each element of the page.
+	 * @returns {Promise<object>} Page result, contains the attributes `data` with the actual results, and `paging` with pagination
 	 * metadata - which is comprised of: `pageNumber`, and `pageSize`.
 	 */
 	queryPagedDocuments(queryConditions, removedFields, sortConditions, collectionName, options, mapper) {
@@ -320,7 +347,7 @@ class CatapultDb {
 	 * If `address` is provided, other account related filters are omitted.
 	 * @param {object} options Options for ordering and pagination. Can have an `offset`, and must contain the `sortField`, `sortDirection`,
 	 * `pageSize` and `pageNumber`. 'sortField' must be within allowed 'sortingOptions'.
-	 * @returns {Promise.<object>} Transactions page.
+	 * @returns {Promise<object>} Transactions page.
 	 */
 	async transactions(group, filters, options) {
 		const sortingOptions = { id: '_id' };
@@ -434,9 +461,7 @@ class CatapultDb {
 
 	/**
 	 * It retrieves and adds the block information to the transactions' meta.
-	 *
 	 * The block information includes its timestamp and feeMultiplier
-	 *
 	 * @param {object[]} list the transaction list without the added block information.
 	 * @returns {Promise<object[]>} the list with the added block information.
 	 */
@@ -446,7 +471,6 @@ class CatapultDb {
 
 	/**
 	 * It retrieves and adds the block information to the entities' meta.
-	 *
 	 * @param {object[]} list the entity list without the added block information.
 	 * @param {string[]} fields the list of fields to be be copied from the block's to the entity's meta.
 	 * @param {Function} getHeight a function that returns the block's height of a given entity.
@@ -495,15 +519,15 @@ class CatapultDb {
 	/**
 	 * Return (id, name, parent) tuples for transactions with type and with id in set of ids.
 	 * @param {*} ids Set of transaction ids.
-	 * @param {*} transactionType Transaction type.
+	 * @param {models.TransactionType} transactionType Transaction type.
 	 * @param {object} fieldNames Descriptor for fields used in query.
-	 * @returns {Promise.<array>} Promise that is resolved when tuples are ready.
+	 * @returns {Promise<Array<object>>} Promise that is resolved when tuples are ready.
 	 */
 	findNamesByIds(ids, transactionType, fieldNames) {
 		const queriedIds = ids.map(convertToLong);
 		const conditions = {
 			$match: {
-				'transaction.type': transactionType,
+				'transaction.type': transactionType.value,
 				[`transaction.${fieldNames.id}`]: { $in: queriedIds }
 			}
 		};
@@ -529,10 +553,11 @@ class CatapultDb {
 	/**
 	 * Retrieves filtered and paginated accounts
 	 * @param {Uint8Array} address Filters by address
-	 * @param {uint64} mosaicId Filters by accounts with some mosaicId balance. Required if provided `sortField` is `balance`
+	 * @param {bigint} mosaicId
+	 *        Filters by accounts with some mosaicId balance. Required if provided `sortField` is `balance`
 	 * @param {object} options Options for ordering and pagination. Can have an `offset`, and must contain the `sortField`, `sortDirection`,
 	 * `pageSize` and `pageNumber`. 'sortField' must be within allowed 'sortingOptions'.
-	 * @returns {Promise.<object>} Accounts page.
+	 * @returns {Promise<object>} Accounts page.
 	 */
 	accounts(address, mosaicId, options) {
 		const sortingOptions = { id: '_id', balance: 'account.mosaics.amount' };
@@ -592,7 +617,9 @@ class CatapultDb {
 	accountsByIds(ids) {
 		// id will either have address property or publicKey property set; in the case of publicKey, convert it to address
 		const buffers = ids.map(id => Buffer.from((id.publicKey
-			? catapult.model.address.publicKeyToAddress(id.publicKey, this.networkId) : id.address)));
+			? this.network.publicKeyToAddress(new PublicKey(id.publicKey)).bytes
+			: id.address
+		)));
 		return this.database.collection('accounts')
 			.find({ 'account.address': { $in: buffers } })
 			.toArray()
@@ -606,8 +633,8 @@ class CatapultDb {
 
 	/**
 	 * Retrieves transaction results for the given hashes.
-	 * @param {Array.<Uint8Array>} hashes Transaction hashes.
-	 * @returns {Promise.<Array>} Promise that resolves to the array of hash / validation result pairs.
+	 * @param {Array<Uint8Array>} hashes Transaction hashes.
+	 * @returns {Promise<Array>} Promise that resolves to the array of hash / validation result pairs.
 	 */
 	transactionsByHashesFailed(hashes) {
 		const buffers = hashes.map(hash => Buffer.from(hash));
@@ -616,20 +643,18 @@ class CatapultDb {
 
 	// endregion
 
-	// region utils
+	// region lookup public keys
 
 	/**
-	 * Retrieves account publickey projection for the given address.
-	 * @param {Uint8Array} accountAddress Account address.
-	 * @returns {Promise<Buffer>} Promise that resolves to the account public key.
+	 * Retrieves account public keys projection for the given addresses.
+	 * @param {Array<Uint8Array>} accountAddresses Account addresses.
+	 * @returns {Promise<Buffer>} Promise that resolves to the account public keys.
 	 */
-	addressToPublicKey(accountAddress) {
-		const conditions = { 'account.address': Buffer.from(accountAddress) };
-		const projection = { 'account.publicKey': 1 };
-		return this.queryDocument('accounts', conditions, projection);
+	lookupPublicKeys(accountAddresses) {
+		const conditions = { 'account.address': { $in: accountAddresses.map(accountAddress => Buffer.from(accountAddress)) } };
+		const projection = { 'account.address': 1, 'account.publicKey': 1 };
+		return this.queryDocuments('accounts', conditions, projection);
 	}
 
 	// endregion
 }
-
-module.exports = CatapultDb;

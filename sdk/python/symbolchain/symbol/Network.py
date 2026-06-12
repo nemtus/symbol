@@ -1,13 +1,14 @@
 import base64
 import datetime
-
-import sha3
+import hashlib
+from binascii import unhexlify
 
 from ..ByteArray import ByteArray
 from ..CryptoTypes import Hash256
 from ..Network import Network as BasicNetwork
 from ..NetworkTimestamp import NetworkTimestamp as BasicNetworkTimestamp
 from ..NetworkTimestamp import NetworkTimestampDatetimeConverter
+from ..sc import NamespaceId
 
 
 class NetworkTimestamp(BasicNetworkTimestamp):
@@ -37,8 +38,36 @@ class Address(ByteArray):
 
 		super().__init__(self.SIZE, raw_bytes, Address)
 
+	def to_namespace_id(self):
+		"""Attempts to convert this address into a namespace id."""
+
+		if not self.is_alias():
+			return None
+
+		return NamespaceId(int.from_bytes(self.bytes[1:9], 'little'))
+
+	def is_alias(self):
+		"""Determines if this address is an alias."""
+
+		return 0 != (self.bytes[0] & 0x01)
+
 	def __str__(self):
 		return base64.b32encode(self.bytes + bytes(0)).decode('utf8')[0:-1]
+
+	def __repr__(self):
+		return f'Address(\'{str(self)}\')'
+
+	@staticmethod
+	def from_decoded_address_hex_string(hex_string):
+		"""Creates an address from a decoded address hex string (typically from REST)."""
+
+		return Address(unhexlify(hex_string))
+
+	@staticmethod
+	def from_namespace_id(namespace_id, network_identifier):
+		"""Creates an address from a namespace id."""
+
+		return Address(bytes([network_identifier + 1]) + namespace_id.value.to_bytes(8, 'little') + bytes([0] * (Address.SIZE - 9)))
 
 
 class Network(BasicNetwork):
@@ -50,7 +79,7 @@ class Network(BasicNetwork):
 		self.generation_hash_seed = generation_hash_seed
 
 	def address_hasher(self):
-		return sha3.sha3_256()
+		return hashlib.sha3_256()
 
 	def create_address(self, address_without_checksum, checksum):
 		return Address(address_without_checksum + checksum[0:3])
@@ -64,6 +93,6 @@ Network.MAINNET = Network(
 Network.TESTNET = Network(
 	'testnet',
 	0x98,
-	datetime.datetime(2021, 11, 25, 14, 0, 47, tzinfo=datetime.timezone.utc),
-	Hash256('7FCCD304802016BEBBCD342A332F91FF1F3BB5E902988B352697BE245F48E836'))
+	datetime.datetime(2022, 10, 31, 21, 7, 47, tzinfo=datetime.timezone.utc),
+	Hash256('49D6E1CE276A85B70EAFE52349AACCA389302E7A9754BCF1221E79494FC665A4'))
 Network.NETWORKS = [Network.MAINNET, Network.TESTNET]

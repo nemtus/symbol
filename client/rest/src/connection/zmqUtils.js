@@ -19,23 +19,23 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 const logAllMonitorEvents = (zsocket, throttle, logger) => {
 	const eventNameLevelPairs = {
 		connect: 'info',
-		connect_delay: 'debug',
-		connect_retry: 'info',
+		'connect:delay': 'debug',
+		'connect:retry': 'debug',
 
-		listen: 'debug',
-		bind_error: 'error',
+		bind: 'debug',
+		'bind:error': 'error',
 		accept: 'debug',
-		accept_error: 'error',
+		'accept:error': 'error',
 		close: 'info',
-		close_error: 'error',
+		'close:error': 'error',
 		disconnect: 'warn',
 
-		monitor_error: 'error'
+		'monitor:error': 'error'
 	};
 
 	const createLogHandler = (name, level) => {
@@ -58,10 +58,10 @@ const logAllMonitorEvents = (zsocket, throttle, logger) => {
 	});
 };
 
-module.exports = {
+export default {
 	/**
 	 * Prepares a zmq socket for a connection.
-	 * @param {zmq.Socket} zsocket Zmq socket.
+	 * @param {import('./zmqService.js').ZmqSocketWrapper} zsocket Zmq socket.
 	 * @param {object} zmqConfig Zmq configuration.
 	 * @param {logger} logger Level-based logger object.
 	 */
@@ -88,7 +88,7 @@ module.exports = {
 		// log all monitor events
 		logAllMonitorEvents(zsocket, zmqConfig.monitorLoggingThrottle, logger);
 
-		// zmq js still forwards errors to error event that need to be handled
+		// zmq js still forwards errors to the error event that needs to be handled
 		zsocket.on('error', err => {
 			closeWithError('error from zsocket', err);
 		});
@@ -102,13 +102,13 @@ module.exports = {
 			clearTimeout(connectTimeoutTimerId);
 		});
 
-		// enable monitoring (0 => read all events each interval)
-		zsocket.monitor(zmqConfig.monitorInterval, 0);
+		// enable monitoring
+		zsocket.monitor();
 	},
 
 	/**
 	 * Creates a multisocket emitter.
-	 * @param {function} zsocketFactory Factory for creating a zmq socket given a key.
+	 * @param {Function} zsocketFactory Factory for creating a zmq socket given a key.
 	 * @returns {object} Event emitter with partial interface (on, removeAllListeners, listenerCount).
 	 */
 	createMultisocketEmitter: zsocketFactory => {
@@ -154,9 +154,9 @@ module.exports = {
 			listenerCount: key => emitter.listenerCount(key),
 
 			/**
-			  * Gets the number of active zmq sockets.
-			  * @returns {numeric} Number of active zmq sockets.
-			  */
+			 * Gets the number of active zmq sockets.
+			 * @returns {number} Number of active zmq sockets.
+			 */
 			zsocketCount: () => Object.keys(zsockets).length,
 
 			/**

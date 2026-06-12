@@ -1,14 +1,18 @@
-FROM symbolplatform/symbol-server-compiler:ubuntu-clang-14
+# image name required as ARG
+ARG FROM_IMAGE='ubuntu:24.04'
 ARG DEBIAN_FRONTEND=noninteractive
-MAINTAINER Catapult Development Team
+
+FROM ${FROM_IMAGE}
+LABEL maintainer="Catapult Development Team"
+USER root
 RUN apt-get -y update && apt-get install -y \
 	bison \
 	gdb \
 	git \
 	flex \
 	python3 \
-	python3-ply \
 	python3-pip \
+	python3-venv \
 	shellcheck \
 	inotify-tools \
 	libdw-dev \
@@ -16,6 +20,15 @@ RUN apt-get -y update && apt-get install -y \
 	libiberty-dev \
 	libslang2-dev \
 	&& \
-	rm -rf /var/lib/apt/lists/* && \
-	pip3 install -U colorama cryptography gitpython pycodestyle pylint pylint-quotes PyYAML
+	rm -rf /var/lib/apt/lists/*
 
+# add ubuntu user (used by jenkins)
+RUN id -u "ubuntu" || useradd --uid 1000 -ms /bin/bash ubuntu
+ARG HOME_DIR=/home/ubuntu
+USER ubuntu
+WORKDIR ${HOME_DIR}
+ENV VIRTUAL_ENV=${HOME_DIR}/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip3 install -U colorama conan cryptography gitpython pycodestyle pylint ply PyYAML

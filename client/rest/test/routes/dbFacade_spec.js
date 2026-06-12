@@ -19,13 +19,13 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const CatapultDb = require('../../src/db/CatapultDb');
-const { convertToLong } = require('../../src/db/dbUtils');
-const dbFacade = require('../../src/routes/dbFacade');
-const testDbOptions = require('../db/utils/testDbOptions');
-const { expect } = require('chai');
-const { Binary } = require('mongodb');
-const sinon = require('sinon');
+import CatapultDb from '../../src/db/CatapultDb.js';
+import { convertToLong } from '../../src/db/dbUtils.js';
+import dbFacade from '../../src/routes/dbFacade.js';
+import testDbOptions from '../db/utils/testDbOptions.js';
+import { expect } from 'chai';
+import { Binary } from 'mongodb';
+import sinon from 'sinon';
 
 const Testnet_Network = testDbOptions.networkId;
 
@@ -74,7 +74,9 @@ describe('db facade', () => {
 				transactionsByHashesStub.restore();
 			});
 		};
-		const toBinary = hash => new Binary(`${hash}`);
+		// hash is provided as a number in tests
+		// toBinary maps each number "hash" to a number[], which will result in an equivalent Binary object for the same input
+		const toBinary = hash => new Binary(`${hash}`.split('').map(ch => parseInt(ch, 10)));
 
 		const createFailed = (value, hash) => ({ status: { f: value, hash: toBinary(hash) } });
 		const createUnwrappedFailedStatus = (value, hash) => ({ group: 'failed', f: value, hash: toBinary(hash) });

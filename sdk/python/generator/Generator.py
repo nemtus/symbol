@@ -17,7 +17,12 @@ def create_printer(descriptor, name, is_pod):
 	return (create_pod_printer if is_pod else BuiltinPrinter)(descriptor, name)
 
 
-def to_type_formatter_instance(ast_model):
+def to_type_formatter_instance(ast_model, ast_models):
+	if DisplayType.STRUCT == ast_model.display_type and ast_model.factory_type:
+		return StructFormatter(
+			ast_model,
+			next(factory_ast_model for factory_ast_model in ast_models if ast_model.factory_type == factory_ast_model.name))
+
 	type_formatter_class = {
 		DisplayType.STRUCT: StructFormatter,
 		DisplayType.ENUM: EnumTypeFormatter,
@@ -42,13 +47,13 @@ def generate_files(ast_models, output_directory: Path):
 #
 # pylint: disable=line-too-long, invalid-name, redefined-builtin
 # pylint: disable=too-many-lines, too-many-instance-attributes, too-many-locals, too-many-statements, too-many-public-methods
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, superfluous-parens
 
 from __future__ import annotations
 
 from binascii import hexlify
 from enum import Enum, Flag
-from typing import ByteString, List, TypeVar
+from typing import List, TypeVar
 
 from ..ArrayHelpers import ArrayHelpers
 from ..BaseValue import BaseValue
@@ -61,7 +66,7 @@ StrBytes = TypeVar('StrBytes', str, bytes)
 '''
 		)
 		for ast_model in ast_models:
-			generator = TypeFormatter(to_type_formatter_instance(ast_model))
+			generator = TypeFormatter(to_type_formatter_instance(ast_model, ast_models))
 			output_file.write(str(generator))
 			output_file.write('\n\n')
 

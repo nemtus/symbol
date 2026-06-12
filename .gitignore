@@ -19,14 +19,11 @@ _temp/
 # js
 node_modules/
 npm-*.log*
-cjs/
-esm/
-index.min.js*
+ts/
 
 # python
+.python-version
 __pycache__/
 *.egg-info/
 build/
 dist/
-
-.history/

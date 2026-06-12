@@ -19,17 +19,13 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { MockServer, test } = require('./utils/routeTestUtils');
-const nodeRoutes = require('../../src/routes/nodeRoutes');
-const errors = require('../../src/server/errors');
-const { expect } = require('chai');
-const fs = require('fs');
-const path = require('path');
+import MockServer from './utils/MockServer.js';
+import test from './utils/routeTestUtils.js';
+import nodeRoutes from '../../src/routes/nodeRoutes.js';
+import errors from '../../src/server/errors.js';
+import { expect } from 'chai';
 
-// ATM, both rest and rest sdk share the same version. In the future,
-// we will have an open api and sdk dependencies with their given versions.
-const restVersion = fs.readFileSync(path.resolve(__dirname, '../../version.txt'), 'UTF-8').trim();
-const sdkVersion = restVersion;
+const restVersion = '2.5.1';
 
 describe('node routes', () => {
 	describe('get', () => {
@@ -77,10 +73,12 @@ describe('node routes', () => {
 			};
 
 			const createMockDb = status => ({
-				database: {
-					serverConfig: {
-						isConnected: () => status
-					}
+				client: {
+					db: () => ({
+						admin: () => ({
+							ping: () => (true === status ? Promise.resolve() : Promise.reject(new Error('db is down')))
+						})
+					})
 				}
 			});
 
@@ -103,7 +101,7 @@ describe('node routes', () => {
 						},
 						type: 'nodeHealth'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -118,7 +116,7 @@ describe('node routes', () => {
 				return mockServer.callRoute(route, {}).then(() => {
 					// Assert
 					expect(mockServer.status.firstCall.args[0]).to.equal(200);
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -133,7 +131,7 @@ describe('node routes', () => {
 				return mockServer.callRoute(route, {}).then(() => {
 					// Assert
 					expect(mockServer.status.firstCall.args[0]).to.equal(503);
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -166,7 +164,7 @@ describe('node routes', () => {
 						},
 						type: 'nodeHealth'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -202,7 +200,7 @@ describe('node routes', () => {
 						},
 						type: 'nodeHealth'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 		});
@@ -361,7 +359,6 @@ describe('node routes', () => {
 					payload: {
 						serverInfo: {
 							restVersion,
-							sdkVersion,
 							deployment: {
 								deploymentTool: 'symbol-bootstrap',
 								deploymentToolVersion: '1.0.2',
@@ -418,8 +415,8 @@ describe('node routes', () => {
 							formatter: 'ws',
 							payload: {
 								communicationTimestamps: {
-									receiveTimestamp: [107870352, 16],
-									sendTimestamp: [107870352, 1]
+									receiveTimestamp: 0x10066DF890n,
+									sendTimestamp: 0x1066DF890n
 								}
 							},
 							type: 'nodeTime'
@@ -482,7 +479,7 @@ describe('node routes', () => {
 					bar: 'lorem ipsum',
 					baz: { abc: 41, xyz: 82 }
 				});
-				expect(mockServer.next.calledOnce).to.equal(true);
+				expect(mockServer.done.calledOnce).to.equal(true);
 			});
 		});
 	});

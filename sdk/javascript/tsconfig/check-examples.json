@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "module": "nodenext",
+        "target": "es2020",
+        "lib": ["es2020"],
+
+        "noImplicitAny": false,
+        "noImplicitThis": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+
+        "forceConsistentCasingInFileNames": true,
+
+        "allowJs": true,
+        "noEmit": true,
+
+        "checkJs": true,
+        "esModuleInterop": true,
+
+        "strict": false
+    },
+     "include": ["../examples/**/*.js"]
+}

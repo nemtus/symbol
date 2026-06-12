@@ -19,17 +19,16 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { MockServer, test } = require('./utils/routeTestUtils');
-const catapult = require('../../src/catapult-sdk/index');
-const { convertToLong } = require('../../src/db/dbUtils');
-const blockRoutes = require('../../src/routes/blockRoutes');
-const routeResultTypes = require('../../src/routes/routeResultTypes');
-const routeUtils = require('../../src/routes/routeUtils');
-const { expect } = require('chai');
-const sinon = require('sinon');
-
-const { address } = catapult.model;
-const { convert } = catapult.utils;
+import MockServer from './utils/MockServer.js';
+import test from './utils/routeTestUtils.js';
+import { convertToLong } from '../../src/db/dbUtils.js';
+import blockRoutes from '../../src/routes/blockRoutes.js';
+import routeResultTypes from '../../src/routes/routeResultTypes.js';
+import routeUtils from '../../src/routes/routeUtils.js';
+import { expect } from 'chai';
+import sinon from 'sinon';
+import { utils } from 'symbol-sdk';
+import { Address } from 'symbol-sdk/symbol';
 
 describe('block routes', () => {
 	const addChainStatisticToDb = db => { db.chainStatisticCurrent = () => Promise.resolve({ height: convertToLong(10) }); };
@@ -38,10 +37,10 @@ describe('block routes', () => {
 	describe('blocks', () => {
 		describe('get', () => {
 			const testPublickeyString = '7DE16AEDF57EB9561D3E6EFA4AE66F27ABDA8AEC8BC020B6277360E31619DCE7';
-			const testPublickey = convert.hexToUint8(testPublickeyString);
+			const testPublickey = utils.hexToUint8(testPublickeyString);
 
 			const testAddressString = 'SBZ22LWA7GDZLPLQF7PXTMNLWSEZ7ZRVGRMWLXQ';
-			const testAddress = address.stringToAddress(testAddressString);
+			const testAddress = new Address(testAddressString).bytes;
 
 			const fakeBlock = { id: 0, meta: { transactionsCount: 0 }, block: { type: 33091 } };
 			const fakePaginatedBlock = {
@@ -84,7 +83,7 @@ describe('block routes', () => {
 						type: routeResultTypes.block,
 						structure: 'page'
 					});
-					expect(mockServer.next.calledOnce).to.equal(true);
+					expect(mockServer.done.calledOnce).to.equal(true);
 				});
 			});
 
@@ -92,12 +91,32 @@ describe('block routes', () => {
 				mockServer.callRoute(route, { params: { signerPublicKey: testPublickeyString } }).then(() => {
 					expect(dbBlocksFake.firstCall.args[0]).to.deep.equal(testPublickey);
 					expect(dbBlocksFake.firstCall.args[1]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[2]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[3]).to.deep.equal(undefined);
 				}));
 
 			it('forwards beneficiaryAddress filter', () =>
 				mockServer.callRoute(route, { params: { beneficiaryAddress: testAddressString } }).then(() => {
 					expect(dbBlocksFake.firstCall.args[0]).to.deep.equal(undefined);
 					expect(dbBlocksFake.firstCall.args[1]).to.deep.equal(testAddress);
+					expect(dbBlocksFake.firstCall.args[2]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[3]).to.deep.equal(undefined);
+				}));
+
+			it('forwards fromTimestamp filter', () =>
+				mockServer.callRoute(route, { params: { fromTimestamp: '123456' } }).then(() => {
+					expect(dbBlocksFake.firstCall.args[0]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[1]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[2]).to.deep.equal(123456n);
+					expect(dbBlocksFake.firstCall.args[3]).to.deep.equal(undefined);
+				}));
+
+			it('forwards toTimestamp filter', () =>
+				mockServer.callRoute(route, { params: { toTimestamp: '123456' } }).then(() => {
+					expect(dbBlocksFake.firstCall.args[0]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[1]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[2]).to.deep.equal(undefined);
+					expect(dbBlocksFake.firstCall.args[3]).to.deep.equal(123456n);
 				}));
 
 			describe('parses paging', () => {
@@ -114,7 +133,7 @@ describe('block routes', () => {
 						expect(paginationParser.firstCall.args[2]).to.deep.equal({ id: 'objectId', height: 'uint64' });
 
 						expect(dbBlocksFake.calledOnce).to.equal(true);
-						expect(dbBlocksFake.firstCall.args[2]).to.deep.equal(pagingBag);
+						expect(dbBlocksFake.firstCall.args[4]).to.deep.equal(pagingBag);
 						paginationParser.restore();
 					});
 				});
@@ -148,10 +167,10 @@ describe('block routes', () => {
 			config: routeConfig
 		});
 		builder.addDefault({
-			valid: { object: { height: '3' }, parsed: [[3, 0]], printable: '3' },
+			valid: { object: { height: '3' }, parsed: [3n], printable: '3' },
 			invalid: { object: { height: '10A' }, error: 'height has an invalid format' }
 		});
-		builder.addNotFoundInputTest({ object: { height: '11' }, parsed: [[11, 0]], printable: '11' }, 'chain height is too small');
+		builder.addNotFoundInputTest({ object: { height: '11' }, parsed: [11n], printable: '11' }, 'chain height is too small');
 	});
 
 	describe('block with merkle tree', () => {

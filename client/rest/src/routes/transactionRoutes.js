@@ -19,13 +19,12 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const routeResultTypes = require('./routeResultTypes');
-const routeUtils = require('./routeUtils');
-const catapult = require('../catapult-sdk/index');
-const errors = require('../server/errors');
-const { NotFoundError, InvalidArgumentError } = require('restify-errors');
+import routeResultTypes from './routeResultTypes.js';
+import routeUtils from './routeUtils.js';
+import catapult from '../catapult-sdk/index.js';
+import errors from '../server/errors.js';
+import { utils } from 'symbol-sdk';
 
-const { convert } = catapult.utils;
 const { PacketType } = catapult.packet;
 
 const constants = {
@@ -37,7 +36,7 @@ const constants = {
 
 const isValidTransactionGroup = group => ['confirmed', 'unconfirmed', 'partial'].includes(group);
 
-module.exports = {
+export default {
 	register: (server, db, services) => {
 		const sender = routeUtils.createSender(routeResultTypes.transaction);
 
@@ -45,22 +44,22 @@ module.exports = {
 			server,
 			services.connections,
 			{ routeName: '/transactions', packetType: PacketType.pushTransactions },
-			params => routeUtils.parseArgument(params, 'payload', convert.hexToUint8)
+			params => routeUtils.parseArgument(params, 'payload', utils.hexToUint8)
 		);
 
-		server.get('/transactions/:group', (req, res, next) => {
-			const { params } = req;
+		server.get('/transactions/:group', async (request, reply) => {
+			const { params } = request;
 
 			if (!isValidTransactionGroup(params.group))
-				return next(new NotFoundError());
+				throw errors.createNotFoundError();
 
 			if (params.address && (params.signerPublicKey || params.recipientAddress)) {
 				const errorMessage = 'can\'t filter by address if signerPublicKey or recipientAddress are already provided';
-				return next(new InvalidArgumentError(errorMessage));
+				throw errors.createInvalidArgumentError(errorMessage);
 			}
 
 			if ((params.fromTransferAmount || params.toTransferAmount) && !params.transferMosaicId)
-				return next(new InvalidArgumentError('can\'t filter by transfer amount if `transferMosaicId` is not provided'));
+				throw errors.createInvalidArgumentError('can\'t filter by transfer amount if `transferMosaicId` is not provided');
 
 			const filters = {
 				height: params.height ? routeUtils.parseArgument(params, 'height', 'uint64') : undefined,
@@ -78,34 +77,35 @@ module.exports = {
 				toTransferAmount: params.toTransferAmount ? routeUtils.parseArgument(params, 'toTransferAmount', 'uint64') : undefined
 			};
 			const options = routeUtils.parsePaginationArguments(params, services.config.pageSize, { id: 'objectId' });
-			return db.transactions(params.group, filters, options)
-				.then(result => routeUtils.createSender(routeResultTypes.transaction).sendPage(res, next)(result));
+			const result = await db.transactions(params.group, filters, options);
+			return reply.send(routeUtils.createSender(routeResultTypes.transaction).sendPage()(result));
 		});
 
-		server.get('/transactions/:group/:transactionId', (req, res, next) => {
-			const { params } = req;
+		server.get('/transactions/:group/:transactionId', async (request, reply) => {
+			const { params } = request;
 
 			if (!isValidTransactionGroup(params.group))
-				return next(new NotFoundError());
+				throw errors.createNotFoundError();
 
 			let paramType = constants.sizes.objectId === params.transactionId.length ? 'id' : undefined;
 			paramType = constants.sizes.hash === params.transactionId.length ? 'hash' : paramType;
 			if (!paramType)
-				throw Error(`invalid length of transaction id '${params.transactionId}'`);
+				throw errors.createInvalidArgumentError(`invalid length of transaction id '${params.transactionId}'`);
 
 			const transactionId = routeUtils.parseArgument(params, 'transactionId', 'id' === paramType ? 'objectId' : 'hash256');
 
 			const dbTransactionsRetriever = 'id' === paramType ? 'transactionsByIds' : 'transactionsByHashes';
-			return db[dbTransactionsRetriever](params.group, [transactionId]).then(sender.sendOne(params.transactionId, res, next));
+			const result = await db[dbTransactionsRetriever](params.group, [transactionId]);
+			return reply.send(sender.sendOne(params.transactionId)(result));
 		});
 
-		server.post('/transactions/:group', (req, res, next) => {
-			const { params } = req;
+		server.post('/transactions/:group', async (request, reply) => {
+			const { params } = request;
 
 			if (!isValidTransactionGroup(params.group))
-				return next(new NotFoundError());
+				throw errors.createNotFoundError();
 
-			if ((req.params.transactionIds && req.params.hashes) || (!params.transactionIds && !params.hashes))
+			if ((params.transactionIds && params.hashes) || (!params.transactionIds && !params.hashes))
 				throw errors.createInvalidArgumentError('either ids or hashes must be provided');
 
 			// normalize ids arg to be either in the transcationIds object or hashes (this is expected to change in the near future)
@@ -119,8 +119,8 @@ module.exports = {
 				: routeUtils.parseArgumentAsArray(params, 'hashes', 'hash256');
 
 			const dbTransactionsRetriever = params.transactionIds ? 'transactionsByIds' : 'transactionsByHashes';
-			return db[dbTransactionsRetriever](params.group, transactionIds)
-				.then(sender.sendArray(params.transactionIds || params.hashes, res, next));
+			const result = await db[dbTransactionsRetriever](params.group, transactionIds);
+			return reply.send(sender.sendArray(params.transactionIds || params.hashes)(result));
 		});
 	}
 };

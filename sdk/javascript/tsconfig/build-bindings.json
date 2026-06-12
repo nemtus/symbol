@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es2020",
+        "lib": ["es2020"],
+
+        "noImplicitAny": false,
+        "noImplicitThis": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+
+        "forceConsistentCasingInFileNames": true,
+
+        "allowJs": true,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "declarationDir": "../ts",
+
+        "checkJs": true,
+        "esModuleInterop": true,
+
+        "types": ["mocha", "node"],
+        "strict": false,
+        "rootDir": ".."
+    },
+     "include": ["../src/**/*.js", "../test/**/*.js", "../vectors/**/*.js"]
+}

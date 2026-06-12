@@ -78,7 +78,7 @@ namespace catapult { namespace ionet {
 		class SocketGuard final : public std::enable_shared_from_this<SocketGuard> {
 		public:
 			SocketGuard(boost::asio::io_context& ioContext, boost::asio::ssl::context& sslContext)
-					: m_strand(ioContext)
+					: m_strand(boost::asio::make_strand(ioContext))
 					, m_strandWrapper(m_strand)
 					, m_socket(ioContext, sslContext)
 					, m_sentinelByte(0) {
@@ -87,7 +87,7 @@ namespace catapult { namespace ionet {
 			}
 
 			SocketGuard(NetworkSocket&& socket, boost::asio::io_context& ioContext, boost::asio::ssl::context& sslContext)
-					: m_strand(ioContext)
+					: m_strand(boost::asio::make_strand(ioContext))
 					, m_strandWrapper(m_strand)
 					, m_socket(std::move(socket), sslContext)
 					, m_sentinelByte(0) {
@@ -100,7 +100,7 @@ namespace catapult { namespace ionet {
 				return m_socket;
 			}
 
-			boost::asio::io_context::strand& strand() {
+			Strand& strand() {
 				return m_strand;
 			}
 
@@ -116,8 +116,15 @@ namespace catapult { namespace ionet {
 
 		public:
 			void close() {
+				m_strandWrapper.dispatch(shared_from_this(), [](const auto& pGuard) {
+					pGuard->closeImpl();
+				});
+			}
+
+		private:
+			void closeImpl() {
 				if (m_isClosed.test_and_set()) {
-					abort();
+					abortImpl();
 					return;
 				}
 
@@ -132,22 +139,40 @@ namespace catapult { namespace ionet {
 					if (ec && !IsProtocolShutdown(ec))
 						CATAPULT_LOG(warning) << "async_write returned an error: " << ec.message();
 
-					abort();
+					abortImpl();
 				}));
 			}
 
+		public:
 			void abort() {
+				m_strandWrapper.dispatch(shared_from_this(), [](const auto& pGuard) {
+					pGuard->abortImpl();
+				});
+			}
+
+		private:
+			void abortImpl() {
 				boost::system::error_code ignoredEc;
 				m_socket.lowest_layer().close(ignoredEc);
+
+				m_isClosed.test_and_set();
 			}
 
 		private:
+			static int OpensslErrorGetReason(unsigned long errcode) {
+				if (ERR_SYSTEM_ERROR(errcode))
+					return errcode & ERR_SYSTEM_MASK;
+
+				return errcode & ERR_REASON_MASK;
+			}
+
 			static bool IsProtocolShutdown(const boost::system::error_code& ec) {
-				return boost::asio::error::get_ssl_category() == ec.category() && SSL_R_PROTOCOL_IS_SHUTDOWN == ERR_GET_REASON(ec.value());
+				return boost::asio::error::get_ssl_category() == ec.category()
+						&& SSL_R_PROTOCOL_IS_SHUTDOWN == OpensslErrorGetReason(static_cast<unsigned long>(ec.value()));
 			}
 
 		private:
-			boost::asio::io_context::strand m_strand;
+			Strand m_strand;
 			thread::StrandOwnerLifetimeExtender<SocketGuard> m_strandWrapper;
 			Socket m_socket;
 			uint8_t m_sentinelByte;
@@ -193,12 +218,12 @@ namespace catapult { namespace ionet {
 			public:
 				auto headerBuffer() const {
 					const auto& header = m_payload.header();
-					return boost::asio::buffer(reinterpret_cast<const uint8_t*>(&header), sizeof(header));
+					return boost::asio::buffer(static_cast<const void*>(&header), sizeof(header));
 				}
 
 				auto nextDataBuffer() {
-					auto rawBuffer = m_payload.buffers()[m_nextBufferIndex++];
-					return boost::asio::buffer(rawBuffer.pData, rawBuffer.Size);
+					const auto& rawBuffer = m_payload.buffers()[m_nextBufferIndex++];
+					return boost::asio::buffer(static_cast<const void*>(rawBuffer.pData), rawBuffer.Size);
 				}
 
 				bool tryComplete(const boost::system::error_code& ec) {
@@ -353,7 +378,7 @@ namespace catapult { namespace ionet {
 
 		namespace {
 			void ConfigureSslVerify(Socket& socket, Key& publicKey, const predicate<PacketSocketSslVerifyContext&>& verifyCallback) {
-				socket.set_verify_mode(boost::asio::ssl::verify_peer);
+				socket.set_verify_mode(boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert);
 				socket.set_verify_depth(1);
 				socket.set_verify_callback([&publicKey, verifyCallback](auto preverified, auto& asioVerifyContext) {
 					PacketSocketSslVerifyContext verifyContext(preverified, asioVerifyContext, publicKey);
@@ -384,7 +409,7 @@ namespace catapult { namespace ionet {
 
 		public:
 			void stats(const PacketSocket::StatsCallback& callback) {
-				PacketSocket::Stats stats;
+				PacketSocket::Stats stats{};
 				stats.IsOpen = m_socket.lowest_layer().is_open();
 				stats.NumUnprocessedBytes = m_buffer.size();
 				callback(stats);
@@ -431,7 +456,7 @@ namespace catapult { namespace ionet {
 				return m_publicKey;
 			}
 
-			boost::asio::io_context::strand& strand() {
+			Strand& strand() {
 				return m_pSocketGuard->strand();
 			}
 
@@ -560,7 +585,7 @@ namespace catapult { namespace ionet {
 				return m_socket.publicKey();
 			}
 
-			boost::asio::io_context::strand& strand() {
+			Strand& strand() {
 				return m_socket.strand();
 			}
 
@@ -751,7 +776,7 @@ namespace catapult { namespace ionet {
 		template<typename TCallbackWrapper>
 		class BasicConnectHandler final {
 		private:
-			using Resolver = boost::asio::ip::tcp::resolver;
+			using ResolverType = boost::asio::ip::tcp::resolver;
 
 		public:
 			BasicConnectHandler(
@@ -767,23 +792,16 @@ namespace catapult { namespace ionet {
 							options))
 					, m_resolver(ioContext)
 					, m_host(endpoint.Host)
-					, m_query(m_host, std::to_string(endpoint.Port))
+					, m_port(std::to_string(endpoint.Port))
 					, m_protocols(options.OutgoingProtocols)
 					, m_isCancelled(false)
 			{}
 
 		public:
 			void start() {
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4459) /* declaration of 'query' hides global declaration */
-#endif
-				m_resolver.async_resolve(m_query, m_wrapper.wrap([this](const auto& ec, auto iter) {
-					this->handleResolve(ec, std::move(iter));
+				m_resolver.async_resolve(m_host, m_port, m_wrapper.wrap([this](const auto& ec, const auto& results) {
+					this->handleResolve(ec, results);
 				}));
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 			}
 
 			void cancel() {
@@ -798,13 +816,13 @@ namespace catapult { namespace ionet {
 			}
 
 		private:
-			void handleResolve(const boost::system::error_code& ec, Resolver::iterator&& iter) {
+			void handleResolve(const boost::system::error_code& ec, const ResolverType::results_type& results) {
 				if (shouldAbort(ec, "resolving address"))
 					return invokeCallback(ConnectResult::Resolve_Error);
 
 				auto foundMatchingProtocol = false;
-				while (Resolver::iterator() != iter) {
-					auto endpoint = iter->endpoint();
+				for (const auto& result : results) {
+					const auto& endpoint = result.endpoint();
 					if (HasFlag(IpProtocol::IPv4, m_protocols) && boost::asio::ip::tcp::v4() == endpoint.protocol()) {
 						m_endpoint = endpoint;
 						foundMatchingProtocol = true;
@@ -822,8 +840,6 @@ namespace catapult { namespace ionet {
 						if (!HasFlag(IpProtocol::IPv4, m_protocols))
 							break;
 					}
-
-					++iter;
 				}
 
 				if (!foundMatchingProtocol)
@@ -878,9 +894,9 @@ namespace catapult { namespace ionet {
 			TCallbackWrapper& m_wrapper;
 
 			std::shared_ptr<StrandedPacketSocket> m_pSocket;
-			Resolver m_resolver;
+			ResolverType m_resolver;
 			std::string m_host;
-			Resolver::query m_query;
+			std::string m_port;
 			IpProtocol m_protocols;
 			bool m_isCancelled;
 			boost::asio::ip::tcp::endpoint m_endpoint;

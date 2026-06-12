@@ -13,6 +13,9 @@ class Printer:
 		# printer.name is 'fixed' field name
 		self.name = fix_name(lang_field_name(name or underline_name(self.descriptor.name)))
 
+	def sort(self, _field_name):  # pylint: disable=no-self-use
+		return None
+
 
 class IntPrinter(Printer):
 	def __init__(self, descriptor, name=None):
@@ -29,9 +32,16 @@ class IntPrinter(Printer):
 	def get_size(self):
 		return self.descriptor.size
 
-	def load(self, buffer_name='byteArray'):
+	def load(self, buffer_name='byteArray', is_aligned=False):
 		data_size = self.get_size()
-		return f'converter.bytesToInt({buffer_name}, {data_size}, {js_bool(not self.descriptor.is_unsigned)})'
+		arguments = f'{buffer_name}, {data_size}, {js_bool(not self.descriptor.is_unsigned)}'
+		qualifier = '' if data_size < 8 else 'Big'
+
+		# is_aligned - handles both generation of deserializeAligned for pod and enum types and generation of fields within struct
+		if is_aligned:
+			return f'converter.bytesTo{qualifier}Int({arguments})'
+
+		return f'converter.bytesTo{qualifier}IntUnaligned({arguments})'
 
 	def advancement_size(self):
 		return self.get_size()
@@ -46,6 +56,9 @@ class IntPrinter(Printer):
 	@staticmethod
 	def to_string(field_name):
 		return f'\'0x\'.concat({field_name}.toString(16))'
+
+	def to_json(self, field_name):
+		return f'{field_name}.toString()' if 8 == self.descriptor.size else field_name
 
 
 class TypedArrayPrinter(Printer):
@@ -74,15 +87,25 @@ class TypedArrayPrinter(Printer):
 
 		return f'arrayHelpers.size(this.{self.name})'
 
-	def load(self, buffer_name):
+	def _get_sort_comparer(self, variable_name):
+		sort_key = lang_field_name(self.descriptor.field_type.sort_key)
+		comparer = f'({variable_name}.{sort_key}.comparer ? {variable_name}.{sort_key}.comparer() : {variable_name}.{sort_key}.value)'
+		return comparer
+
+	def _get_sort_accessor(self):
+		accessor = f'e => ({self._get_sort_comparer("e")})'
+		return accessor
+
+	def load(self, buffer_name, is_aligned):
 		del buffer_name
+		del is_aligned
 		element_type = self.descriptor.field_type.element_type
 
-		if self.is_variable_size:
-			# use either type name or if it's an abstract type use a factory instead
-			if self.descriptor.extensions.is_contents_abstract:
-				element_type = f'{element_type}Factory'
+		# use either type name or if it's an abstract type use a factory instead
+		if self.descriptor.extensions.is_contents_abstract:
+			element_type = f'{element_type}Factory'
 
+		if self.is_variable_size:
 			buffer_view = None
 			if self.descriptor.field_type.is_expandable:
 				buffer_view = 'view.buffer'
@@ -103,8 +126,7 @@ class TypedArrayPrinter(Printer):
 			lang_field_name(str(self.descriptor.size)),
 		]
 		if self.descriptor.field_type.sort_key:
-			accessor = f'e => e.{lang_field_name(self.descriptor.field_type.sort_key)}.value'
-			args.append(accessor)
+			args.append(self._get_sort_accessor())
 
 		args_str = ', '.join(args)
 		return f'arrayHelpers.readArrayCount({args_str})'
@@ -135,8 +157,7 @@ class TypedArrayPrinter(Printer):
 			args.append(str(size))
 
 		if self.descriptor.field_type.sort_key:
-			accessor = f'e => e.{lang_field_name(self.descriptor.field_type.sort_key)}.value'
-			args.append(accessor)
+			args.append(self._get_sort_accessor())
 
 		args_str = ', '.join(args)
 		if isinstance(size, str):
@@ -144,9 +165,23 @@ class TypedArrayPrinter(Printer):
 
 		return f'arrayHelpers.writeArrayCount({args_str})'
 
+	def sort(self, field_name):
+		if not self.descriptor.field_type.sort_key:
+			return None
+
+		body = f'{field_name} = {field_name}.sort((lhs, rhs) => arrayHelpers.deepCompare(\n'
+		body += f'\t{self._get_sort_comparer("lhs")},\n'
+		body += f'\t{self._get_sort_comparer("rhs")}\n'
+		body += '));'
+		return body
+
 	@staticmethod
 	def to_string(field_name):
 		return f'{field_name}.map(e => e.toString()).join(\',\')'
+
+	@staticmethod
+	def to_json(field_name):
+		return f'{field_name}.map(e => e.toJson())'
 
 
 class ArrayPrinter(Printer):
@@ -172,7 +207,8 @@ class ArrayPrinter(Printer):
 
 		return size
 
-	def load(self, buffer_name='byteArray'):
+	def load(self, buffer_name='byteArray', is_aligned=False):
+		del is_aligned
 		return f'new Uint8Array({buffer_name}.buffer, {buffer_name}.byteOffset, {self.advancement_size()})'
 
 	def advancement_size(self):
@@ -189,6 +225,9 @@ class ArrayPrinter(Printer):
 	@staticmethod
 	def to_string(field_name):
 		return f'converter.uint8ToHex({field_name})'
+
+	def to_json(self, field_name):
+		return self.to_string(field_name)
 
 
 class BuiltinPrinter(Printer):
@@ -217,12 +256,16 @@ class BuiltinPrinter(Printer):
 	def get_size(self):
 		return f'this.{self.name}.size'
 
-	def load(self, buffer_name='view.buffer'):
-		if DisplayType.STRUCT == self.descriptor.display_type and self.descriptor.is_abstract:
+	def load(self, buffer_name='view.buffer', is_aligned=False):
+		display_type = self.descriptor.display_type
+		if DisplayType.STRUCT == display_type and self.descriptor.is_abstract:
 			# HACK: factories use this printers as well, ignore them
 			if 'parent' != self.name:
 				factory_name = self.get_type() + 'Factory'
 				return f'{factory_name}.deserialize({buffer_name})'
+
+		if is_aligned and display_type in (DisplayType.INTEGER, DisplayType.ENUM):
+			return f'{self.get_type()}.deserializeAligned({buffer_name})'
 
 		return f'{self.get_type()}.deserialize({buffer_name})'
 
@@ -233,12 +276,19 @@ class BuiltinPrinter(Printer):
 	def store(field_name):
 		return f'{field_name}.serialize()'
 
+	def sort(self, field_name):
+		return f'{field_name}.sort();' if DisplayType.STRUCT == self.descriptor.display_type else None
+
 	def assign(self, value):
 		return f'{self.get_type()}.{value}'
 
 	@staticmethod
 	def to_string(field_name):
 		return f'{field_name}.toString()'
+
+	@staticmethod
+	def to_json(field_name):
+		return f'{field_name}.toJson()'
 
 
 def create_pod_printer(descriptor, name=None):

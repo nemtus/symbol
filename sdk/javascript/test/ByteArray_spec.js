@@ -1,7 +1,7 @@
-const { ByteArray } = require('../src/ByteArray');
-const converter = require('../src/utils/converter');
-const { expect } = require('chai');
-const crypto = require('crypto');
+import ByteArray from '../src/ByteArray.js';
+import { uint8ToHex } from '../src/utils/converter.js';
+import { expect } from 'chai';
+import crypto from 'crypto';
 
 describe('ByteArray', () => {
 	const FIXED_SIZE = 24;
@@ -39,12 +39,20 @@ describe('ByteArray', () => {
 	it('cannot create byte array with incorrect number of hex characters', () => {
 		[0, FIXED_SIZE - 1, FIXED_SIZE + 1].forEach(size => {
 			expect(() => {
-				new ByteArray(FIXED_SIZE, converter.uint8ToHex(crypto.randomBytes(size))); // eslint-disable-line no-new
+				new ByteArray(FIXED_SIZE, uint8ToHex(crypto.randomBytes(size))); // eslint-disable-line no-new
 			}).to.throw('bytes was size');
 		});
 	});
 
 	it('supports toString', () => {
 		expect(new ByteArray(FIXED_SIZE, TEST_BYTES).toString()).to.equal(TEST_HEX);
+	});
+
+	it('supports toJson', () => {
+		expect(new ByteArray(FIXED_SIZE, TEST_BYTES).toJson()).to.equal(TEST_HEX);
+	});
+
+	it('supports NAME', () => {
+		expect(ByteArray.NAME).to.equal('ByteArray');
 	});
 });

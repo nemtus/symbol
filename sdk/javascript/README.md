@@ -1,257 +1,261 @@
-# @nemtus/symbol-sdk-typescript
+# Symbol-SDK
 
-Symbol SDK for TypeScript built with [official JavaScript SDK](https://github.com/symbol/symbol/tree/dev/sdk/javascript).
+[![lint][sdk-javascript-lint]][sdk-javascript-job] [![test][sdk-javascript-test]][sdk-javascript-job] [![vectors][sdk-javascript-vectors]][sdk-javascript-job] [![][sdk-javascript-cov]][sdk-javascript-cov-link] [![][sdk-javascript-package]][sdk-javascript-package-link]
 
-Note: Currently This is a very experimental level.
-Note: This repository is a fork of [symbol/symbol](https://github.com/symbol/symbol) to create and maintain a temporal npm package of symbol-sdk for TypeScript.
-Note: If you wanna refer the original Symbol Monorepo, please refer [https://github.com/symbol/symbol](https://github.com/symbol/symbol)
+[sdk-javascript-job]: https://jenkins.symbolsyndicate.us/blue/organizations/jenkins/Symbol%2Fgenerated%2Fsymbol%2Fjavascript/activity?branch=dev
+[sdk-javascript-lint]: https://jenkins.symbolsyndicate.us/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-lint
+[sdk-javascript-test]: https://jenkins.symbolsyndicate.us/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-test
+[sdk-javascript-vectors]: https://jenkins.symbolsyndicate.us/buildStatus/icon?job=Symbol%2Fgenerated%2Fsymbol%2Fjavascript%2Fdev%2F&config=sdk-javascript-vectors
+[sdk-javascript-cov]: https://codecov.io/gh/symbol/symbol/branch/dev/graph/badge.svg?token=SSYYBMK0M7&flag=sdk-javascript
+[sdk-javascript-cov-link]: https://codecov.io/gh/symbol/symbol/tree/dev/sdk/javascript
+[sdk-javascript-package]: https://img.shields.io/npm/v/symbol-sdk
+[sdk-javascript-package-link]: https://www.npmjs.com/package/symbol-sdk
 
-## For package users
+JavaScript SDK for interacting with the Symbol and NEM blockchains.
 
-### Install
+Most common functionality is grouped under facades so that the same programming paradigm can be used for interacting with both Symbol and NEM.
 
-```bash
-npm install @nemtus/symbol-sdk-typescript
+## Building the SDK
+
+* Manually install dependencies:
+    * [Node.js](https://nodejs.org/) (any [actively supported version](https://nodejs.org/en/about/previous-releases))
+    * [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+    * [Rustup](https://rustup.rs/)
+    * [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
+    * [Python 3](https://www.python.org/downloads/)
+
+* Install requirements for the generator module:
+
+    ```sh
+    python3 -m pip install -r generator/requirements.txt
+    ```
+
+* Run:
+
+    ```sh
+    npm install
+    scripts/ci/build.sh
+    ```
+
+* Optionally, to build the documentation, run:
+
+    ```sh
+    scripts/generate_docs.sh
+    ```
+
+## Sending a Transaction
+
+To send a transaction, first create a facade for the desired network:
+
+_Symbol_
+```javascript
+import { PrivateKey } from 'symbol-sdk';
+import { SymbolFacade, descriptors, models } from 'symbol-sdk/symbol';
+
+const facade = new SymbolFacade('testnet');
+```
+
+_NEM_
+```javascript
+import { PrivateKey } from 'symbol-sdk';
+import { NemFacade, descriptors, models } from 'symbol-sdk/nem';
+
+const facade = new NemFacade('testnet');
+````
+
+Second, describe the transaction using JavaScript object syntax. For example, a transfer transaction can be described as follows:
+
+_Symbol_
+```javascript
+const transaction = facade.transactionFactory.create({
+	type: 'transfer_transaction_v1',
+	signerPublicKey: '87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8',
+	fee: 1000000n,
+	deadline: 41998024783n,
+	recipientAddress: 'TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I',
+	mosaics: [
+		{ mosaicId: 0x7CDF3B117A3C40CCn, amount: 1000000n }
+	]
+});
+```
+
+_NEM_
+```javascript
+const transaction = facade.transactionFactory.create({
+	type: 'transfer_transaction_v1',
+	signerPublicKey: 'A59277D56E9F4FA46854F5EFAAA253B09F8AE69A473565E01FD9E6A738E4AB74',
+	fee: 0x186A0n,
+	timestamp: 191205516,
+	deadline: 191291916,
+	recipientAddress: 'TALICE5VF6J5FYMTCB7A3QG6OIRDRUXDWJGFVXNW',
+	amount: 5100000n
+});
+````
+
+Alternatively, strongly typed transaction bindings are provided:
+
+_Symbol_
+```javascript
+	const typedDescriptor = new descriptors.TransferTransactionV1Descriptor(
+		new Address('TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I'),
+		[
+			new descriptors.UnresolvedMosaicDescriptor(new models.UnresolvedMosaicId(0x7CDF3B117A3C40CCn), new models.Amount(1000000n))
+		],
+		'hello symbol'
+	);
+
+	const transaction = facade.createTransactionFromTypedDescriptor(
+		typedDescriptor,
+		new PublicKey('87DA603E7BE5656C45692D5FC7F6D0EF8F24BB7A5C10ED5FDA8C5CFBC49FCBC8'),
+		100,
+		60 * 60
+	);
+```
+
+_NEM_
+```javascript
+	const typedDescriptor = new descriptors.TransferTransactionV1Descriptor(
+		new Address('TALICE5VF6J5FYMTCB7A3QG6OIRDRUXDWJGFVXNW'),
+		new models.Amount(5100000n),
+		new descriptors.MessageDescriptor(models.MessageType.PLAIN, 'hello nem')
+	);
+
+	const transaction = facade.createTransactionFromTypedDescriptor(
+		typedDescriptor,
+		new PublicKey('A59277D56E9F4FA46854F5EFAAA253B09F8AE69A473565E01FD9E6A738E4AB74'),
+		0x186A0n,
+		60 * 60
+	);
+```
+
+Third, sign the transaction and attach the signature:
+
+
+```javascript
+const privateKey = new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC');
+const signature = facade.signTransaction(new facade.static.KeyPair(privateKey), transaction);
+
+const jsonPayload = facade.transactionFactory.static.attachSignature(transaction, signature);;
+```
+
+Finally, send the payload to the desired network using the specified node endpoint:
+
+_Symbol_: PUT `/transactions`
+<br>
+_NEM_: POST `/transaction/announce`
+
+
+## Usage Environments
+
+### Node
+
+Symbol-sdk is written node-first and published via npm, so simply install the package and import 'symbol-sdk':
+
+```sh
+npm install symbol-sdk
+```
+
+```js
+import { PrivateKey } from 'symbol-sdk';
+import { KeyPair } from 'symbol-sdk/symbol';
+
+const privateKey = new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC');
+console.log(`Private Key: ${privateKey.toString()}`);
+
+const keyPair = new KeyPair(privateKey);
+console.log(`Public Key: ${keyPair.publicKey.toString()}`);
+```
+
+### Browser
+
+Symbol-sdk is alternatively published as a bundled file, which can be imported directly for browser usage:
+
+```html
+<script type="module">
+	import { core, /* nem, */ symbol } from './node_modules/symbol-sdk/dist/bundle.web.js';
+
+	const { PrivateKey } = core;
+	const { KeyPair } = symbol;
+
+	const privateKey = new PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC');
+	console.log(`Private Key: ${privateKey.toString()}`);
+
+	const keyPair = new KeyPair(privateKey);
+	console.log(`Public Key: ${keyPair.publicKey.toString()}`);
+</script>
+```
+
+### Web Application / External Bundler
+
+If you want to use symbol-sdk within a browser application and/or are using a bundler, additional configuration of the bundler is required.
+
+For Webpack, the following configuration needs to be added:
+```js
+export default {
+	// ...
+	plugins: [
+		// configure browser replacements for node process and Buffer libraries
+		new webpack.ProvidePlugin({
+			process: 'process/browser',
+			Buffer: ['buffer', 'Buffer']
+		}),
+		// use a browser-optimized wasm for Ed25519 crypto operrations
+		new webpack.NormalModuleReplacementPlugin(
+			/symbol-crypto-wasm-node/,
+			`../../../symbol-crypto-wasm-web/symbol_crypto_wasm.js`
+		)
+	],
+
+	// configure browser polyfills for node crypto, path and stream libraries
+	resolve: {
+		extensions: ['.js'],
+		fallback: {
+			crypto: 'crypto-browserify',
+			path: 'path-browserify',
+			stream: 'stream-browserify'
+		}
+	},
+
+	experiments: {
+		// enable async loading of wasm files
+		asyncWebAssembly: true,
+		topLevelAwait: true
+	}
+	// ...
+}
 
 ```
 
-### Usage
+If everything is set up correctly, the same syntax as the Node example can be used.
 
-Example to send a simple transfer transaction.
+### TypeScript Support
 
-```typescript
-import { SymbolFacade } from "@nemtus/symbol-sdk-typescript/esm/facade/SymbolFacade";
-import { PrivateKey } from "@nemtus/symbol-sdk-typescript/esm/CryptoTypes";
-import { KeyPair } from "@nemtus/symbol-sdk-typescript/esm/symbol/KeyPair";
-import { Signature } from "@nemtus/symbol-sdk-typescript/esm/symbol/models";
-import {
-  Configuration,
-  NetworkRoutesApi,
-  TransactionRoutesApi,
-} from "@nemtus/symbol-sdk-openapi-generator-typescript-axios";
-import WebSocket from "ws";
+JavaScript SDK uses [node subpath exports](https://nodejs.org/api/packages.html#subpath-exports) for cleaner imports and depends on ES2020 functionality.
+For TypeScript compatibility, the following minimum settings must be specified in `tsconfig.json`:
 
-const NODE_DOMAIN = "symbol-test.next-web-technology.com";
-
-(async () => {
-  // Call NetworkRoutesApi.getNetworkProperties to get epochAdjustment and networkCurrencyMosaicId.
-  const configurationParameters = {
-    basePath: `http://${NODE_DOMAIN}:3000`,
-  };
-  const configuration = new Configuration(configurationParameters);
-  const networkRoutesApi = new NetworkRoutesApi(configuration);
-  const networkPropertiesDTO = (await networkRoutesApi.getNetworkProperties()).data;
-
-  // Remove s from the response of epochAdjustment and convert to number.
-  const epochAdjustmentOriginal = networkPropertiesDTO.network.epochAdjustment;
-  if (!epochAdjustmentOriginal) {
-    throw Error("epochAdjustment is not found");
-  }
-  const epochAdjustment = parseInt(epochAdjustmentOriginal.replace(/s/g, ""));
-
-  // Remove ' from the response of networkCurrencyMosaicId and convert to BigInt.
-  const networkCurrencyMosaicIdOriginal =
-    networkPropertiesDTO.chain.currencyMosaicId;
-  if (!networkCurrencyMosaicIdOriginal) {
-    throw Error("networkCurrencyMosaicId is not found");
-  }
-  const networkCurrencyMosaicId = BigInt(
-    networkCurrencyMosaicIdOriginal.replace(/'/g, "")
-  );
-
-  // Call NetworkRoutesApi.getNetworkType to get network name to be placed in facade. (ex. "testnet")
-  const networkTypeDTO = (await networkRoutesApi.getNetworkType()).data;
-  if (!networkTypeDTO) {
-    throw Error("networkType is not found");
-  }
-  const networkName = networkTypeDTO.name;
-
-  // Initialize SDK with network name.
-  const facade = new SymbolFacade(networkName);
-
-  // Restore account to send a transaction.
-  const privateKey = new PrivateKey("PUT_YOUR_PRIVATE_KEY_HERE");
-  const keyPair = new KeyPair(privateKey);
-  const signerPublicKeyString = keyPair.publicKey.toString();
-  const signerAddressString = facade.network
-    .publicKeyToAddress(keyPair.publicKey)
-    .toString();
-
-  // Calculate deadline. (The following sample means 2 hours.)
-  const now = Date.now();
-  const deadline = BigInt(now - epochAdjustment * 1000 + 2 * 60 * 60 * 1000);
-
-  // Recipient Address
-  const recipientAddressString = "TBK7XV2NHC466HZ63XC7RPESLNXFEGCSJ3ZZ2FY";
-
-  // Create a transfer transaction data.
-  const transaction = facade.transactionFactory.create({
-    type: "transfer_transaction",
-    signerPublicKey: signerPublicKeyString,
-    deadline,
-    recipientAddress: recipientAddressString,
-    mosaics: [{ mosaicId: networkCurrencyMosaicId, amount: 1000000n }],
-  });
-
-  // Set fee.
-  const feeMultiplier = 100;
-  (transaction as any).fee.value = BigInt(
-    (transaction as any).size * feeMultiplier
-  );
-
-  // Sign.
-  const signature = facade.signTransaction(keyPair, transaction);
-  (transaction as any).signature = new Signature(signature.bytes);
-
-  // Set the generationHashSeed. (It is a network-specific value.)
-  (transaction as any).network.generationHashSeed = facade.network;
-
-  // Calculate transaction hash.
-  const hash = facade.hashTransaction(transaction);
-  console.log(hash.toString());
-  console.log(`https://testnet.symbol.fyi/transactions/${hash.toString()}`);
-
-  // Add signature to transaction data and create final data to announce. When you announce transaction, you need to use this value.
-  const transactionPayload = (facade.transactionFactory.constructor as any).attachSignature(transaction, signature);
-
-  // Transaction monitoring status.
-  const confirmationHeight = 6; // ex. 6conf
-  let transactionHeight = 0;
-  let blockHeight = 0;
-  let finalizedBlockHeight = 0;
-
-  // Define websocket.
-  const ws = new WebSocket(`wss://${NODE_DOMAIN}:3001/ws`);
-
-  ws.on("open", () => {
-    console.log("connection open");
-  });
-
-  ws.on("close", () => {
-    console.log("connection closed");
-  });
-
-  ws.on("message", (msg: any) => {
-    const res = JSON.parse(msg);
-    if ("uid" in res) {
-      console.log(`uid : ${res.uid}`);
-
-      // Monitor target address related unconfirmed transaction.
-      const unconfirmedBody = `{"uid": "${res.uid}", "subscribe": "unconfirmedAdded/${recipientAddressString}"}`;
-      console.log(unconfirmedBody);
-      ws.send(unconfirmedBody);
-
-      // Monitor target address related confirmed transaction.
-      const confirmedBody = `{"uid": "${res.uid}", "subscribe": "confirmedAdded/${recipientAddressString}"}`;
-      console.log(confirmedBody);
-      ws.send(confirmedBody);
-
-      // Monitor target address related confirmed transaction.
-      const statusBody = `{"uid": "${res.uid}", "subscribe": "status/${recipientAddressString}"}`;
-      console.log(statusBody);
-      ws.send(statusBody);
-
-      // Monitor newly generated block.
-      const blockBody = `{"uid": "${res.uid}", "subscribe": "block"}`;
-      console.log(blockBody);
-      ws.send(blockBody);
-
-      // Monitor finalized block.
-      const finalizedBlockBody = `{"uid": "${res.uid}", "subscribe": "finalizedBlock"}`;
-      console.log(finalizedBlockBody);
-      ws.send(finalizedBlockBody);
-    }
-
-    // Execute when unconfirmed transaction is detected.
-    if (
-      res.topic === `unconfirmedAdded/${recipientAddressString}` &&
-      res.data.meta.hash === hash.toString()
-    ) {
-      console.log("transaction unconfirmed");
-    }
-
-    // Execute when confirmed transaction is detected.
-    if (
-      res.topic === `confirmedAdded/${recipientAddressString}` &&
-      res.data.meta.hash === hash.toString()
-    ) {
-      console.log("transaction confirmed");
-      transactionHeight = parseInt(res.data.meta.height);
-    }
-
-    // Execute when new block is generated.
-    if (res.topic === `block`) {
-      console.log("block");
-      blockHeight = parseInt(res.data.block.height);
-    }
-
-    // Execute when a specified block is finalized.
-    if (res.topic === `finalizedBlock`) {
-      console.log("finalizedBlock");
-      console.log(res);
-      finalizedBlockHeight = parseInt(res.data.height);
-    }
-
-    // Execute when the transaction failed.
-    if (
-      res.topic === `status/${recipientAddressString}` &&
-      res.data.hash === hash.toString()
-    ) {
-      console.log(res.data.code);
-      ws.close();
-    } else {
-      console.log(res);
-    }
-
-    // After the blocks required for confirmation are generated, end to monitor.
-    if (
-      transactionHeight !== 0 &&
-      transactionHeight + confirmationHeight - 1 <= blockHeight
-    ) {
-      console.log(
-        `${confirmationHeight} blocks confirmed. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
-      );
-      ws.close();
-    } else {
-      console.log(
-        `wait for ${confirmationHeight} blocks. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
-      );
-    }
-
-    // After finalizedBlockHeight overtakes the transactionHeight, end monitoring.
-    if (transactionHeight !== 0 && transactionHeight <= finalizedBlockHeight) {
-      console.log(
-        `${finalizedBlockHeight} block finalized. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
-      );
-      ws.close();
-    } else {
-      console.log(
-        `wait for finalized block. transactionHeight is ${transactionHeight} blockHeight is ${blockHeight}.`
-      );
-    }
-  });
-
-  // Announce transaction.
-  try {
-    const transactionRoutesApi = new TransactionRoutesApi(configuration);
-    console.log(transactionPayload);
-    const response = await transactionRoutesApi.announceTransaction({
-      transactionPayload,
-    });
-    console.log(response.data);
-  } catch (err) {
-    console.error(err);
-  }
-})();
-
+```json
+	{
+		"compilerOptions": {
+			"target": "ES2020",
+			"module": "Node16",
+			"moduleResolution": "Node16"
+		}
+	}
 ```
 
-## For Developers
+## NEM Cheat Sheet
 
-### Build for TypeScript
+In order to simplify the learning curve for NEM and Symbol usage, the SDK uses Symbol terminology for shared Symbol and NEM concepts.
+Where appropriate, NEM terminology is replaced with Symbol terminology, including the names of many of the NEM transactions.
+The mapping of NEM transactions to SDK descriptors can be found in the following table:
 
-```bash
-npm install
-npm run build
-
-```
+| NEM name (used in docs) | SDK descriptor name|
+|--- |--- |
+| ImportanceTransfer transaction | `account_key_link_transaction_v1` |
+| MosaicDefinitionCreation transaction | `mosaic_definition_transaction_v1` |
+| MosaicSupplyChange transaction | `mosaic_supply_change_transaction_v1` |
+| MultisigAggregateModification transaction | `multisig_account_modification_transaction_v1`<br>`multisig_account_modification_transaction_v2` |
+| MultisigSignature transaction or Cosignature transaction | `cosignature_v1` |
+| Multisig transaction | `multisig_transaction_v1` |
+| ProvisionNamespace transaction | `namespace_registration_transaction_v1` |
+| Transfer transaction | `transfer_transaction_v1`<br>`transfer_transaction_v2` |

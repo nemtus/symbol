@@ -19,9 +19,9 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { buildOffsetCondition } = require('../../db/dbUtils');
+import { buildOffsetCondition } from '../../db/dbUtils.js';
 
-class LockHashDb {
+export default class LockHashDb {
 	/**
 	 * Creates LockHashDb around CatapultDb.
 	 * @param {module:db/CatapultDb} db Catapult db instance.
@@ -34,10 +34,10 @@ class LockHashDb {
 
 	/**
 	 * Retrieves hash lock infos for given accounts filtered and paginated.
-	 * @param {array<{Uint8Array}>} addresses Account addresses.
+	 * @param {Array<Uint8Array>} addresses Account addresses.
 	 * @param {object} options Options for ordering and pagination. Can have an `offset`, and must contain the `sortField`, `sortDirection`,
 	 * `pageSize` and `pageNumber`. 'sortField' must be within allowed 'sortingOptions'.
-	 * @returns {Promise.<array>} Hash lock infos for all accounts.
+	 * @returns {Promise<Array<object>>} Hash lock infos for all accounts.
 	 */
 	hashLocks(addresses, options) {
 		const sortingOptions = { id: '_id' };
@@ -56,7 +56,7 @@ class LockHashDb {
 	/**
 	 * Retrieves hash info for given hash.
 	 * @param {Uint8Array[]} ids Lock hash.
-	 * @returns {Promise.<object>} Hash lock info for a hash.
+	 * @returns {Promise<object>} Hash lock info for a hash.
 	 */
 	hashLockByHash(ids) {
 		const hashes = ids.map(id => Buffer.from(id));
@@ -70,5 +70,3 @@ class LockHashDb {
 
 	// endregion
 }
-
-module.exports = LockHashDb;

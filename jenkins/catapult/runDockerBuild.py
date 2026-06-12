@@ -12,6 +12,7 @@ CONAN_ROOT = CACHE_ROOT / 'conan'
 
 OUTPUT_DIR = Path.cwd() / 'output'
 BINARIES_DIR = OUTPUT_DIR / 'binaries'
+USER_HOME = Path(EnvironmentManager.root_directory('usr/catapult')).resolve()
 
 
 class OptionsManager(BasicBuildManager):
@@ -49,30 +50,29 @@ class OptionsManager(BasicBuildManager):
 
 	@property
 	def ccache_path(self):
+		ccache_architecture_path = CCACHE_ROOT / self.architecture / self.versioned_compiler
 		if self.enable_code_coverage:
-			return CCACHE_ROOT / 'cc'
+			return ccache_architecture_path / 'cc'
 
-		return CCACHE_ROOT / ('release' if self.is_release else 'all')
+		if self.is_release:
+			return ccache_architecture_path / 'release'
+
+		return ccache_architecture_path / ('conan' if self.use_conan else 'all')
 
 	@property
 	def conan_path(self):
-		if self.is_clang:
-			return CONAN_ROOT / 'clang'
-
-		if self.is_msvc:
-			return CONAN_ROOT / 'msvc'
-
-		return CONAN_ROOT / 'gcc'
+		return CONAN_ROOT / self.architecture / self.versioned_compiler
 
 	def docker_run_settings(self):
-		if self.is_msvc:
-			return []
-
 		settings = [
-			('CC', self.compiler.c),
-			('CXX', self.compiler.cpp),
 			('CCACHE_DIR', '/ccache')
 		]
+
+		if not self.is_msvc:
+			settings.extend([
+				('CC', self.compiler.c),
+				('CXX', self.compiler.cpp)
+			])
 
 		return [f'--env={key}={value}' for key, value in sorted(settings)]
 
@@ -106,12 +106,13 @@ def create_docker_run_command(options, prepare_replacements):
 
 	docker_args.extend(docker_run_settings)
 	docker_args.extend(volume_mappings)
-
+	compiler_config_filepath = Path(prepare_replacements['compiler_configuration_filepath'])
+	inner_compiler_configuration_path = f'{inner_configuration_path}/{compiler_config_filepath.parent.name}/{compiler_config_filepath.name}'
 	docker_args.extend([
 		options.build_base_image_name,
 		'python3', '/scripts/runDockerBuildInnerBuild.py',
 		# assume paths are relative to workdir
-		f'--compiler-configuration={inner_configuration_path}/{get_base_from_path(prepare_replacements["compiler_configuration_filepath"])}',
+		f'--compiler-configuration={inner_compiler_configuration_path}',
 		f'--build-configuration={inner_configuration_path}/{get_base_from_path(prepare_replacements["build_configuration_filepath"])}',
 		'--source-path=/catapult-src/client/catapult',
 		'--out-dir=/binaries'
@@ -147,19 +148,27 @@ def prepare_docker_image(process_manager, container_id, prepare_replacements):
 	script_path = prepare_replacements['script_path']
 	process_manager.dispatch_subprocess([
 		'docker', 'run',
+		f'--user={prepare_replacements["user"]}',
 		f'--cidfile={cid_filepath}',
 		f'--volume={script_path}:{EnvironmentManager.root_directory("scripts")}',
 		f'--volume={OUTPUT_DIR}:{EnvironmentManager.root_directory("data")}',
 		f'registry.hub.docker.com/{prepare_replacements["base_image_name"]}',
 		'python3', '/scripts/runDockerBuildInnerPrepare.py',
-		f'--disposition={build_disposition}'
+		f'--disposition={build_disposition}',
+		f'--user-home={USER_HOME}'
 	])
 
 	if not container_id:
 		with open(cid_filepath, 'rt', encoding='utf8') as cid_infile:
 			container_id = cid_infile.read()
 
-	process_manager.dispatch_subprocess(['docker', 'commit', container_id, destination_image_name])
+	process_manager.dispatch_subprocess([
+		'docker', 'commit',
+		'--change', f'WORKDIR {USER_HOME}',
+		'--change', f'ENV LD_LIBRARY_PATH="{USER_HOME}/lib:{USER_HOME}/deps"',
+		container_id,
+		destination_image_name
+	])
 
 
 def get_script_path():
@@ -209,7 +218,7 @@ def main():
 
 	process_manager = ProcessManager(args.dry_run)
 
-	return_code = process_manager.dispatch_subprocess(docker_run)
+	return_code = process_manager.dispatch_subprocess(docker_run, handle_error=not environment_manager.is_windows_platform())
 	if return_code:
 		sys.exit(return_code)
 
@@ -230,7 +239,8 @@ def main():
 		'destination_image_label': args.destination_image_label,
 		'build_disposition': options.build_disposition,
 		'source_path': source_path,
-		'script_path': script_path
+		'script_path': script_path,
+		'user': 'ContainerAdministrator' if 'windows' == args.operating_system else 'root'
 	})
 
 

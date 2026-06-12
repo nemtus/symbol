@@ -19,21 +19,19 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const catapult = require('../../src/catapult-sdk/index');
-const MessageChannelBuilder = require('../../src/connection/MessageChannelBuilder');
-const { createZmqConnectionService } = require('../../src/connection/zmqService');
-const bootstrapper = require('../../src/server/bootstrapper');
-const errors = require('../../src/server/errors');
-const formatters = require('../../src/server/formatters');
-const test = require('../testUtils');
-const axios = require('axios');
-const { AssertionError, expect } = require('chai');
-const restify = require('restify');
-const sinon = require('sinon');
-const winston = require('winston');
-const WebSocket = require('ws');
-const zmq = require('zeromq');
-const EventEmitter = require('events');
+import MessageChannelBuilder from '../../src/connection/MessageChannelBuilder.js';
+import createZmqConnectionService from '../../src/connection/zmqService.js';
+import bootstrapper from '../../src/server/bootstrapper.js';
+import errors from '../../src/server/errors.js';
+import formatters from '../../src/server/formatters.js';
+import test from '../testUtils.js';
+import axios from 'axios';
+import { AssertionError, expect } from 'chai';
+import sinon from 'sinon';
+import winston from 'winston';
+import WebSocket from 'ws';
+import zmq from 'zeromq';
+import EventEmitter from 'events';
 
 const supportedHttpMethods = ['get', 'post', 'put'];
 
@@ -61,39 +59,32 @@ const createChainStatistic = (height, scoreLow, scoreHigh) => ({
 
 const addRestRoutes = server => {
 	supportedHttpMethods.forEach(method => {
-		server[method]('/dummy/:dummyId', (req, res, next) => {
-			const { dummyId } = req.params;
+		server[method]('/dummy/:dummyId', async (request, reply) => {
+			const { dummyId } = request.params;
 
 			switch (dummyId) {
 			case dummyIds.valid: {
 				// respond with a valid chain info
 				const chainStatistic = createChainStatistic(10, 16, 11);
-				res.send({ payload: chainStatistic, type: 'chainStatistic' });
-				break;
+				return reply.send({ payload: chainStatistic, type: 'chainStatistic' });
 			}
 
 			case dummyIds.replayTag: {
 				// respond with a valid chain info computed from the tag parameter
-				const tag = req.params.tag | 0; // query parameters are parsed as strings so convert to int
+				const tag = request.params.tag | 0; // query parameters are parsed as strings so convert to int
 				const chainStatistic = createChainStatistic(tag, tag, tag);
-				res.send({ payload: chainStatistic, type: 'chainStatistic' });
-				break;
+				return reply.send({ payload: chainStatistic, type: 'chainStatistic' });
 			}
 
 			case dummyIds.notFound:
-				res.send(errors.createNotFoundError('foo')); // http errors are mapped properly
-				break;
+				throw errors.createResourceNotFoundError('foo'); // http errors are mapped properly
 
 			case dummyIds.redirect:
-				res.redirect(`/dummy/${dummyIds.valid}`, next);
-				return undefined; // don't call next below because it is called by res.redirect
+				return reply.header('location', `/dummy/${dummyIds.valid}`).code(302).type('application/json').send(Buffer.from('null'));
 
 			case dummyIds.asyncValid:
 				return Promise.resolve({ current: { height: [11, 11] } })
-					.then(chainStatistic => {
-						res.send({ payload: chainStatistic, type: 'chainStatistic' });
-						next();
-					});
+					.then(chainStatistic => reply.send({ payload: chainStatistic, type: 'chainStatistic' }));
 
 			case dummyIds.asyncError:
 				return Promise.reject(Error('async badness'));
@@ -101,10 +92,11 @@ const addRestRoutes = server => {
 			default:
 				throw Error('badness'); // exceptions are handled properly
 			}
+		});
 
-			// complete non-async, non-exceptional handling
-			next();
-			return undefined;
+		// text/plain endpoints (e.g. supply)
+		server[method]('/network/currency/supply/circulating', async (request, reply) => {
+			reply.type('text/plain').send('12345.678');
 		});
 	});
 };
@@ -139,7 +131,7 @@ const createFormatters = options => formatters.create({
 				const { block } = blockHeaderWithMetadata;
 				return {
 					height: block.height,
-					signerPublicKey: catapult.utils.convert.uint8ToHex(block.signerPublicKey)
+					signerPublicKey: block.signerPublicKey
 				};
 			}
 		}
@@ -159,16 +151,20 @@ const createWebSocketServer = () => createServer({ protocol: 'HTTP', formatterNa
 // region makeWrappedRequest
 
 const makeWrappedRequest = (server, options = {}) => {
-	const serverAddress = server.listen(options.port || 0).address();
+	// kick off the listen but don't block — route() and end() will resolve lazily
+	const listenPromise = server.listen(options.port || 0);
 
 	const requestOptions = {
 		maxRedirects: 0,
 		headers: {
 			'User-Agent': 'requestWrapper',
 			'Content-Type': 'application/json; charset=utf-8',
-			Accept: 'application/json'
+			Accept: 'application/json',
+			Connection: 'close'
 		}
 	};
+
+	let storedRoute = '/';
 
 	const expectations = { status: 200, headers: {} };
 	const requestWrapper = {
@@ -185,7 +181,13 @@ const makeWrappedRequest = (server, options = {}) => {
 				handler(res.headers, res.data);
 			};
 
-			return axios(requestOptions)
+			return listenPromise
+				.then(httpServer => {
+					const serverAddress = httpServer.address();
+					const protocol = options.protocol || 'http';
+					requestOptions.url = `${protocol}://127.0.0.1:${serverAddress.port}${storedRoute}`;
+				})
+				.then(() => axios(requestOptions))
 				.then(wrappedHandler)
 				.catch(error => {
 					if (error instanceof AssertionError)
@@ -199,8 +201,7 @@ const makeWrappedRequest = (server, options = {}) => {
 			return requestWrapper;
 		},
 		route: route => {
-			const protocol = options.protocol || 'http';
-			requestOptions.url = `${protocol}://127.0.0.1:${serverAddress.port}${route}`;
+			storedRoute = route;
 			return requestWrapper;
 		},
 		header: (key, value) => {
@@ -235,71 +236,58 @@ describe('server (bootstrapper)', () => {
 		}
 	});
 
-	// throttling tests are not ideal (can't guarantee those were added to the server) because everything related
-	// to the restify server happens intrinsically and is too coupled - those are best-effort tests
+	// throttling tests verify config validation behaviour; the actual rate limiting is provided by @fastify/rate-limit
 	describe('throttling config', () => {
-		it('uses provided config', () => {
+		it('uses provided config without warnings', () => {
 			// Arrange:
 			const throttlingConfig = {
-				burst: 20,
-				rate: 5
+				max: 20,
+				timeWindow: 1000
 			};
-			const spy = sinon.spy(restify.plugins, 'throttle');
+			const logSpy = sinon.spy(winston, 'warn');
 
 			// Act:
 			bootstrapper.createServer({ protocol: 'HTTP' }, createFormatters(), throttlingConfig);
+			logSpy.restore();
 
-			// Assert:
-			expect(spy.calledOnceWith({
-				burst: 20,
-				rate: 5,
-				ip: true
-			})).to.equal(true);
-
-			spy.restore();
+			// Assert: no warning should be logged when config is complete
+			expect(logSpy.calledWith('throttling was not enabled - configuration is invalid or incomplete')).to.equal(false);
 		});
 
 		it('does not throttle if no configuration present', () => {
 			// Arrange:
-			const spy = sinon.spy(restify.plugins, 'throttle');
+			const logSpy = sinon.spy(winston, 'warn');
 
 			// Act:
 			bootstrapper.createServer({ protocol: 'HTTP' }, createFormatters());
+			logSpy.restore();
 
-			// Assert:
-			expect(spy.notCalled).to.equal(true);
-
-			spy.restore();
+			// Assert: no incomplete-config warning (only CORS warning is expected)
+			expect(logSpy.calledWith('throttling was not enabled - configuration is invalid or incomplete')).to.equal(false);
 		});
 
 		describe('does not throttle for incomplete configuration and logs a warning', () => {
 			it('missing rate', () => {
 				// Arrange:
-				const spy = sinon.spy(restify.plugins, 'throttle');
 				const logSpy = sinon.spy(winston, 'warn');
 
 				// Act:
 				bootstrapper.createServer({ protocol: 'HTTP' }, createFormatters(), { burst: 20 });
-				spy.restore();
 				logSpy.restore();
 
 				// Assert:
-				expect(spy.notCalled).to.equal(true);
 				expect(logSpy.calledWith('throttling was not enabled - configuration is invalid or incomplete')).to.equal(true);
 			});
 
 			it('missing burst', () => {
 				// Arrange:
-				const spy = sinon.spy(restify.plugins, 'throttle');
 				const logSpy = sinon.spy(winston, 'warn');
 
 				// Act:
 				bootstrapper.createServer({ protocol: 'HTTP' }, createFormatters(), { rate: 20 });
-				spy.restore();
 				logSpy.restore();
 
 				// Assert:
-				expect(spy.notCalled).to.equal(true);
 				expect(logSpy.calledWith('throttling was not enabled - configuration is invalid or incomplete')).to.equal(true);
 			});
 		});
@@ -418,13 +406,43 @@ describe('server (bootstrapper)', () => {
 					expect(body).to.deep.equal({ code: 'ResourceNotFound', message: '/fake/valid does not exist' });
 				}));
 
-			it('rejects request with invalid accept header', () => makeWrappedJsonRequest(`/dummy/${dummyIds.valid}`, method)
+			it('rejects text/plain for application/json endpoint', () => makeWrappedJsonRequest(`/dummy/${dummyIds.valid}`, method)
 				.header('Accept', 'text/plain')
 				.expectStatus(406)
 				.end((headers, body) => {
 					// Assert:
-					assertPayloadHeaders(headers, 69, methodOptions);
-					expect(body).to.deep.equal({ code: 'NotAcceptable', message: 'Server accepts: application/json' });
+					assertPayloadHeaders(headers, 75, methodOptions);
+					expect(body).to.deep.equal({ code: 'NotAcceptable', message: 'Endpoint accepts only application/json' });
+				}));
+
+			it('rejects application/json for text/plain endpoint', () => {
+				const request = makeWrappedJsonRequest('/network/currency/supply/circulating', method);
+				return request
+					.header('Accept', 'application/json')
+					.expectStatus(406)
+					.end((headers, body) => {
+						// Assert:
+						assertPayloadHeaders(headers, 69, methodOptions);
+						expect(body).to.deep.equal({ code: 'NotAcceptable', message: 'Endpoint accepts only text/plain' });
+					});
+			});
+
+			it('rejects unsupported accept type', () => makeWrappedJsonRequest(`/dummy/${dummyIds.valid}`, method)
+				.header('Accept', 'application/xml')
+				.expectStatus(406)
+				.end((headers, body) => {
+					// Assert:
+					assertPayloadHeaders(headers, 75, methodOptions);
+					expect(body).to.deep.equal({ code: 'NotAcceptable', message: 'Endpoint accepts only application/json' });
+				}));
+
+			it('accepts text/plain for text/plain endpoint', () => makeWrappedJsonRequest('/network/currency/supply/circulating', method)
+				.header('Accept', 'text/plain')
+				.expectStatus(200)
+				.end((headers, body) => {
+					// Assert:
+					expect(headers['content-type']).to.include('text/plain');
+					expect(body).to.equal(12345.678);
 				}));
 
 			// endregion
@@ -641,9 +659,8 @@ describe('server (bootstrapper)', () => {
 					protocol: 'HTTP',
 					crossDomain: { allowedMethods: ['FOO', 'OPTIONS', 'BAR'], allowedHosts: ['*'] }
 				});
-				const routeHandler = (req, res, next) => {
-					res.send(200);
-					next();
+				const routeHandler = async (request, reply) => {
+					reply.code(200).send({});
 				};
 
 				server.get('/dummy/:dummyId', routeHandler);
@@ -722,17 +739,17 @@ describe('server (bootstrapper)', () => {
 		it('creates https server with certificate and key given', () => createServer({
 			port: 3001,
 			protocol: 'HTTPS',
-			sslKeyPath: `${__dirname}/certs/restSSL.key`,
-			sslCertificatePath: `${__dirname}/certs/restSSL.crt`
+			sslKeyPath: `${import.meta.dirname}/certs/restSSL.key`,
+			sslCertificatePath: `${import.meta.dirname}/certs/restSSL.crt`
 		}));
 
 		it('throws error when the key path is missing', () => {
-			expect(() => createServer({ port: 3001, protocol: 'HTTPS', sslCertificatePath: `${__dirname}/certs/restSSL.crt` }))
+			expect(() => createServer({ port: 3001, protocol: 'HTTPS', sslCertificatePath: `${import.meta.dirname}/certs/restSSL.crt` }))
 				.to.throw('No SSL Key found, \'sslKeyPath\' property in the configuration must be provided.');
 		});
 
 		it('throws error when the certificate path is missing', () => {
-			expect(() => createServer({ port: 3001, protocol: 'HTTPS', sslKeyPath: `${__dirname}/certs/restSSL.key` }))
+			expect(() => createServer({ port: 3001, protocol: 'HTTPS', sslKeyPath: `${import.meta.dirname}/certs/restSSL.key` }))
 				.to.throw('No SSL Certificate found, '
 				+ '\'sslCertificatePath\' property in the configuration must be provided.');
 		});
@@ -753,8 +770,8 @@ describe('server (bootstrapper)', () => {
 			const server = createServer({
 				port: httpsPort,
 				protocol: 'HTTPS',
-				sslKeyPath: `${__dirname}/certs/restSSL.key`,
-				sslCertificatePath: `${__dirname}/certs/restSSL.crt`
+				sslKeyPath: `${import.meta.dirname}/certs/restSSL.key`,
+				sslCertificatePath: `${import.meta.dirname}/certs/restSSL.crt`
 			});
 
 			addRestRoutes(server);
@@ -779,47 +796,25 @@ describe('server (bootstrapper)', () => {
 		const ports = { server: 1234, mq: 7912 };
 		const delays = { publish: 50 };
 
-		const createBlockBuffer = tag => Buffer.concat([
-			Buffer.of(0x30, 0x01, 0x00, 0x00), // size 4b
-			Buffer.of(0x00, 0x00, 0x00, 0x00), // verifiable entity header reserved 1 4b
-			Buffer.from(test.random.bytes(test.constants.sizes.signature)), // signature 64b
-			Buffer.from('A4C656B45C02A02DEF64F15DD781DD5AF29698A353F414FAAA9CDB364A09F98F', 'hex'), // signerPublicKey 32b
-			Buffer.of(0x00, 0x00, 0x00, 0x00), // entity body reserved 1 4b
-			Buffer.of(0x03), // version 1b
-			Buffer.of(0x90), // network 1b
-			Buffer.of(0x00, 0x80), // type 2b
-			Buffer.of(0x97, 0x87, 0x45, 0x0E, tag || 0xE1, 0x6C, 0xB6, 0x62), // height 8b
-			Buffer.from(test.random.bytes(8)), // timestamp 8b
-			Buffer.from(test.random.bytes(8)), // difficulty 8b
-			Buffer.from(test.random.bytes(32)), // proofGamma 32b
-			Buffer.from(test.random.bytes(16)), // proofVerificationHash 16b
-			Buffer.from(test.random.bytes(32)), // proofScalar 32b
-			Buffer.from(test.random.bytes(test.constants.sizes.hash256)), // previous block hash 32b
-			Buffer.from(test.random.bytes(test.constants.sizes.hash256)), // transactionsHashBuffer 32b
-			Buffer.from(test.random.bytes(test.constants.sizes.hash256)), // receiptsHashBuffer 32b
-			Buffer.from(test.random.bytes(test.constants.sizes.hash256)), // stateHashBuffer 32b
-			test.random.bytes(test.constants.sizes.addressDecoded), // beneficiaryAddress 24b
-			Buffer.of(0x0A, 0x00, 0x00, 0x00), // fee feeMultiplierBuffer 4b
-			Buffer.of(0x00, 0x00, 0x00, 0x00) // reserved padding 4b
-		]);
-
 		// notice that the formatter only returns height and signerPublicKey
-		const createFormattedBlock = tag => ({
-			topic: 'block',
-			data: {
-				height: [0x0E458797, 0x62B66C00 | (tag || 0xE1)],
-				signerPublicKey: 'A4C656B45C02A02DEF64F15DD781DD5AF29698A353F414FAAA9CDB364A09F98F'
-			}
-		});
+		const createFormattedBlock = () => {
+			const block = test.createSampleBlock().model;
+			return {
+				topic: 'block',
+				data: {
+					height: block.height,
+					signerPublicKey: block.signerPublicKey
+				}
+			};
+		};
 
 		const registerRoute = (server, route) => {
 			// create a zmq service that supports only basic (non-transaction) models
-			const modelSystem = catapult.plugins.catapultModelSystem.configure([], {});
 			const config = {
-				host: '127.0.0.1', port: ports.mq, connectTimeout: 1000, monitorInterval: 50
+				host: '127.0.0.1', port: ports.mq, connectTimeout: 1000
 			};
 			const channelDescriptors = new MessageChannelBuilder().build();
-			const zmqService = createZmqConnectionService(config, modelSystem.codec, channelDescriptors, test.createMockLogger());
+			const zmqService = createZmqConnectionService(config, channelDescriptors, test.createMockLogger());
 
 			// create a custom emitter for raising client connected events
 			const emitter = new EventEmitter();
@@ -847,25 +842,26 @@ describe('server (bootstrapper)', () => {
 			return { numTotalClients: options, messageIds };
 		};
 
-		const createBoundZsocket = () => {
-			const zsocket = zmq.socket('pub');
-			zsocket.bindSync(`tcp://127.0.0.1:${ports.mq}`);
+		const createBoundZsocket = async () => {
+			const zsocket = new zmq.Publisher();
+			zsocket.linger = 0;
+			await zsocket.bind(`tcp://127.0.0.1:${ports.mq}`);
 			return zsocket;
 		};
 
 		const publishBlock = (zsocket, buffer) => {
 			// publish the block buffer to the block topic after short delay to allow subscribers to finish attaching
-			setTimeout(() => {
+			setTimeout(async () => {
 				test.log('publishing block data');
-				zsocket.send([Buffer.of(0x49, 0x6A, 0xCA, 0x80, 0xE4, 0xD8, 0xF2, 0x9F), buffer]);
+				await zsocket.send([Buffer.of(0x49, 0x6A, 0xCA, 0x80, 0xE4, 0xD8, 0xF2, 0x9F), buffer]);
 			}, delays.publish);
 		};
 
-		const createClientSockets = (route, emitter, options, handlers) => {
+		const createClientSockets = async (route, emitter, options, handlers) => {
 			const { numTotalClients, messageIds } = extractBasicClientOptionValues(options);
 
 			//  bind to a publisher if one is not provided
-			const zsocket = options.zsocket || createBoundZsocket();
+			const zsocket = options.zsocket || await createBoundZsocket();
 			const sockets = [];
 
 			const curryMessageCallback = (ws, id) => messageJson => {
@@ -915,258 +911,268 @@ describe('server (bootstrapper)', () => {
 			});
 		};
 
-		const createHandlers = (server, done, blockTag = undefined) => ({
+		const createHandlers = (server, done) => ({
 			onAllConnected: zsocket => {
 				// Act: publish a block
-				publishBlock(zsocket, createBlockBuffer(blockTag));
+				publishBlock(zsocket, test.createSampleBlock().buffer);
 			},
 			onMessage: payload => {
 				// Assert: notice that payload is already formatted
-				expect(payload, `blockTag: ${blockTag}`).to.deep.equal(createFormattedBlock(blockTag));
+				expect(payload, 'block').to.deep.equal(createFormattedBlock());
 			},
-			onAllMessages: zsocket => {
+			onAllMessages: (zsocket, sockets) => {
 				// close mq socket and server, otherwise subsequent tests would fail
+				sockets.forEach(socket => socket.close());
 				zsocket.close();
 				server.close();
-				done();
+
+				// wait for sockets to close
+				return new Promise(resolve => {
+					setTimeout(() => {
+						// Assert:
+						sockets.forEach(socket => {
+							expect(socket.readyState).to.equal(WebSocket.CLOSED);
+						});
+						resolve();
+					}, 200);
+				}).finally(done);
 			}
 		});
 
-		const runSingleRouteTest = (numClients, done) => {
+		const runSingleRouteTest = numClients => new Promise((resolve, reject) => {
 			// Arrange: set up the server with a single ws route
 			const server = createWebSocketServer();
 			const emitter = registerRoute(server, '/ws/block');
-			server.listen(ports.server);
-
-			// Act + Assert: create a client websocket and run the test
-			createClientSockets('/ws/block', emitter, numClients, createHandlers(server, done));
-		};
+			server.listen(ports.server).then(() => {
+				// Act + Assert: create a client websocket and run the test
+				createClientSockets('/ws/block', emitter, numClients, createHandlers(server, resolve));
+			}).catch(reject);
+		});
 
 		// region subscribe
 
-		it('handles single subscription', done => runSingleRouteTest(1, done));
-		it('handles multiple subscriptions to same route', done => runSingleRouteTest(3, done));
+		it('handles single subscription', () => runSingleRouteTest(1));
+		it('handles multiple subscriptions to same route', () => runSingleRouteTest(3));
 
-		it('handles multiple subscriptions to different routes', done => {
+		it('handles multiple subscriptions to different routes', async () => {
 			// Arrange: set up the server with two ws routes
 			const server = createWebSocketServer();
 			const emitter1 = registerRoute(server, '/ws/block1');
 			const emitter2 = registerRoute(server, '/ws/block2');
-			server.listen(ports.server);
+			await server.listen(ports.server);
 
 			const counts = {
 				numAllConnectedHandlers: 0,
 				numAllMessagesHandlers: 0
 			};
-			const customHandlers = {
-				onAllConnected: zsocket => {
-					// - push to the mq only when both websockets are connected
-					if (2 === ++counts.numAllConnectedHandlers)
-						createHandlers(server, done).onAllConnected(zsocket);
-				},
-				onAllMessages: zsocket => {
-					// - close the server only when messages from both websockets are received and processed
-					if (2 === ++counts.numAllMessagesHandlers)
-						createHandlers(server, done).onAllMessages(zsocket);
-				}
-			};
 
 			// - bind to a zsocket
-			const zsocket = createBoundZsocket();
+			const boundZsocket = await createBoundZsocket();
 
-			// Act + Assert: create two client websockets pointed to different routes
-			// (the routes themselves are meaningless and both will get the same data; the single push above pushes to both routes)
-			// (the only difference is that the set of connections and ids are per-route, which is why both connections will have id 1)
-			const createOptions = () => ({ numClients: 1, messageIds: new Set([1]), zsocket });
-			createClientSockets('/ws/block1', emitter1, createOptions(), Object.assign(createHandlers(server, done), customHandlers));
-			createClientSockets('/ws/block2', emitter2, createOptions(), Object.assign(createHandlers(server, done), customHandlers));
+			return new Promise(resolve => {
+				const customHandlers = {
+					onAllConnected: zsocket => {
+						// - push to the mq only when both websockets are connected
+						if (2 === ++counts.numAllConnectedHandlers)
+							createHandlers(server, resolve).onAllConnected(zsocket);
+					},
+					onAllMessages: (zsocket, sockets) => {
+						// - close the server only when messages from both websockets are received and processed
+						if (2 === ++counts.numAllMessagesHandlers)
+							createHandlers(server, resolve).onAllMessages(zsocket, sockets);
+					}
+				};
+
+				// Act + Assert: create two client websockets pointed to different routes
+				// (the routes themselves are meaningless and both will get the same data; the single push above pushes to both routes)
+				// (the only difference is that the set of connections and ids are per-route, which is why both connections will have id 1)
+				const createOptions = () => ({ numClients: 1, messageIds: new Set([1]), zsocket: boundZsocket });
+				const handlers1 = Object.assign(createHandlers(server, resolve), customHandlers);
+				const handlers2 = Object.assign(createHandlers(server, resolve), customHandlers);
+				createClientSockets('/ws/block1', emitter1, createOptions(), handlers1);
+				createClientSockets('/ws/block2', emitter2, createOptions(), handlers2);
+			});
 		});
 
 		// endregion
 
 		// region unsubscribe
 
-		it('handles unsubscription of client from subscribed channel', done => {
+		it('handles unsubscription of client from subscribed channel', () => new Promise((resolve, reject) => {
 			// Arrange: set up the server with a single ws route
 			const server = createWebSocketServer();
 			const emitter = registerRoute(server, '/ws/block');
-			server.listen(ports.server);
+			server.listen(ports.server).then(() => {
+				// - create three client websockets
+				const defaultHandlers = createHandlers(server, resolve);
+				const defaultOnAllConnected = defaultHandlers.onAllConnected;
+				const defaultOnAllMessages = defaultHandlers.onAllMessages;
+				createClientSockets(
+					'/ws/block',
+					emitter,
+					{ numClients: 3, messageIds: new Set([1, 3]) }, // messages should only be sent to the first and last sockets
+					Object.assign(defaultHandlers, {
+						onAllConnected: (zsocket, sockets) => {
+							// Act: unsubscribe the second websocket
+							test.log('unsubscribing second websocket');
+							sockets[1].send(JSON.stringify({ uid: sockets[1].uid, unsubscribe: 'block' }));
+							defaultOnAllConnected(zsocket, sockets);
+						},
+						onAllMessages: (zsocket, sockets) => {
+							// Assert: all sockets are still open
+							sockets.forEach(socket => {
+								expect(socket.readyState).to.equal(WebSocket.OPEN);
+							});
 
-			// - create three client websockets
-			const defaultHandlers = createHandlers(server, done);
-			const defaultOnAllConnected = defaultHandlers.onAllConnected;
-			const defaultOnAllMessages = defaultHandlers.onAllMessages;
-			createClientSockets(
-				'/ws/block',
-				emitter,
-				{ numClients: 3, messageIds: new Set([1, 3]) }, // messages should only be sent to the first and last sockets
-				Object.assign(defaultHandlers, {
-					onAllConnected: (zsocket, sockets) => {
-						// Act: unsubscribe the second websocket
-						test.log('unsubscribing second websocket');
-						sockets[1].send(JSON.stringify({ uid: sockets[1].uid, unsubscribe: 'block' }));
-						defaultOnAllConnected(zsocket, sockets);
-					},
-					onAllMessages: (zsocket, sockets) => {
-						// Assert: all sockets are still open
-						sockets.forEach(socket => {
-							expect(socket.readyState).to.equal(WebSocket.OPEN);
-						});
+							defaultOnAllMessages(zsocket, sockets);
+						}
+					})
+				);
+			}).catch(reject);
+		}));
 
-						defaultOnAllMessages(zsocket);
-					}
-				})
-			);
-		});
-
-		it('handles unsubscription of client from unknown channel', done => {
+		it('handles unsubscription of client from unknown channel', () => new Promise((resolve, reject) => {
 			// Arrange: set up the server with a single ws route
 			const server = createWebSocketServer();
 			const emitter = registerRoute(server, '/ws/block');
-			server.listen(ports.server);
-
-			// - create three client websockets
-			const defaultHandlers = createHandlers(server, done);
-			const defaultOnAllConnected = defaultHandlers.onAllConnected;
-			createClientSockets(
-				'/ws/block',
-				emitter,
-				3,
-				Object.assign(defaultHandlers, {
-					onAllConnected: (zsocket, sockets) => {
-						// Act: unsubscribe the second websocket from an unknown channel (this should have no effect)
-						test.log('unsubscribing second websocket');
-						sockets[1].send(JSON.stringify({ uid: sockets[1].uid, unsubscribe: 'chainStatistic' }));
-						defaultOnAllConnected(zsocket, sockets);
-					}
-				})
-			);
-		});
+			server.listen(ports.server).then(() => {
+				// - create three client websockets
+				const defaultHandlers = createHandlers(server, resolve);
+				const defaultOnAllConnected = defaultHandlers.onAllConnected;
+				createClientSockets(
+					'/ws/block',
+					emitter,
+					3,
+					Object.assign(defaultHandlers, {
+						onAllConnected: (zsocket, sockets) => {
+							// Act: unsubscribe the second websocket from an unknown channel (this should have no effect)
+							test.log('unsubscribing second websocket');
+							sockets[1].send(JSON.stringify({ uid: sockets[1].uid, unsubscribe: 'chainStatistic' }));
+							defaultOnAllConnected(zsocket, sockets);
+						}
+					})
+				);
+			}).catch(reject);
+		}));
 
 		// endregion
 
 		// region disconnect (client)
 
-		it('handles disconnecting client sockets', done => {
+		it('handles disconnecting client sockets', () => new Promise((resolve, reject) => {
 			// Arrange: set up the server with a single ws route
 			const server = createWebSocketServer();
 			const emitter = registerRoute(server, '/ws/block');
-			server.listen(ports.server);
-
-			// - create three client websockets
-			const defaultHandlers = createHandlers(server, done);
-			const defaultOnAllConnected = defaultHandlers.onAllConnected;
-			createClientSockets(
-				'/ws/block',
-				emitter,
-				{ numClients: 3, messageIds: new Set([1, 3]) }, // messages should only be sent to the first and last sockets
-				Object.assign(defaultHandlers, {
-					onAllConnected: (zsocket, sockets) => {
-						// Act: close the second websocket
-						test.log('closing second websocket');
-						sockets[1].close();
-						defaultOnAllConnected(zsocket, sockets);
-					}
-				})
-			);
-		});
+			server.listen(ports.server).then(() => {
+				// - create three client websockets
+				const defaultHandlers = createHandlers(server, resolve);
+				const defaultOnAllConnected = defaultHandlers.onAllConnected;
+				createClientSockets(
+					'/ws/block',
+					emitter,
+					{ numClients: 3, messageIds: new Set([1, 3]) }, // messages should only be sent to the first and last sockets
+					Object.assign(defaultHandlers, {
+						onAllConnected: (zsocket, sockets) => {
+							// Act: close the second websocket
+							test.log('closing second websocket');
+							sockets[1].close();
+							defaultOnAllConnected(zsocket, sockets);
+						}
+					})
+				);
+			}).catch(reject);
+		}));
 
 		// endregion
 
 		// region invalid subscription requests
 
-		const runInvalidClientTest = (done, messageCallback) => {
+		const runInvalidClientTest = messageCallback => new Promise((resolve, reject) => {
 			// Arrange: set up the server with a single ws route
 			const server = createWebSocketServer();
 			registerRoute(server, '/ws/block');
-			server.listen(ports.server);
+			server.listen(ports.server).then(() => {
+				// - connect four clients to the route
+				const numConnections = 4;
+				let numCloses = 0;
+				const addHandlers = (ws, id) => {
+					ws.on('message', messageJson => messageCallback(ws, messageJson));
+					ws.on('close', () => {
+						// Assert: all clients have been closed
+						test.log(`client ${id} was closed`);
+						if (numConnections === ++numCloses) {
+							// close server, otherwise subsequent tests would fail
+							server.close();
+							resolve();
+						}
+					});
+				};
 
-			// - connect four clients to the route
-			const numConnections = 4;
-			let numCloses = 0;
-			const addHandlers = (ws, id) => {
-				ws.on('message', messageJson => messageCallback(ws, messageJson));
-				ws.on('close', () => {
-					// Assert: all clients have been closed
-					test.log(`client ${id} was closed`);
-					if (numConnections === ++numCloses) {
-						// close server, otherwise subsequent tests would fail
-						server.close();
-						done();
-					}
-				});
-			};
-
-			for (let i = 0; i < numConnections; ++i) {
-				const ws = new WebSocket(`ws://localhost:${ports.server}/ws/block`);
-				addHandlers(ws, i);
-			}
-		};
-
-		it('invalid data disconnects client', done => {
-			runInvalidClientTest(done, ws => {
-				// Act: non-json data
-				ws.send('hello');
-			});
+				for (let i = 0; i < numConnections; ++i) {
+					const ws = new WebSocket(`ws://localhost:${ports.server}/ws/block`);
+					addHandlers(ws, i);
+				}
+			}).catch(reject);
 		});
 
-		it('malformed request disconnects client', done => {
-			runInvalidClientTest(done, (ws, messageJson) => {
-				// Arrange:
-				const message = JSON.parse(messageJson);
-				Object.assign(message, { subscribe: 7 });
+		it('invalid data disconnects client', () => runInvalidClientTest(ws => {
+			// Act: non-json data
+			ws.send('hello');
+		}));
 
-				// Act: subscribe must be a string
-				ws.send(JSON.stringify(message));
-			});
-		});
+		it('malformed request disconnects client', () => runInvalidClientTest((ws, messageJson) => {
+			// Arrange:
+			const message = JSON.parse(messageJson);
+			Object.assign(message, { subscribe: 7 });
 
-		it('unsupported topic subscribe request disconnects client', done => {
-			runInvalidClientTest(done, (ws, messageJson) => {
-				// Act: try to subscribe to an unsupported topic
-				const responseJson = JSON.stringify(Object.assign(JSON.parse(messageJson), { subscribe: 'chainStatistic' }));
-				ws.send(responseJson);
-			});
-		});
+			// Act: subscribe must be a string
+			ws.send(JSON.stringify(message));
+		}));
+
+		it('unsupported topic subscribe request disconnects client', () => runInvalidClientTest((ws, messageJson) => {
+			// Act: try to subscribe to an unsupported topic
+			const responseJson = JSON.stringify(Object.assign(JSON.parse(messageJson), { subscribe: 'chainStatistic' }));
+			ws.send(responseJson);
+		}));
 
 		// endregion
 
 		// region close (server)
 
-		it('closing server closes all clients', done => {
+		it('closing server closes all clients', () => new Promise((resolve, reject) => {
 			// Arrange: set up the server with two ws routes
 			const server = createWebSocketServer();
 			registerRoute(server, '/ws/block1');
 			registerRoute(server, '/ws/block2');
-			server.listen(ports.server);
+			server.listen(ports.server).then(() => {
+				// - connect two clients to each route
+				const numConnections = 4;
+				let numOpens = 0;
+				let numCloses = 0;
 
-			// - connect two clients to each route
-			const numConnections = 4;
-			let numOpens = 0;
-			let numCloses = 0;
+				const addHandlers = (ws, id) => {
+					ws.on('open', () => {
+						// Act: close the server after all connections have been opened
+						if (numConnections === ++numOpens)
+							// close server, otherwise subsequent tests would fail
+							server.close();
+					});
 
-			const addHandlers = (ws, id) => {
-				ws.on('open', () => {
-					// Act: close the server after all connections have been opened
-					if (numConnections === ++numOpens)
-						// close server, otherwise subsequent tests would fail
-						server.close();
-				});
+					ws.on('close', () => {
+						// Assert: all clients have been closed
+						test.log(`client ${id} was closed`);
+						if (numConnections === ++numCloses)
+							resolve();
+					});
+				};
 
-				ws.on('close', () => {
-					// Assert: all clients have been closed
-					test.log(`client ${id} was closed`);
-					if (numConnections === ++numCloses)
-						done();
-				});
-			};
-
-			for (let i = 0; i < numConnections; ++i) {
-				const routePostfix = (i % 2) + 1;
-				const ws = new WebSocket(`ws://localhost:${ports.server}/ws/block${routePostfix}`);
-				addHandlers(ws, i);
-			}
-		});
+				for (let i = 0; i < numConnections; ++i) {
+					const routePostfix = (i % 2) + 1;
+					const ws = new WebSocket(`ws://localhost:${ports.server}/ws/block${routePostfix}`);
+					addHandlers(ws, i);
+				}
+			}).catch(reject);
+		}));
 
 		// endregion
 	});

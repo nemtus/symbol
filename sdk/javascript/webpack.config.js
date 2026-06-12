@@ -1,52 +1,56 @@
-// Generated using webpack-cli https://github.com/webpack/webpack-cli
+import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
+import webpack from 'webpack';
+import path from 'path';
+import URL from 'url';
 
-const webpack = require('webpack');
-// const path = require('path');
+const target = 'web';
+const buildDirectory = path.resolve(path.dirname(URL.fileURLToPath(import.meta.url)), '_build');
+const distDirectory = path.resolve(path.dirname(URL.fileURLToPath(import.meta.url)), 'dist');
 
-const isProduction = 'production' === process.env.NODE_ENV;
+export default {
+	entry: {
+		main: './src/index.web.js'
+	},
 
-const config = {
-	entry: './src/cdn.js',
+	mode: process.env.NODE_ENV || 'development',
+	target,
+	devtool: 'source-map',
+
 	output: {
-		filename: '../index.min.js'
+		path: distDirectory,
+		filename: `bundle.${target}.js`,
+		library: { type: 'module' }
 	},
+
+	// add plugins and resolvers for setting up node to browser mappings
 	plugins: [
-		// Add your plugins here
-		// Learn more about plugins from https://webpack.js.org/configuration/plugins/
+		new WasmPackPlugin({
+			crateDirectory: path.resolve(path.dirname(URL.fileURLToPath(import.meta.url)), 'wasm'),
+			target,
+			extraArgs: '--no-typescript',
+			outName: 'symbol_crypto_wasm',
+			outDir: `${buildDirectory}/wasm/${target}_webpack`
+		}),
 		new webpack.ProvidePlugin({
-			process: 'process/browser',
+			process: 'process/browser.js',
 			Buffer: ['buffer', 'Buffer']
-		})
+		}),
+		new webpack.NormalModuleReplacementPlugin(
+			/symbol-crypto-wasm-node/,
+			`../../_build/wasm/${target}_webpack/symbol_crypto_wasm.js`
+		)
 	],
-	module: {
-		rules: [
-			{
-				test: /\.(js|jsx)$/i,
-				loader: 'babel-loader'
-			},
-			{
-				test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
-				type: 'asset'
-			}
-
-			// Add your rules for custom modules here
-			// Learn more about loaders from https://webpack.js.org/loaders/
-		]
-	},
 	resolve: {
-		extensions: ['.ts', '.js'],
+		extensions: ['.js'],
 		fallback: {
-			crypto: require.resolve('crypto-browserify'),
-			stream: require.resolve('stream-browserify'),
-			url: require.resolve('url')
+			vm: false,
+			crypto: 'crypto-browserify',
+			stream: 'stream-browserify'
 		}
-	}
-};
+	},
 
-module.exports = () => {
-	if (isProduction)
-		config.mode = 'production';
-	else
-		config.mode = 'development';
-	return config;
+	experiments: {
+		asyncWebAssembly: true,
+		outputModule: true
+	}
 };

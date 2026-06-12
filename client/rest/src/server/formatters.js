@@ -19,7 +19,7 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const catapult = require('../catapult-sdk/index');
+import catapult from '../catapult-sdk/index.js';
 
 const { formatArray, formatPage } = catapult.utils.formattingUtils;
 
@@ -59,30 +59,30 @@ const formatBody = (modelFormatter, body) => {
 	};
 };
 
-module.exports = {
+export default {
 	/**
 	 * Creates server formatters around a model formatter.
-	 * @param {array<object>} modelFormatters Model formatters.
+	 * @param {Array<object>} modelFormatters Model formatters.
 	 * @returns {object} Server formatters.
 	 */
 	create: modelFormatters => ({
 		/**
-		 * Restify compatible formatter for JSON responses.
-		 * @param {object} req Request.
-		 * @param {object} res Response.
+		 * Fastify compatible formatter for JSON responses.
+		 * @param {object} request Request.
+		 * @param {object} reply Reply.
 		 * @param {object} body Body.
 		 * @returns {object} Result of the callback.
 		 */
-		json: (req, res, body) => {
-			// implementation based on https://github.com/restify/node-restify/blob/4.x/lib/formatters/json.js
+		json: (request, reply, body) => {
 			const formatter = (body && body.formatter !== undefined) ? modelFormatters[body.formatter] : modelFormatters.json;
 			if (body)
 				delete body.formatter;
+
 			const view = formatBody(formatter, body);
 			if (view.statusCode)
-				res.statusCode = view.statusCode;
+				reply.statusCode = view.statusCode;
 
-			res.setHeader('Content-Length', Buffer.byteLength(view.json));
+			reply.header('Content-Length', Buffer.byteLength(view.json));
 			return view.json;
 		},
 

@@ -1,8 +1,4 @@
 pipeline {
-	agent {
-		label 'ubuntu-xlarge-agent'
-	}
-
 	parameters {
 		gitParameter branchFilter: 'origin/(.*)', defaultValue: "${env.GIT_BRANCH}", name: 'MANUAL_GIT_BRANCH', type: 'PT_BRANCH'
 		choice name: 'COMPILER_CONFIGURATION',
@@ -14,8 +10,15 @@ pipeline {
 		choice name: 'OPERATING_SYSTEM',
 			choices: ['ubuntu', 'fedora'],
 			description: 'operating system'
+		choice name: 'ARCHITECTURE',
+			choices: ['amd64', 'arm64'],
+			description: 'Computer architecture'
 
 		booleanParam name: 'SHOULD_PUBLISH_BUILD_IMAGE', description: 'true to publish build image', defaultValue: false
+	}
+
+	agent {
+		label "${helper.resolveAgentName("${OPERATING_SYSTEM}", "${ARCHITECTURE}", 'xlarge')}"
 	}
 
 	environment {
@@ -29,35 +32,39 @@ pipeline {
 	}
 
 	stages {
-		// stage('preliminary') {
-		//	 when {
-		//		 expression { is_public_build() && SHOULD_PUBLISH_BUILD_IMAGE.toBoolean() }
-		//	 }
-
-		//	 steps {
-		//		 script {
-		//			 timeout(time: 10, unit: 'SECONDS') {
-		//				 input(
-		//					 id: "userInput",
-		//					 message: "Are you sure you want to create public build?"
-		//				 )
-		//			 }
-		//		 }
-		//	 }
-		// }
 		stage('prepare') {
 			stages {
+				stage('git checkout') {
+					when {
+						expression { isManualBuild() }
+					}
+					steps {
+						dir('symbol-mono') {
+							sh "git checkout ${resolveBranchName()}"
+							sh "git reset --hard origin/${resolveBranchName()}"
+						}
+					}
+				}
 				stage('prepare variables') {
 					steps {
 						script {
-							fully_qualified_user = sh(
+							fullyQualifiedUser = sh(
 								script: 'echo "$(id -u):$(id -g)"',
 								returnStdout: true
 							).trim()
 
-							build_image_repo = get_build_image_repo()
-							build_image_label = get_build_image_label()
-							build_image_full_name = "symbolplatform/${build_image_repo}:${build_image_label}"
+							final String ownerName = helper.resolveOrganizationName()
+							dockerCredentialId = helper.isPublicBuild(params.BUILD_CONFIGURATION)
+									? env.DOCKER_CREDENTIALS_ID
+									: "${ownerName.toUpperCase()}_ARTIFACTORY_LOGIN_ID"
+							dockerUrl = helper.isPublicBuild(params.BUILD_CONFIGURATION)
+									? env.DOCKER_URL
+									: helper.resolveUrlBase(configureArtifactRepository.resolveRepositoryUrl(ownerName, 'docker-hosted'))
+
+							compilerConfigurationFilepath = "symbol-mono/jenkins/catapult/configurations/${ARCHITECTURE}/${COMPILER_CONFIGURATION}.yaml"
+							imageLabel = resolveImageLabel(compilerConfigurationFilepath)
+							dockerRepoName = "symbolplatform/${resolveImageRepo()}"
+							buildImageFullName = "${dockerRepoName}:${imageLabel}"
 						}
 					}
 				}
@@ -71,25 +78,14 @@ pipeline {
 							COMPILER_CONFIGURATION: ${COMPILER_CONFIGURATION}
 							   BUILD_CONFIGURATION: ${BUILD_CONFIGURATION}
 								  OPERATING_SYSTEM: ${OPERATING_SYSTEM}
+									  ARCHITECTURE: ${ARCHITECTURE}
 
 						SHOULD_PUBLISH_BUILD_IMAGE: ${SHOULD_PUBLISH_BUILD_IMAGE}
 
-							  fully_qualified_user: ${fully_qualified_user}
-								 build_image_label: ${build_image_label}
-							 build_image_full_name: ${build_image_full_name}
+								fullyQualifiedUser: ${fullyQualifiedUser}
+										imageLabel: ${imageLabel}
+								buildImageFullName: ${buildImageFullName}
 						"""
-					}
-				}
-				stage('git checkout') {
-					when {
-						expression { is_manual_build() }
-					}
-					steps {
-						cleanWs()
-						dir('symbol-mono') {
-							git branch: "${get_branch_name()}",
-								url: 'https://github.com/symbol/symbol.git'
-						}
 					}
 				}
 			}
@@ -99,13 +95,13 @@ pipeline {
 				stage('prepare variables') {
 					steps {
 						script {
-							run_docker_build_command = """
+							runDockerBuildCommand = """
 								python3 symbol-mono/jenkins/catapult/runDockerBuild.py \
-									--compiler-configuration symbol-mono/jenkins/catapult/configurations/${COMPILER_CONFIGURATION}.yaml \
+									--compiler-configuration ${compilerConfigurationFilepath} \
 									--build-configuration symbol-mono/jenkins/catapult/configurations/${BUILD_CONFIGURATION}.yaml \
 									--operating-system ${OPERATING_SYSTEM} \
-									--user ${fully_qualified_user} \
-									--destination-image-label ${build_image_label} \
+									--user ${fullyQualifiedUser} \
+									--destination-image-label ${imageLabel} \
 									--source-path symbol-mono \
 							"""
 						}
@@ -114,35 +110,42 @@ pipeline {
 				stage('pull dependency images') {
 					steps {
 						script {
-							base_image_names = sh(
-								script: "${run_docker_build_command} --base-image-names-only",
+							baseImageNames = sh(
+								script: "${runDockerBuildCommand} --base-image-names-only",
 								returnStdout: true
 							).split('\n')
 
 							docker.withRegistry(DOCKER_URL, DOCKER_CREDENTIALS_ID) {
-								for (base_image_name in base_image_names)
-									docker.image(base_image_name).pull()
+								for (baseImageName in baseImageNames) {
+									docker.image(baseImageName).pull()
+								}
 							}
 						}
 					}
 				}
-				stage('build') {
-					steps {
-						sh "${run_docker_build_command}"
-					}
-				}
-				stage('push built image') {
-					when {
-						expression { SHOULD_PUBLISH_BUILD_IMAGE.toBoolean() }
-					}
+				stage('build and push image') {
 					steps {
 						script {
-							short_label = get_short_image_label()
-							docker.withRegistry(DOCKER_URL, DOCKER_CREDENTIALS_ID) {
-								built_image = docker.image(build_image_full_name)
-								built_image.push()
-								built_image.push("${short_label}")
-							}
+							final String defaultUser = 'fedora' == "${params.OPERATING_SYSTEM}" ? 'fedora' : 'ubuntu'
+							final String buildArg = '-f symbol-mono/jenkins/catapult/templates/release.Dockerfile ' +
+								"--build-arg BUILD_IMAGE=${baseImageNames[0]} " +
+								"--build-arg RELEASE_BASE_IMAGE=${baseImageNames[1]} " +
+								"--build-arg BUILD_CONFIGURATION=${BUILD_CONFIGURATION} " +
+								"--build-arg COMPILER_CONFIGURATION=${COMPILER_CONFIGURATION} " +
+								"--build-arg USER_NAME=${defaultUser} symbol-mono/"
+							final String archImageName = "${dockerRepoName}:${resolveShortArchitectureImageLabel(compilerConfigurationFilepath)}"
+
+							dockerHelper.dockerBuildAndPushImage(
+								params.OPERATING_SYSTEM,
+								dockerUrl,
+								dockerCredentialId,
+								archImageName,
+								buildArg,
+								SHOULD_PUBLISH_BUILD_IMAGE.toBoolean()
+							)
+
+							final String multiArchImageName = "${dockerRepoName}:${resolveShortImageLabel()}"
+							dockerHelper.tagDockerImage("${OPERATING_SYSTEM}", dockerUrl, dockerCredentialId, archImageName, multiArchImageName)
 						}
 					}
 				}
@@ -151,54 +154,70 @@ pipeline {
 	}
 }
 
-def is_public_build() {
+Boolean isPublicBuild() {
 	return 'release-public' == BUILD_CONFIGURATION
 }
 
-def is_manual_build() {
+Boolean isManualBuild() {
 	return null != MANUAL_GIT_BRANCH && '' != MANUAL_GIT_BRANCH && 'null' != MANUAL_GIT_BRANCH
 }
 
-def get_branch_name() {
-	return is_manual_build() ? MANUAL_GIT_BRANCH : env.GIT_BRANCH
+String resolveBranchName() {
+	return isManualBuild() ? MANUAL_GIT_BRANCH : env.GIT_BRANCH
 }
 
-def get_public_version() {
-	version_path = './symbol-mono/jenkins/catapult/server.version.yaml'
-	data = readYaml(file: version_path)
+String publicVersion() {
+	versionPath = './symbol-mono/jenkins/catapult/server.version.yaml'
+	data = readYaml(file: versionPath)
 	return data.version
 }
 
-def get_build_image_repo() {
-	return is_public_build() ? 'symbol-server' : 'symbol-server-private'
+String resolveImageRepo() {
+	return isPublicBuild() ? 'symbol-server' : 'symbol-server-private'
 }
 
-def get_architecture_label() {
-	data = readYaml(file: "./symbol-mono/jenkins/catapult/configurations/${COMPILER_CONFIGURATION}.yaml")
-	architecture = data.architecture
-
-	if ('skylake' == architecture)
-		return ''
-
-	return "-${architecture}"
+String resolveArchitectureLabel(String compilerConfigurationFilepath) {
+	data = readYaml(file: "${compilerConfigurationFilepath}")
+	return "-${data.architecture}"
 }
 
-def get_build_image_label() {
-	friendly_branch_name = get_branch_name()
-	if (0 == friendly_branch_name.indexOf('origin/'))
-		friendly_branch_name = friendly_branch_name.substring(7)
+String resolveImageLabel(String compilerConfigurationFilepath) {
+	String friendlyBranchName = resolveBranchName()
+	String compilerVersionName = resolveCompilerVersionName()
+	if (0 == friendlyBranchName.indexOf('origin/')) {
+		friendlyBranchName = friendlyBranchName.substring(7)
+	}
 
-	friendly_branch_name = friendly_branch_name.replaceAll('/', '-')
-	architecture = get_architecture_label()
-	git_hash="${env.GIT_COMMIT}".substring(0, 8)
-	return "${COMPILER_CONFIGURATION}-${friendly_branch_name}${architecture}-${git_hash}"
+	friendlyBranchName = friendlyBranchName.replaceAll('/', '-')
+	architecture = resolveArchitectureLabel(compilerConfigurationFilepath)
+	gitHash = "${env.GIT_COMMIT}".substring(0, 8)
+	return "${compilerVersionName}-${friendlyBranchName}${architecture}-${gitHash}"
 }
 
-def get_short_image_label() {
-	architecture = get_architecture_label()
-	if (!is_public_build())
-		return "${COMPILER_CONFIGURATION}${architecture}"
+String resolveShortImageLabel() {
+	String compilerName = resolveCompilerName()
+	if (!isPublicBuild()) {
+		return compilerName
+	}
 
-	version_string = get_public_version()
-	return "${COMPILER_CONFIGURATION}-${version_string}${architecture}"
+	versionString = publicVersion()
+	return "${compilerName}-${versionString}"
+}
+
+String resolveShortArchitectureImageLabel(String compilerConfigurationFilepath) {
+	return "${resolveShortImageLabel()}${resolveArchitectureLabel(compilerConfigurationFilepath)}"
+}
+
+String resolveCompilerName() {
+	return COMPILER_CONFIGURATION.split('-')[0]
+}
+
+String resolveCompilerVersionName() {
+	String compilerName = resolveCompilerName()
+	dir('symbol-mono/jenkins/catapult/compilers')
+	{
+		compilerVersion = readYaml(file: "${COMPILER_CONFIGURATION}.yaml").version
+	}
+
+	return "${compilerName}-${compilerVersion}"
 }

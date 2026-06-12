@@ -14,7 +14,9 @@
   },
   "uncirculatingAccountPublicKeys": [
     "A4739036FD7EFED2750A51EE9D1D3113BA3F9849E0889213CED7F221B2AA1A20",
-    "2BF1E1F3072E3BE0CD851E4741E101E33DB19C163895F69AA890E7CF177C878C"
+    "2BF1E1F3072E3BE0CD851E4741E101E33DB19C163895F69AA890E7CF177C878C",
+    "E85D10BF47FFBCE2230F70CB43ED2DDE04FCF342524B383972F86EA1FF773C79",
+    "FE454406EFC15EBBCF4C27491519B7EBE696AD2D734A53E02019FC5D02D1419C"
   ],
   "extensions": [
     "accountLink",
@@ -29,7 +31,8 @@
     "restrictions",
     "transfer"
   ],
-
+  "routeExtensions": [
+  ],
   "db": {
     "url": "mongodb://localhost:27017/",
     "name": "catapult",
@@ -38,7 +41,8 @@
     "pageSizeDefault": 20,
     "maxConnectionAttempts": 5,
     "baseRetryDelay": 500,
-    "connectionPoolSize": 10
+    "connectionPoolSize": 10,
+    "connectionTimeout": 500
   },
 
   "apiNode": {
@@ -48,6 +52,8 @@
     "tlsClientCertificatePath": "/",
     "tlsClientKeyPath": "/",
     "tlsCaCertificatePath": "/",
+
+    "inflationPropertyFilePath": "/",
     "networkPropertyFilePath": "/",
     "nodePropertyFilePath": "/"
   },
@@ -56,7 +62,6 @@
     "mq": {
       "host": "127.0.0.1",
       "port": 7902,
-      "monitorInterval": 500,
       "connectTimeout": 10000,
       "monitorLoggingThrottle": 60000,
       "maxSubscriptions": 500
@@ -65,8 +70,8 @@
   },
 
   "throttling": {
-    "burst": 20,
-    "rate": 5
+    "max": 20,
+    "timeWindow": 1000
   },
 
   "logging": {
@@ -98,5 +103,16 @@
 
   "nodeMetadata": {
     "_info": "replace the body of this object with custom fields and objects to personalize your node"
-  }
+  },
+
+  "metal": {
+    "cacheTtl": 300,
+    "sizeLimit": 10000000
+  },
+
+  "rosetta": {
+    "aggregateSignerPrivateKey": "898E96DF44BD6EEE8289BF1FA2D1BED233541F3A33DB3879D25403096E93AA2D"
+  },
+
+  "trustProxy": false
 }

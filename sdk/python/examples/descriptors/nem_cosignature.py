@@ -5,8 +5,8 @@ def descriptor_factory():
 
 	return [
 		{
-			'type': 'cosignature_transaction',
-			'multisig_transaction_hash': '677035391CD3701293D385F037BA32796252BB7CE180B00B582DD9B20AAAD7F0',
+			'type': 'cosignature_transaction_v1',
+			'other_transaction_hash': '677035391CD3701293D385F037BA32796252BB7CE180B00B582DD9B20AAAD7F0',
 			'multisig_account_address': sample_address
 		}
 	]

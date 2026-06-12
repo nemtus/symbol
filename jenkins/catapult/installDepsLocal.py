@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from configuration import load_versions_map
-from dependency_flags import get_dependency_flags
+from dependency_flags import get_boost_disabled_libraries, get_dependency_flags
 from environment import EnvironmentManager
 from process import ProcessManager
 
@@ -23,22 +23,24 @@ class Downloader:
 
 	def download_boost_unix(self):
 		version = self.versions['boost']
-		tar_filename = f'boost_1_{version}_0.tar.gz'
-		tar_source_path = f'https://boostorg.jfrog.io/artifactory/main/release/1.{version}.0/source/{tar_filename}'
+		archive_name = f'boost_{version.replace(".", "_")}'
+		tar_filename = f'{archive_name}.tar.gz'
+		tar_source_path = f'https://archives.boost.io/release/{version}/source/{tar_filename}'
 
 		self.process_manager.dispatch_subprocess(['curl', '-o', tar_filename, '-SL', tar_source_path])
 		self.process_manager.dispatch_subprocess(['tar', '-xzf', tar_filename])
-		self.process_manager.dispatch_subprocess(['mv', f'boost_1_{version}_0', 'boost'])
+		self.process_manager.dispatch_subprocess(['mv', archive_name, 'boost'])
 
 	def download_boost_windows(self):
 		version = self.versions['boost']
-		archive_name = f'boost_1_{version}_0'
-		zip_filename = f'{archive_name}.zip'
-		zip_source_path = f'https://boostorg.jfrog.io/artifactory/main/release/1.{version}.0/source/{zip_filename}'
+		archive_name = f'boost_{version.replace(".", "_")}'
+		zip_filename = f'{archive_name}.7z'
+		zip_source_path = f'https://archives.boost.io/release/{version}/source/{zip_filename}'
 
 		self.process_manager.dispatch_subprocess(['powershell', '-Command', 'wget', zip_source_path, '-outfile', zip_filename])
-		self.process_manager.dispatch_subprocess(['powershell', '-Command', 'Expand-Archive', '-Path', zip_filename])
-		self.process_manager.dispatch_subprocess(['powershell', '-Command', 'Move-Item', rf'{archive_name}\{archive_name}', 'boost'])
+		self.process_manager.dispatch_subprocess(['powershell', '-Command', '7z', 'x', zip_filename])
+		self.process_manager.dispatch_subprocess(['powershell', '-Command', 'dir'])
+		self.process_manager.dispatch_subprocess(['powershell', '-Command', 'Move-Item', rf'{archive_name}', 'boost'])
 
 	def download_git_dependency(self, organization, project):
 		version = self.versions[f'{organization}_{project}']
@@ -62,6 +64,7 @@ class Builder:
 
 		boost_prefix_option = f'--prefix={self.target_directory / "boost"}'
 		bootstrap_options = [r'.\bootstrap.bat' if EnvironmentManager.is_windows_platform() else './bootstrap.sh']
+		bootstrap_options += [f'--without-libraries={",".join(get_boost_disabled_libraries())}']
 		if self.is_clang:
 			bootstrap_options += ['with-toolset=clang']
 
@@ -69,7 +72,7 @@ class Builder:
 
 		b2_options = [boost_prefix_option]
 		if self.is_clang:
-			b2_options += ['toolset=clang', 'linkflags=\'-stdlib=libc++\'']
+			b2_options += ['toolset=clang', 'cxxflags=-Wno-deprecated-declarations', 'cxxflags=--std=c++17', 'linkflags=\'-stdlib=libc++\'']
 
 		b2_options += get_dependency_flags('boost')
 
@@ -92,7 +95,17 @@ class Builder:
 		if EnvironmentManager.is_windows_platform() and 'mongo-cxx-driver' == project:
 			# For build without a C++17 polyfill
 			# https://devblogs.microsoft.com/cppblog/msvc-now-correctly-reports-__cplusplus/
-			cmake_options += ['-DCMAKE_CXX_FLAGS=\'/Zc:__cplusplus\'']
+			cmake_options += ['-DCMAKE_CXX_FLAGS="/Zc:__cplusplus"', f'-DCMAKE_PREFIX_PATH={self.target_directory / organization}']
+
+			version = self.versions[f'{organization}_{project}']
+			if 'r3.10.0' <= version:
+				cmake_options += ['-DENABLE_ABI_TAG_IN_LIBRARY_FILENAMES=OFF']
+
+		if 'mongodb' == organization:
+			cmake_options += [f'-DOPENSSL_ROOT_DIR={self.target_directory / "openssl"}']
+
+		if 'zeromq' == organization:
+			cmake_options += ['-DCMAKE_POLICY_VERSION_MINIMUM=3.5']
 
 		additional_cmake_options = get_dependency_flags(f'{organization}_{project}')
 		if additional_cmake_options:
@@ -105,6 +118,26 @@ class Builder:
 			self.process_manager.dispatch_subprocess(['make', '-j', str(NUM_BUILD_CORES)])
 			self.process_manager.dispatch_subprocess(['make', 'install'])
 
+	def build_openssl(self):
+		self.environment_manager.chdir(self.target_directory / SOURCE_DIR_NAME / 'openssl')
+
+		if EnvironmentManager.is_windows_platform():
+			self.build_openssl_windows()
+		else:
+			self.build_openssl_unix()
+
+	def build_openssl_windows(self):
+		openssl_destinations = [f'--{key}={self.target_directory / "openssl"}' for key in ('prefix', 'openssldir')]
+		self.process_manager.dispatch_subprocess(['perl', './Configure', 'VC-WIN64A'] + openssl_destinations)
+		self.process_manager.dispatch_subprocess(['nmake'])
+		self.process_manager.dispatch_subprocess(['nmake', 'install_sw', 'install_ssldirs'])
+
+	def build_openssl_unix(self):
+		openssl_destinations = [f'--{key}={self.target_directory / "openssl"}' for key in ('prefix', 'openssldir', 'libdir')]
+		self.process_manager.dispatch_subprocess(['perl', './Configure'] + openssl_destinations)
+		self.process_manager.dispatch_subprocess(['make'])
+		self.process_manager.dispatch_subprocess(['make', 'install_sw', 'install_ssldirs'])
+
 
 def main():
 	parser = argparse.ArgumentParser(description='download and install catapult dependencies locally')
@@ -112,6 +145,7 @@ def main():
 	parser.add_argument('--versions', help='locked versions file', required=True)
 	parser.add_argument('--download', help='download all dependencies', action='store_true')
 	parser.add_argument('--build', help='build all dependencies', action='store_true')
+	parser.add_argument('--skip-openssl', help='skip openssl', action='store_true')
 	parser.add_argument('--use-clang', help='uses clang compiler instead of gcc', action='store_true')
 	parser.add_argument('--dry-run', help='outputs desired commands without running them', action='store_true')
 	parser.add_argument('--force', help='purges any existing files', action='store_true')
@@ -145,6 +179,8 @@ def main():
 		print('[x] downloading all dependencies')
 		downloader = Downloader(versions, process_manager)
 		downloader.download_boost()
+		if not args.skip_openssl:
+			downloader.download_git_dependency('openssl', 'openssl')
 
 		for repository in dependency_repositories:
 			downloader.download_git_dependency(repository[0], repository[1])
@@ -156,6 +192,8 @@ def main():
 			builder.use_clang()
 
 		builder.build_boost()
+		if not args.skip_openssl:
+			builder.build_openssl()
 
 		for repository in dependency_repositories:
 			builder.build_git_dependency(repository[0], repository[1])

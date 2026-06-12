@@ -1,4 +1,21 @@
-void call(Map jobConfiguration) {
+// groovylint-disable-next-line MethodSize
+void call(Map jobConfiguration, Boolean manualTrigger = true) {
+	final String triggerText = manualTrigger ? '''
+				buildStrategies {
+					// By default, Jenkins will trigger builds as it detects changes on the source repository. We want
+					// to avoid that since we will trigger child pipelines on our own only when relevant.
+					skipInitialBuildOnFirstBranchIndexing()
+				}
+				strategy {
+					defaultBranchPropertyStrategy {
+						props {
+							noTriggerBranchProperty()
+						}
+					}
+				}
+	'''
+	: ''
+
 	logger.logInfo("job configuration: ${jobConfiguration}")
 
 	jobDsl scriptText: """
@@ -34,6 +51,18 @@ void call(Map jobConfiguration) {
 
 									gitHubPullRequestDiscovery {
 										strategyId(USE_CURRENT_SOURCE_STRATEGY_ID)
+									}
+
+									gitHubForkDiscovery {
+										strategyId(USE_CURRENT_SOURCE_STRATEGY_ID)
+
+										// One of the great powers of pull requests is that anyone with read access
+										// to a repository can fork it, commit some changes to their fork and then
+										// create a pull request against the original repository with their changes.
+										// Since this can be abused, we don't want to run jenkins jobs for every PR.
+										trust {
+											gitHubTrustPermissions()
+										}
 									}
 
 									// By default, Jenkins notifies GitHub with a constant context, i.e. a string that
@@ -77,20 +106,15 @@ void call(Map jobConfiguration) {
 											parentCredentials(true)
 										}
 									}
+									gitHubStatusChecks {
+										name(checkStatusName)
+									}
 								}
 							}
 						}
 
-						buildStrategies {
-							includeRegionBranchBuildStrategy {
-								// Each inclusion uses ant pattern matching, and must be separated by a new line.
-								includedRegions(packageIncludePaths)
-							}
-							excludeRegionBranchBuildStrategy {
-								// Each exclusion uses ant pattern matching,and must be separated by a new line.
-								excludedRegions(packageExcludePaths)
-							}
-						}
+						${triggerText}
+
 					}
 				}
 				factory {
@@ -100,7 +124,7 @@ void call(Map jobConfiguration) {
 				}
 				orphanedItemStrategy {
 					discardOldItems {
-						daysToKeep(3)
+						daysToKeep(daysToKeep)
 					}
 				}
 				triggers {
@@ -119,6 +143,8 @@ void call(Map jobConfiguration) {
 			packageExcludePaths: jobConfiguration.packageExcludePaths.toString(),
 			credentialsId: jobConfiguration.credentialsId.toString(),
 			notificationContextLabel: "continuous-integration/jenkins/${jobConfiguration.packageFolder}",
-			displayName: jobConfiguration.displayName.toString()
+			displayName: jobConfiguration.displayName.toString(),
+			daysToKeep: jobConfiguration.daysToKeep ?: 14,
+			checkStatusName: "Jenkins CI - ${jobConfiguration.displayName}"
 	]
 }

@@ -19,10 +19,10 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { MockServer } = require('./utils/routeTestUtils');
-const finalizationRoutes = require('../../src/routes/finalizationRoutes');
-const routeResultTypes = require('../../src/routes/routeResultTypes');
-const { expect } = require('chai');
+import MockServer from './utils/MockServer.js';
+import finalizationRoutes from '../../src/routes/finalizationRoutes.js';
+import routeResultTypes from '../../src/routes/routeResultTypes.js';
+import { expect } from 'chai';
 
 describe('finalization routes', () => {
 	describe('get', () => {
@@ -92,7 +92,7 @@ describe('finalization routes', () => {
 					const route = mockServer.getRoute(endpointUnderTest).get();
 					return mockServer.callRoute(route, { params: { epoch: '11' } }).then(() => {
 						// Assert:
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -117,14 +117,14 @@ describe('finalization routes', () => {
 								version: 100,
 								finalizationEpoch: 2,
 								finalizationPoint: 1,
-								height: [10, 0],
+								height: 10n,
 								hash,
 								messageGroups: []
 							},
 							formatter: 'ws',
 							type: routeResultTypes.finalizationProof
 						});
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -144,8 +144,8 @@ describe('finalization routes', () => {
 					const route = mockServer.getRoute(endpointUnderTest).get();
 					return mockServer.callRoute(route, { params: { epoch: '11' } }).then(() => {
 						// Assert:
-						expect(mockServer.next.calledOnce).to.equal(true);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+						expect(mockServer.done.calledOnce).to.equal(true);
+						expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
 					});
 				});
 			});
@@ -180,7 +180,7 @@ describe('finalization routes', () => {
 					const route = mockServer.getRoute(endpointUnderTest).get();
 					return mockServer.callRoute(route, { params: { height: '1024' } }).then(() => {
 						// Assert:
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -205,14 +205,14 @@ describe('finalization routes', () => {
 								version: 100,
 								finalizationEpoch: 2,
 								finalizationPoint: 1,
-								height: [10, 0],
+								height: 10n,
 								hash,
 								messageGroups: []
 							},
 							formatter: 'ws',
 							type: routeResultTypes.finalizationProof
 						});
-						expect(mockServer.next.calledOnce).to.equal(true);
+						expect(mockServer.done.calledOnce).to.equal(true);
 					});
 				});
 
@@ -232,8 +232,8 @@ describe('finalization routes', () => {
 					const route = mockServer.getRoute(endpointUnderTest).get();
 					return mockServer.callRoute(route, { params: { height: '1024' } }).then(() => {
 						// Assert:
-						expect(mockServer.next.calledOnce).to.equal(true);
-						expect(mockServer.next.firstCall.args[0].statusCode).to.equal(404);
+						expect(mockServer.done.calledOnce).to.equal(true);
+						expect(mockServer.done.firstCall.args[0].statusCode).to.equal(404);
 					});
 				});
 			});

@@ -1,6 +1,6 @@
-const base32 = require('../../src/utils/base32');
-const convert = require('../../src/utils/converter');
-const { expect } = require('chai');
+import base32 from '../../src/utils/base32.js';
+import { hexToUint8, uint8ToHex } from '../../src/utils/converter.js';
+import { expect } from 'chai';
 
 describe('base32', () => {
 	const testVectors = [
@@ -14,7 +14,7 @@ describe('base32', () => {
 	describe('encode', () => {
 		it('can convert empty input', () => {
 			// Act:
-			const encoded = base32.encode([]);
+			const encoded = base32.encode(new Uint8Array());
 
 			// Assert:
 			expect(encoded).to.equal('');
@@ -23,7 +23,7 @@ describe('base32', () => {
 		it('can convert test vectors', () => {
 			// Arrange:
 			testVectors.forEach(sample => {
-				const input = convert.hexToUint8(sample.decoded);
+				const input = hexToUint8(sample.decoded);
 
 				// Act:
 				const encoded = base32.encode(input);
@@ -35,9 +35,9 @@ describe('base32', () => {
 
 		it('accepts all byte values', () => {
 			// Arrange:
-			const data = [];
+			const data = new Uint8Array(260);
 			for (let i = 0; 260 > i; ++i)
-				data.push(i & 0xFF);
+				data[i] = i & 0xFF;
 
 			// Act:
 			const encoded = base32.encode(data);
@@ -61,7 +61,7 @@ describe('base32', () => {
 		it('throws if input size is not a multiple of block size', () => {
 			// Arrange:
 			for (let i = 2; 10 > i; i += 2) {
-				const input = new Array(i);
+				const input = new Uint8Array(i);
 
 				// Act + Assert:
 				expect(() => { base32.encode(input); }, `input at ${i}`).to.throw('decoded size must be multiple of 5');
@@ -75,7 +75,7 @@ describe('base32', () => {
 			const decoded = base32.decode('');
 
 			// Assert:
-			expect(convert.uint8ToHex(decoded)).to.equal('');
+			expect(uint8ToHex(decoded)).to.equal('');
 		});
 
 		it('can convert test vectors', () => {
@@ -85,7 +85,7 @@ describe('base32', () => {
 				const decoded = base32.decode(sample.encoded);
 
 				// Assert:
-				expect(convert.uint8ToHex(decoded), `input ${sample.encoded}`).to.equal(sample.decoded);
+				expect(uint8ToHex(decoded), `input ${sample.encoded}`).to.equal(sample.decoded);
 			});
 		});
 
@@ -94,7 +94,7 @@ describe('base32', () => {
 			const decoded = base32.decode('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567');
 
 			// Assert:
-			expect(convert.uint8ToHex(decoded)).to.equal('00443214C74254B635CF84653A56D7C675BE77DF');
+			expect(uint8ToHex(decoded)).to.equal('00443214C74254B635CF84653A56D7C675BE77DF');
 		});
 
 		it('throws if input size is not a multiple of block size', () => {
@@ -141,11 +141,11 @@ describe('base32', () => {
 			const inputs = ['8A4E7DF5B61CC0F97ED572A95F6ACA', '2D96E4ABB65F0AD3C29FEA48C132CE'];
 			inputs.forEach(input => {
 				// Act:
-				const encoded = base32.encode(convert.hexToUint8(input));
+				const encoded = base32.encode(hexToUint8(input));
 				const result = base32.decode(encoded);
 
 				// Assert:
-				expect(convert.uint8ToHex(result), `input ${input}`).to.equal(input);
+				expect(uint8ToHex(result), `input ${input}`).to.equal(input);
 			});
 		});
 	});

@@ -1,15 +1,23 @@
 const bitmask = bitsNumber => -1 >>> (32 - bitsNumber);
 
-const check = (byteSize, value, isSigned) => {
+const check = (byteSize, inputValue, isSigned) => {
 	let lowerBound;
 	let upperBound;
+
+	let value = inputValue;
 	if (8 === byteSize) {
+		if (Number.isInteger(value))
+			value = BigInt(value);
+
 		if ('bigint' !== typeof value)
-			throw new TypeError(`"value" (${value}) has invalid type, expected BigInt`);
+			throw new RangeError(`"value" (${value}) is not an integer`);
 
 		lowerBound = isSigned ? -0x80000000_00000000n : 0n;
 		upperBound = isSigned ? 0x7FFFFFFF_FFFFFFFFn : 0xFFFFFFFF_FFFFFFFFn;
 	} else {
+		if ('bigint' === typeof value && Number.MAX_SAFE_INTEGER >= value)
+			value = Number(value);
+
 		if (!Number.isInteger(value))
 			throw new RangeError(`"value" (${value}) is not an integer`);
 
@@ -24,19 +32,40 @@ const check = (byteSize, value, isSigned) => {
 	return value;
 };
 
+const isNonNegative = value => {
+	if ('bigint' === typeof value)
+		return 0n <= value;
+
+	return 0 <= value;
+};
+
 /**
  * Represents a base integer.
  */
-class BaseValue {
+export default class BaseValue {
 	/**
 	 * Creates a base value.
 	 * @param {number} size Size of the integer.
-	 * @param {number|BigInt} value Value.
-	 * @param {boolean} isSigned Should the value be treated as signed.
+	 * @param {number|bigint} value Value.
+	 * @param {boolean} isSigned \c true if the value should be treated as signed.
 	 */
 	constructor(size, value, isSigned = false) {
+		/**
+		 * Size of the integer.
+		 * @type {number}
+		 */
 		this.size = size;
+
+		/**
+		 * \c true if the value should be treated as signed.
+		 * @type {boolean}
+		 */
 		this.isSigned = isSigned;
+
+		/**
+		 * Value.
+		 * @type {number|bigint}
+		 */
 		this.value = check(size, value, isSigned);
 	}
 
@@ -46,15 +75,21 @@ class BaseValue {
 	 */
 	toString() {
 		let unsignedValue;
-		if (!this.isSigned || 0 <= this.value) {
+		if (!this.isSigned || isNonNegative(this.value)) {
 			unsignedValue = this.value;
 		} else {
-			const upperBoundPlusOne = (8 === this.size ? 0x1_00000000_00000000n : bitmask(this.size * 8) + 1);
-			unsignedValue = this.value + upperBoundPlusOne;
+			const upperBoundPlusOne = (8 === this.size ? 0x1_00000000_00000000n : BigInt(bitmask(this.size * 8) + 1));
+			unsignedValue = BigInt(this.value) + upperBoundPlusOne;
 		}
 
 		return `0x${unsignedValue.toString(16).toUpperCase().padStart(this.size * 2, '0')}`;
 	}
-}
 
-module.exports = { BaseValue };
+	/**
+	 * Returns representation of this object that can be stored in JSON.
+	 * @returns {string|number} JSON-safe representation of this object.
+	 */
+	toJson() {
+		return 'bigint' === typeof this.value ? this.value.toString(10) : this.value;
+	}
+}

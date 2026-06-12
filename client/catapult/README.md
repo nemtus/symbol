@@ -1,15 +1,15 @@
 # catapult-client
 
-[![docs](badges/docs--green.svg)](https://symbol.github.io)
-[![build rel](https://jenkins.symboldev.com/buildStatus/icon?subject=build%20rel&job=Symbol%2Fserver-pipelines%2Fcatapult-client-release-build)](https://jenkins.symboldev.com/job/Symbol/server-pipelines/job/catapult-client-release-build/)
-[![build dev](https://jenkins.symboldev.com/buildStatus/icon?subject=build%20dev&job=Symbol%2Fserver-pipelines%2Fcatapult-client-build-catapult-project)](https://jenkins.symboldev.com/job/Symbol/server-pipelines/job/catapult-client-build-catapult-project/)
+[![docs](badges/docs--green.svg)](https://docs.symbol.dev)
+[![build rel](https://jenkins.symbolsyndicate.us/buildStatus/icon?subject=build%20rel&job=Symbol%2Fserver-pipelines%2Fcatapult-client-release-build)](https://jenkins.symbolsyndicate.us/job/Symbol/server-pipelines/job/catapult-client-release-build/)
+[![build dev](https://jenkins.symbolsyndicate.us/buildStatus/icon?subject=build%20dev&job=Symbol%2Fserver-pipelines%2Fcatapult-client-build-catapult-project)](https://jenkins.symbolsyndicate.us/job/Symbol/server-pipelines/job/catapult-client-build-catapult-project/)
 [![docker](badges/docker-symbolplatform-brightgreen.svg)](https://hub.docker.com/u/symbolplatform)
 
 Symbol-based networks rely on nodes to provide a trustless, high-performance, and secure blockchain platform.
 
 These nodes are deployed using [catapult-client] software, a C++ rewrite of the previous Java-written [NEM] distributed ledger that has been running since 2015.
 
-Learn more about the protocol by reading the [whitepaper] and the  [developer documentation].
+Learn more about the protocol by reading the [whitepaper][technical reference] and the  [developer documentation].
 
 ## Package Organization
 
@@ -49,7 +49,7 @@ catapult-client executable can be used either to run different types of nodes or
 
 Developers can deploy test net nodes to experiment with the offered transaction set in a live network without the loss of valuable assets.
 
-To run a test net node, follow [this guide](https://symbol.github.io/guides/network/running-a-test-net-node.html).
+To run a test net node, follow [this guide](https://docs.symbol.dev/guides/network/running-a-symbol-node.html).
 
 ### Main Network Node
 
@@ -57,9 +57,9 @@ At the time of writing, the main public network has not been launched. Follow th
 
 ### Private Test Network
 
-With Symbol, businesses can launch and extend private networks by developing custom plugins and extensions at the protocol level. The package [Service Bootstrap] contains the necessary setup scripts to deploy a network for testing and development purposes with just one command.
+With Symbol, businesses can launch and extend private networks by developing custom plugins and extensions at the protocol level. The package [Shoestring] contains the necessary setup scripts to deploy a network for testing and development purposes with just one command.
 
-To run a private test net, follow [this guide](https://symbol.github.io/guides/network/creating-a-private-test-net.html#creating-a-private-test-net).
+To run a private test net, follow [this guide](https://docs.symbol.dev/guides/network/creating-a-private-test-net.html#creating-a-private-test-net).
 
 ### Private Network
 
@@ -73,19 +73,17 @@ Before contributing please [read this](CONTRIBUTING.md).
 
 - [Symbol Developer Documentation][developer documentation]
 - [Symbol Technical Reference][technical reference]
-- Join the community [slack group (#help)][slack]
+- Join the community [Discord server][discord]
 - If you found a bug, [open a new issue][issues]
 
 ## License
 
 Copyright (c) 2018 Jaguar0625, gimre, BloodyRookie, Tech Bureau, Corp Licensed under the [GNU Lesser General Public License v3](LICENSE.txt)
 
-[developer documentation]: https://symbol.github.io
-[Forum]: https://forum.nem.io/c/announcement
-[issues]: https://github.com/symbol/catapult-client/issues
-[slack]: https://join.slack.com/t/nem2/shared_invite/enQtMzY4MDc2NTg0ODgyLWZmZWRiMjViYTVhZjEzOTA0MzUyMTA1NTA5OWQ0MWUzNTA4NjM5OTJhOGViOTBhNjkxYWVhMWRiZDRkOTE0YmU
-[catapult-client]: https://github.com/symbol/catapult-client
-[symbol-rest]: https://github.com/symbol/catapult-rest
-[Service Bootstrap]: https://github.com/symbol/symbol-bootstrap
+[developer documentation]: https://docs.symbol.dev
+[issues]: https://github.com/symbol/symbol/issues
+[discord]: https://discord.gg/NMA9YQ55td
+[catapult-client]: https://github.com/symbol/symbol/tree/dev/client/catapult
+[Shoestring]: https://github.com/symbol/product/tree/dev/tools/shoestring
 [nem]: https://nem.io
 [technical reference]: https://symbol.github.io/symbol-technicalref/main.pdf

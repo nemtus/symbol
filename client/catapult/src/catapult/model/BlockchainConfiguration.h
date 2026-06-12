@@ -24,6 +24,7 @@
 #include "NetworkInfo.h"
 #include "catapult/utils/ConfigurationBag.h"
 #include "catapult/utils/FileSize.h"
+#include "catapult/utils/Hashers.h"
 #include "catapult/utils/TimeSpan.h"
 #include "catapult/types.h"
 #include <unordered_map>
@@ -134,6 +135,24 @@ namespace catapult { namespace model {
 
 			/// Height of fork at which to reissue the treasury.
 			Height TreasuryReissuance;
+
+			/// Height of fork at which aggregate transaction hash is strictly enforced.
+			Height StrictAggregateTransactionHash;
+
+			/// Heights at which the secret lock uniqueness requirement is violated.
+			/// \note This is required to allow mainnet to sync from scratch due to a (since fixed) bug.
+			std::unordered_set<Height, utils::BaseValueHasher<Height>> SkipSecretLockUniquenessChecks;
+
+			/// Heights at which secret lock expiration should be ignored (and locked value burned).
+			/// \note This is required to allow mainnet to sync from scratch due to a (since fixed) bug.
+			std::unordered_set<Height, utils::BaseValueHasher<Height>> SkipSecretLockExpirations;
+
+			/// Heights at which secret lock expiration should be forced (and locked value created).
+			/// \note This is required to allow mainnet to sync from scratch due to a (since fixed) bug.
+			std::unordered_set<Height, utils::BaseValueHasher<Height>> ForceSecretLockExpirations;
+
+			/// Height of fork at which aggregate transaction hash is calculated uniquely.
+			Height UniqueAggregateTransactionHash;
 		};
 
 		/// Fork heights.
@@ -143,6 +162,9 @@ namespace catapult { namespace model {
 		/// Signatures of transactions allowed in the treasury reissuance block (preferred).
 		/// \note These are allowed to involve the nemesis account after the nemesis block.
 		std::vector<Signature> TreasuryReissuanceTransactionSignatures;
+
+		/// Map of hashes of aggregate transactions to corrupted aggregate transaction hashes.
+		std::unordered_map<Hash256, Hash256, utils::ArrayHasher<Hash256>> KnownCorruptAggregateTransactionHashesMap;
 
 		/// Unparsed map of plugin configuration.
 		std::unordered_map<std::string, utils::ConfigurationBag> Plugins;

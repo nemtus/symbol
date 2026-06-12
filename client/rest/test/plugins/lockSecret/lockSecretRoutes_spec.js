@@ -19,16 +19,14 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const catapult = require('../../../src/catapult-sdk/index');
-const lockSecretRoutes = require('../../../src/plugins/lockSecret/lockSecretRoutes');
-const routeUtils = require('../../../src/routes/routeUtils');
-const { MockServer } = require('../../routes/utils/routeTestUtils');
-const { test } = require('../../routes/utils/routeTestUtils');
-const { expect } = require('chai');
-const sinon = require('sinon');
-
-const { address } = catapult.model;
-const { convert } = catapult.utils;
+import lockSecretRoutes from '../../../src/plugins/lockSecret/lockSecretRoutes.js';
+import routeUtils from '../../../src/routes/routeUtils.js';
+import MockServer from '../../routes/utils/MockServer.js';
+import test from '../../routes/utils/routeTestUtils.js';
+import { expect } from 'chai';
+import sinon from 'sinon';
+import { utils } from 'symbol-sdk';
+import { Address } from 'symbol-sdk/symbol';
 
 describe('lock secret routes', () => {
 	describe('secret locks', () => {
@@ -82,7 +80,7 @@ describe('lock secret routes', () => {
 		};
 
 		const dbSecretLocksFake = sinon.fake(addresses =>
-			(Buffer.from(addresses[0]).equals(Buffer.from(address.stringToAddress(testAddress)))
+			(Buffer.from(addresses[0]).equals(Buffer.from(new Address(testAddress).bytes))
 				? Promise.resolve(pageSample)
 				: Promise.resolve(emptyPageSample)));
 
@@ -150,9 +148,9 @@ describe('lock secret routes', () => {
 						return mockServer.callRoute(route, req).then(() => {
 						// Assert:
 							expect(dbSecretLocksFake.calledOnce).to.equal(true);
-							expect(dbSecretLocksFake.firstCall.args[0]).to.deep.equal([address.stringToAddress(testAddress)]);
+							expect(dbSecretLocksFake.firstCall.args[0]).to.deep.equal([new Address(testAddress).bytes]);
 
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 
@@ -164,9 +162,9 @@ describe('lock secret routes', () => {
 						return mockServer.callRoute(route, req).then(() => {
 						// Assert:
 							expect(dbSecretLocksFake.calledOnce).to.equal(true);
-							expect(dbSecretLocksFake.firstCall.args[1]).to.deep.equal(convert.hexToUint8(testSecret));
+							expect(dbSecretLocksFake.firstCall.args[1]).to.deep.equal(utils.hexToUint8(testSecret));
 
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 
@@ -178,14 +176,14 @@ describe('lock secret routes', () => {
 						return mockServer.callRoute(route, req).then(() => {
 						// Assert:
 							expect(dbSecretLocksFake.calledOnce).to.equal(true);
-							expect(dbSecretLocksFake.firstCall.args[0]).to.deep.equal([address.stringToAddress(testAddressNoLocks)]);
+							expect(dbSecretLocksFake.firstCall.args[0]).to.deep.equal([new Address(testAddressNoLocks).bytes]);
 
 							expect(mockServer.send.firstCall.args[0]).to.deep.equal({
 								payload: emptyPageSample,
 								type: 'secretLockInfo',
 								structure: 'page'
 							});
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 
@@ -197,14 +195,14 @@ describe('lock secret routes', () => {
 						return mockServer.callRoute(route, req).then(() => {
 						// Assert:
 							expect(dbSecretLocksFake.calledOnce).to.equal(true);
-							expect(dbSecretLocksFake.firstCall.args[0]).to.deep.equal([address.stringToAddress(testAddress)]);
+							expect(dbSecretLocksFake.firstCall.args[0]).to.deep.equal([new Address(testAddress).bytes]);
 
 							expect(mockServer.send.firstCall.args[0]).to.deep.equal({
 								payload: pageSample,
 								type: 'secretLockInfo',
 								structure: 'page'
 							});
-							expect(mockServer.next.calledOnce).to.equal(true);
+							expect(mockServer.done.calledOnce).to.equal(true);
 						});
 					});
 
@@ -213,7 +211,10 @@ describe('lock secret routes', () => {
 						const req = { params: { address: 'AB12345' } };
 
 						// Act + Assert:
-						expect(() => mockServer.callRoute(route, req)).to.throw('address has an invalid format');
+						return mockServer.callRoute(route, req).then(() => {
+							expect(mockServer.done.calledOnce).to.equal(true);
+							expect(mockServer.done.firstCall.args[0].message).to.include('address has an invalid format');
+						});
 					});
 				});
 			});

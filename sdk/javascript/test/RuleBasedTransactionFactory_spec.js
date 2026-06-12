@@ -1,8 +1,8 @@
-const { BaseValue } = require('../src/BaseValue');
-const { ByteArray } = require('../src/ByteArray');
-const { Hash256, PublicKey } = require('../src/CryptoTypes');
-const { RuleBasedTransactionFactory } = require('../src/RuleBasedTransactionFactory');
-const { expect } = require('chai');
+import BaseValue from '../src/BaseValue.js';
+import ByteArray from '../src/ByteArray.js';
+import { Hash256, PublicKey } from '../src/CryptoTypes.js';
+import RuleBasedTransactionFactory from '../src/RuleBasedTransactionFactory.js';
+import { expect } from 'chai';
 
 describe('RuleBasedTransactionFactory', () => {
 	// region Module
@@ -128,12 +128,20 @@ describe('RuleBasedTransactionFactory', () => {
 
 	// region pod parser
 
+	const requireRule = (factory, ruleName) => {
+		const rule = factory.rules.get(ruleName);
+		if (!rule)
+			throw Error(`no rule with name ${ruleName}`);
+
+		return rule;
+	};
+
 	describe('pod parser', () => {
-		const assertPodParser = (inputValue, expectedValue, typingRules = undefined) => {
+		const assertPodParser = (inputValue, expectedValue, typingRules) => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module, undefined, typingRules);
 			factory.addPodParser('SigningPublicKey', PublicKey);
-			const rule = factory.rules.get('SigningPublicKey');
+			const rule = requireRule(factory, 'SigningPublicKey');
 
 			// Act:
 			const parsed = rule(inputValue);
@@ -145,13 +153,14 @@ describe('RuleBasedTransactionFactory', () => {
 		it('can handle raw value', () => {
 			assertPodParser(
 				'364F3694A022DB4DC59558944707C6679F6FD7E1A7B99CDE8F7D16D3FF515D28',
-				new PublicKey('364F3694A022DB4DC59558944707C6679F6FD7E1A7B99CDE8F7D16D3FF515D28')
+				new PublicKey('364F3694A022DB4DC59558944707C6679F6FD7E1A7B99CDE8F7D16D3FF515D28'),
+				undefined
 			);
 		});
 
 		it('can handle typed value', () => {
 			const publicKey = new PublicKey('364F3694A022DB4DC59558944707C6679F6FD7E1A7B99CDE8F7D16D3FF515D28');
-			assertPodParser(publicKey, publicKey);
+			assertPodParser(publicKey, publicKey, undefined);
 		});
 
 		it('uses type rule override when available', () => {
@@ -177,7 +186,7 @@ describe('RuleBasedTransactionFactory', () => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addFlagsParser('MosaicFlags');
-			const rule = factory.rules.get('MosaicFlags');
+			const rule = requireRule(factory, 'MosaicFlags');
 
 			// Act:
 			const parsed = rule(inputValue);
@@ -201,7 +210,7 @@ describe('RuleBasedTransactionFactory', () => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addFlagsParser('MosaicFlags');
-			const rule = factory.rules.get('MosaicFlags');
+			const rule = requireRule(factory, 'MosaicFlags');
 
 			// Act + Assert:
 			expect(() => { rule('supply_mutable foo revokable'); }).to.throw('unknown value foo for type MosaicFlags');
@@ -232,7 +241,7 @@ describe('RuleBasedTransactionFactory', () => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addEnumParser('NetworkType');
-			const rule = factory.rules.get('NetworkType');
+			const rule = requireRule(factory, 'NetworkType');
 
 			// Act:
 			const parsed = rule(inputValue);
@@ -249,7 +258,7 @@ describe('RuleBasedTransactionFactory', () => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addEnumParser('NetworkType');
-			const rule = factory.rules.get('NetworkType');
+			const rule = requireRule(factory, 'NetworkType');
 
 			// Act + Assert:
 			expect(() => { rule('Bitcoin'); }).to.throw('unknown value Bitcoin for type NetworkType');
@@ -276,7 +285,7 @@ describe('RuleBasedTransactionFactory', () => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addStructParser('StructPlain');
-			const rule = factory.rules.get('struct:StructPlain');
+			const rule = requireRule(factory, 'struct:StructPlain');
 
 			// Act:
 			const parsed = rule({
@@ -295,7 +304,7 @@ describe('RuleBasedTransactionFactory', () => {
 			factory.addPodParser('UnresolvedMosaicId', Module.UnresolvedMosaicId);
 			factory.addPodParser('Amount', Module.Amount);
 			factory.addStructParser('UnresolvedMosaic');
-			const rule = factory.rules.get('struct:UnresolvedMosaic');
+			const rule = requireRule(factory, 'struct:UnresolvedMosaic');
 
 			// Act:
 			const parsed = rule({
@@ -317,7 +326,7 @@ describe('RuleBasedTransactionFactory', () => {
 			factory.addPodParser('UnresolvedMosaicId', Module.UnresolvedMosaicId);
 			factory.addArrayParser('UnresolvedMosaicId');
 			factory.addStructParser('StructArrayMember');
-			const rule = factory.rules.get('struct:StructArrayMember');
+			const rule = requireRule(factory, 'struct:StructArrayMember');
 
 			// Act:
 			const parsed = rule({
@@ -337,7 +346,7 @@ describe('RuleBasedTransactionFactory', () => {
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addEnumParser('NetworkType');
 			factory.addStructParser('StructEnumMember');
-			const rule = factory.rules.get('struct:StructEnumMember');
+			const rule = requireRule(factory, 'struct:StructEnumMember');
 
 			// Act:
 			const parsed = rule({
@@ -355,7 +364,7 @@ describe('RuleBasedTransactionFactory', () => {
 			factory.addPodParser('Amount', Module.Amount);
 			factory.addStructParser('UnresolvedMosaic');
 			factory.addStructParser('StructStructMember');
-			const rule = factory.rules.get('struct:StructStructMember');
+			const rule = requireRule(factory, 'struct:StructStructMember');
 
 			// Act:
 			const parsed = rule({
@@ -379,7 +388,7 @@ describe('RuleBasedTransactionFactory', () => {
 			factory.addPodParser('UnresolvedMosaicId', Module.UnresolvedMosaicId);
 			factory.addPodParser('Amount', Module.Amount);
 			factory.addStructParser('UnresolvedMosaic');
-			const rule = factory.rules.get('struct:UnresolvedMosaic');
+			const rule = requireRule(factory, 'struct:UnresolvedMosaic');
 
 			// Act:
 			const parsed = rule({
@@ -394,22 +403,30 @@ describe('RuleBasedTransactionFactory', () => {
 			expect(parsed.mosaicId instanceof Module.UnresolvedMosaicId).to.equal(true);
 		});
 
-		it('can parse with type converter and autodetect byte arrays', () => {
+		const assertCanParseWithTypeConverterAndAutodetectByteArrays = ByteArrayClass => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addPodParser('Hash256', Module.Hash256);
 			factory.addStructParser('StructHashMember');
-			const rule = factory.rules.get('struct:StructHashMember');
+			const rule = requireRule(factory, 'struct:StructHashMember');
 
 			// Act:
 			const parsed = rule({
-				hash: new Hash256('E9B3AEDE9A57C2B8C3D78DB9805D12AB0D983B63CE8F89D8DFE108D0FF08D23C')
+				hash: new ByteArrayClass('E9B3AEDE9A57C2B8C3D78DB9805D12AB0D983B63CE8F89D8DFE108D0FF08D23C')
 			});
 
 			// Assert:
 			expect(parsed.hash).to.deep.equal(new Module.Hash256('E9B3AEDE9A57C2B8C3D78DB9805D12AB0D983B63CE8F89D8DFE108D0FF08D23C'));
 
 			expect(parsed.hash instanceof Module.Hash256).to.equal(true);
+		};
+
+		it('can parse with type converter and autodetect byte arrays (from public type)', () => {
+			assertCanParseWithTypeConverterAndAutodetectByteArrays(Hash256);
+		});
+
+		it('can parse with type converter and autodetect byte arrays (from model type)', () => {
+			assertCanParseWithTypeConverterAndAutodetectByteArrays(Module.Hash256);
 		});
 	});
 
@@ -418,12 +435,20 @@ describe('RuleBasedTransactionFactory', () => {
 	// region array parser
 
 	describe('array parser', () => {
+		it('cannot add with unknown element type', () => {
+			// Arrange:
+			const factory = new RuleBasedTransactionFactory(Module);
+
+			// Act + Assert:
+			expect(() => factory.addArrayParser('NetworkType')).to.throw('element rule "NetworkType" is unknown');
+		});
+
 		it('can parse enum array', () => {
 			// Arrange:
 			const factory = new RuleBasedTransactionFactory(Module);
 			factory.addEnumParser('NetworkType');
 			factory.addArrayParser('NetworkType');
-			const rule = factory.rules.get('array[NetworkType]');
+			const rule = requireRule(factory, 'array[NetworkType]');
 
 			// Act:
 			const parsed = rule(['mainnet', 152]);
@@ -439,7 +464,7 @@ describe('RuleBasedTransactionFactory', () => {
 			factory.addPodParser('Amount', Module.Amount);
 			factory.addStructParser('UnresolvedMosaic');
 			factory.addArrayParser('struct:UnresolvedMosaic');
-			const rule = factory.rules.get('array[UnresolvedMosaic]');
+			const rule = requireRule(factory, 'array[UnresolvedMosaic]');
 
 			// Act:
 			const parsed = rule([
@@ -474,8 +499,8 @@ describe('RuleBasedTransactionFactory', () => {
 
 			// Assert:
 			expect(Array.from(factory.rules.keys())).to.deep.equal(['UnresolvedMosaicId', 'Amount']);
-			expect(factory.rules.get('UnresolvedMosaicId')(123n)).to.deep.equal(new Module.UnresolvedMosaicId(123n));
-			expect(factory.rules.get('Amount')(987n)).to.deep.equal(new Module.Amount(987n));
+			expect(requireRule(factory, 'UnresolvedMosaicId')(123n)).to.deep.equal(new Module.UnresolvedMosaicId(123n));
+			expect(requireRule(factory, 'Amount')(987n)).to.deep.equal(new Module.Amount(987n));
 		});
 	});
 

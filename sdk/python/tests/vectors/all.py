@@ -6,9 +6,11 @@ import time
 from binascii import unhexlify
 
 from symbolchain.Bip32 import Bip32
-from symbolchain.CryptoTypes import PrivateKey, PublicKey, Signature
+from symbolchain.Cipher import AesCbcCipher, AesGcmCipher
+from symbolchain.CryptoTypes import PrivateKey, PublicKey, SharedKey256, Signature
 from symbolchain.Network import NetworkLocator
 from symbolchain.symbol.IdGenerator import generate_mosaic_id
+from symbolchain.symbol.VotingKeysGenerator import VotingKeysGenerator
 
 
 class ClassLocator:
@@ -18,13 +20,14 @@ class ClassLocator:
 		self.verifier_class = self.facade_class.Verifier
 		self.network_class = network_class
 		self.address_class = self.facade_class.Address
+		self.shared_key_class = self.facade_class.SharedKey
 
 	@property
 	def bip32_root_node_factory(self):
 		return Bip32(self.facade_class.BIP32_CURVE_NAME)
 
 
-# region TestSuites
+# region VectorsTestSuite, KeyConversionTester, AddressConversionTester
 
 class VectorsTestSuite:
 	def __init__(self, identifier, filename, description):
@@ -78,6 +81,10 @@ class AddressConversionTester(VectorsTestSuite):
 			(expected_address_testnet, actual_address_testnet)
 		]
 
+# endregion
+
+
+# region SignTester, VerifyTester
 
 class SignTester(VectorsTestSuite):
 	def __init__(self, class_locator):
@@ -114,6 +121,105 @@ class VerifyTester(VectorsTestSuite):
 		# Assert:
 		return [(True, is_verified)]
 
+# endregion
+
+
+# region DeriveDeprecatedTester, DeriveTester, CipherDeprecatedTester, CipherTester
+
+class DeriveDeprecatedTester(VectorsTestSuite):
+	def __init__(self, class_locator):
+		super().__init__(3, 'test-derive-deprecated', 'derive-deprecated')
+		self.class_locator = class_locator
+
+	def process(self, test_vector, _):
+		# Arrange:
+		other_public_key = PublicKey(test_vector['otherPublicKey'])
+		key_pair = self.class_locator.key_pair_class(PrivateKey(test_vector['privateKey']))
+		salt = unhexlify(test_vector['salt'])
+
+		# Act:
+		shared_key = self.class_locator.shared_key_class.derive_shared_key_deprecated(key_pair, other_public_key, salt)
+
+		# Assert:
+		return [(SharedKey256(test_vector['sharedKey']), shared_key)]
+
+
+class DeriveTester(VectorsTestSuite):
+	def __init__(self, class_locator):
+		super().__init__(3, 'test-derive-hkdf', 'derive')
+		self.class_locator = class_locator
+
+	def process(self, test_vector, _):
+		# Arrange:
+		other_public_key = PublicKey(test_vector['otherPublicKey'])
+		key_pair = self.class_locator.key_pair_class(PrivateKey(test_vector['privateKey']))
+
+		# Act:
+		shared_key = self.class_locator.shared_key_class.derive_shared_key(key_pair, other_public_key)
+
+		# Assert:
+		return [(SharedKey256(test_vector['sharedKey']), shared_key)]
+
+
+class CipherDeprecatedTester(VectorsTestSuite):
+	def __init__(self, class_locator):
+		super().__init__(4, 'test-cipher-deprecated', 'cipher-deprecated')
+		self.class_locator = class_locator
+
+	def process(self, test_vector, _):
+		# Arrange:
+		other_public_key = PublicKey(test_vector['otherPublicKey'])
+		key_pair = self.class_locator.key_pair_class(PrivateKey(test_vector['privateKey']))
+		salt = unhexlify(test_vector['salt'])
+		shared_key = self.class_locator.shared_key_class.derive_shared_key_deprecated(key_pair, other_public_key, salt)
+
+		iv = unhexlify(test_vector['iv'])  # pylint: disable=invalid-name
+		cipher_text = unhexlify(test_vector['cipherText'])
+		clear_text = unhexlify(test_vector['clearText'])
+
+		# Act:
+		cipher = AesCbcCipher(shared_key)
+		result_cipher_text = cipher.encrypt(clear_text, iv)
+		result_clear_text = cipher.decrypt(cipher_text, iv)
+
+		# Assert:
+		return [
+			(cipher_text, result_cipher_text),
+			(clear_text, result_clear_text)
+		]
+
+
+class CipherTester(VectorsTestSuite):
+	def __init__(self, class_locator):
+		super().__init__(4, 'test-cipher', 'cipher')
+		self.class_locator = class_locator
+
+	def process(self, test_vector, _):
+		# Arrange:
+		other_public_key = PublicKey(test_vector['otherPublicKey'])
+		key_pair = self.class_locator.key_pair_class(PrivateKey(test_vector['privateKey']))
+		shared_key = self.class_locator.shared_key_class.derive_shared_key(key_pair, other_public_key)
+
+		iv = unhexlify(test_vector['iv'])  # pylint: disable=invalid-name
+		tag = unhexlify(test_vector['tag'])
+		cipher_text = unhexlify(test_vector['cipherText'])
+		clear_text = unhexlify(test_vector['clearText'])
+
+		# Act:
+		cipher = AesGcmCipher(shared_key)
+		result_cipher_text = cipher.encrypt(clear_text, iv)
+		result_clear_text = cipher.decrypt(cipher_text + tag, iv)
+
+		# Assert:
+		return [
+			(cipher_text + tag, result_cipher_text),
+			(clear_text, result_clear_text)
+		]
+
+# endregion
+
+
+# region MosaicIdDerivationTester
 
 class MosaicIdDerivationTester(VectorsTestSuite):
 	def __init__(self, class_locator):
@@ -137,6 +243,10 @@ class MosaicIdDerivationTester(VectorsTestSuite):
 
 		return mosaic_id_pairs
 
+# endregion
+
+
+# region Bip32DerivationTester, Bip39DerivationTester
 
 class Bip32DerivationTester(VectorsTestSuite):
 	def __init__(self, class_locator):
@@ -190,8 +300,68 @@ class Bip39DerivationTester(VectorsTestSuite):
 		# Assert:
 		return [(expected_root_public_key, root_public_key)]
 
+# endregion
+
+
+# region VotingKeysGenerationTester
+
+class SeededPrivateKeyGenerator:
+	def __init__(self, values):
+		self.values = values
+		self.next_index = 0
+
+	def generate(self):
+		self.next_index += 1
+		return self.values[self.next_index - 1]
+
+
+class FibPrivateKeyGenerator:
+	def __init__(self, fill_private_key=False):
+		self.fill_private_key = fill_private_key
+		self.value1 = 1
+		self.value2 = 2
+
+	def generate(self):
+		next_value = self.value1 + self.value2
+		self.value1 = self.value2
+		self.value2 = next_value
+
+		seed_value = next_value % 256
+
+		if not self.fill_private_key:
+			return PrivateKey(seed_value.to_bytes(PrivateKey.SIZE, 'big'))
+
+		return PrivateKey(bytes([(seed_value + i) % 256 for i in range(0, PrivateKey.SIZE)]))
+
+
+class VotingKeysGenerationTester(VectorsTestSuite):
+	def __init__(self, class_locator):
+		super().__init__(7, 'test-voting-keys-generation', 'voting keys generation')
+		self.class_locator = class_locator
+
+	def process(self, test_vector, _):
+		private_key_generator = {
+			'test_vector_1': FibPrivateKeyGenerator(),
+			'test_vector_2': FibPrivateKeyGenerator(True),
+			'test_vector_3': SeededPrivateKeyGenerator([
+				PrivateKey('12F98B7CB64A6D840931A2B624FB1EACAFA2C25C3EF0018CD67E8D470A248B2F'),
+				PrivateKey('B5593870940F28DAEE262B26367B69143AD85E43048D23E624F4ED8008C0427F'),
+				PrivateKey('6CFC879ABCCA78F5A4C9739852C7C643AEC3990E93BF4C6F685EB58224B16A59')
+			])
+		}[test_vector['name']]
+
+		root_private_key = PrivateKey(test_vector['rootPrivateKey'])
+		voting_keys_generator = VotingKeysGenerator(self.class_locator.key_pair_class(root_private_key), private_key_generator.generate)
+
+		# Act:
+		voting_keys_buffer = voting_keys_generator.generate(test_vector['startEpoch'], test_vector['endEpoch'])
+
+		# Assert:
+		expected_voting_keys_buffer = unhexlify(test_vector['expectedFileHex'])
+		return [(expected_voting_keys_buffer, voting_keys_buffer)]
 
 # endregion
+
 
 def load_class_locator(blockchain):
 	# pylint: disable=import-outside-toplevel
@@ -213,12 +383,16 @@ def load_test_suites(blockchain):
 		AddressConversionTester(class_locator),
 		SignTester(class_locator),
 		VerifyTester(class_locator),
+		DeriveTester(class_locator),
 		Bip32DerivationTester(class_locator),
 		Bip39DerivationTester(class_locator),
+		CipherTester(class_locator)
 	]
 
 	if 'symbol' == blockchain:
-		test_suites += [MosaicIdDerivationTester(class_locator)]
+		test_suites += [MosaicIdDerivationTester(class_locator), VotingKeysGenerationTester(class_locator)]
+	else:
+		test_suites += [DeriveDeprecatedTester(class_locator), CipherDeprecatedTester(class_locator)]
 
 	return test_suites
 
@@ -226,7 +400,7 @@ def load_test_suites(blockchain):
 def main():
 	# pylint: disable=too-many-locals
 
-	test_identifiers = range(0, 7)
+	test_identifiers = range(0, 8)
 	parser = argparse.ArgumentParser(description='nem test vectors harness')
 	parser.add_argument('--vectors', help='path to test-vectors directory', required=True)
 	parser.add_argument('--blockchain', help='blockchain to run vectors against', choices=['nem', 'symbol'], default='symbol')

@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 
 from symbolchain.AccountDescriptorRepository import AccountDescriptorRepository
 from symbolchain.Bip32 import Bip32
@@ -17,6 +18,47 @@ YAML_INPUT = '''
 
 
 class NemFacadeTest(unittest.TestCase):
+	# pylint: disable=too-many-public-methods
+
+	# region real transactions
+
+	@staticmethod
+	def _create_real_transfer():
+		facade = NemFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
+		transaction = facade.transaction_factory.create({
+			'type': 'transfer_transaction_v1',
+			'signer_public_key': 'TEST',
+			'fee': 0x186A0,
+			'timestamp': 191205516,
+			'deadline': 191291916,
+			'recipient_address': 'TALICE5VF6J5FYMTCB7A3QG6OIRDRUXDWJGFVXNW',
+			'amount': 5100000,
+			'message': {
+				'message_type': 'plain',
+				'message': 'blah blah'
+			}
+		})
+		return transaction
+
+	@staticmethod
+	def _create_real_multisig_transaction():
+		facade = NemFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
+		factory = facade.transaction_factory
+
+		inner_transaction = factory.to_non_verifiable_transaction(NemFacadeTest._create_real_transfer())
+		transaction = facade.transaction_factory.create({
+			'type': 'multisig_transaction_v1',
+			'signer_public_key': 'TEST',
+			'fee': 0x123456,
+			'timestamp': 191205516,
+			'deadline': 191291916,
+
+			'inner_transaction': inner_transaction,
+		})
+		return transaction
+
+	# endregion
+
 	# region constants
 
 	def test_bip32_constants_are_correct(self):
@@ -53,7 +95,7 @@ class NemFacadeTest(unittest.TestCase):
 		# Act:
 		facade = NemFacade('testnet')
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v2',
 			'signer_public_key': bytes(PublicKey.SIZE)
 		})
 
@@ -75,7 +117,7 @@ class NemFacadeTest(unittest.TestCase):
 		# Act:
 		facade = NemFacade(network)
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v2',
 			'signer_public_key': bytes(PublicKey.SIZE)
 		})
 
@@ -90,7 +132,7 @@ class NemFacadeTest(unittest.TestCase):
 		# Act:
 		facade = NemFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
 		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction',
+			'type': 'transfer_transaction_v2',
 			'signer_public_key': 'TEST',
 			'recipient_address': 'ALICE'
 		})
@@ -111,26 +153,89 @@ class NemFacadeTest(unittest.TestCase):
 
 	# endregion
 
-	# region hash_transaction / sign_transaction
+	# region now
 
-	@staticmethod
-	def _create_real_transfer():
+	def test_can_create_current_timestamp_for_network_via_now(self):
+		while True:
+			# Arrange: affinitize test to run so that whole test runs within the context of the same millisecond
+			start_time = datetime.now()
+			facade = NemFacade('testnet')
+
+			# Act:
+			now_from_facade = facade.now()
+			now_from_network = facade.network.from_datetime(datetime.now(timezone.utc))
+
+			end_time = datetime.now()
+			if (start_time.microsecond // 1000) != (end_time.microsecond // 1000):
+				continue
+
+			# Assert:
+			self.assertEqual(now_from_network, now_from_facade)
+			self.assertGreater(now_from_facade.timestamp, 0)
+			break
+
+	# endregion
+
+	# region create_public_account / create_account
+
+	def test_can_create_public_account_from_public_key(self):
+		# Arrange:
+		facade = NemFacade('testnet')
+		public_key = PublicKey('D6C3845431236C5A5A907A9E45BD60DA0E12EFD350B970E7F58E3499E2E7A2F0')
+
+		# Act:
+		account = facade.create_public_account(public_key)
+
+		# Assert:
+		self.assertEqual(facade.Address('TCFGSLITSWMRROU2GO7FPMIUUDELUPSZUNUEZF33'), account.address)
+		self.assertEqual(public_key, account.public_key)
+
+	def test_can_create_account_from_private_key(self):
+		# Arrange:
+		facade = NemFacade('testnet')
+		public_key = PublicKey('D6C3845431236C5A5A907A9E45BD60DA0E12EFD350B970E7F58E3499E2E7A2F0')
+		private_key = PrivateKey('ED4C70D78104EB11BCD73EBDC512FEBC8FBCEB36A370C957FF7E266230BB5D57')
+
+		# Act:
+		account = facade.create_account(private_key)
+
+		# Assert:
+		self.assertEqual(facade.Address('TCFGSLITSWMRROU2GO7FPMIUUDELUPSZUNUEZF33'), account.address)
+		self.assertEqual(public_key, account.public_key)
+		self.assertEqual(public_key, account.key_pair.public_key)
+		self.assertEqual(private_key, account.key_pair.private_key)
+
+	def test_can_create_message_encoder_from_account(self):
+		# Arrange:
+		facade = NemFacade('testnet')
+		account = facade.create_account(PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC'))
+
+		# Act:
+		encoder = account.message_encoder()
+
+		# Assert: message encoder matches the account
+		self.assertEqual(account.public_key, encoder.public_key)
+
+	def test_can_sign_transaction_with_account_wrappers(self):
+		# Arrange:
 		facade = NemFacade('testnet', AccountDescriptorRepository(YAML_INPUT))
-		transaction = facade.transaction_factory.create({
-			'type': 'transfer_transaction_v1',
-			'signer_public_key': 'TEST',
-			'fee': 0x186A0,
-			'timestamp': 191205516,
-			'deadline': 191291916,
-			'recipient_address': 'TALICE5VF6J5FYMTCB7A3QG6OIRDRUXDWJGFVXNW',
-			'amount': 5100000,
-			'message_envelope_size': 0x11,
-			'message': {
-				'message_type': 'plain',
-				'message': 'blah blah'
-			}
-		})
-		return transaction
+		account = facade.create_account(PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC'))
+
+		transaction = self._create_real_transfer()
+
+		# Sanity:
+		self.assertEqual(Signature.zero().bytes, transaction.signature.bytes)
+
+		# Act:
+		signature = account.sign_transaction(transaction)
+		is_verified = facade.verify_transaction(transaction, signature)
+
+		# Assert:
+		self.assertTrue(is_verified)
+
+	# endregion
+
+	# region hash_transaction / sign_transaction
 
 	def test_can_hash_transaction(self):
 		# Arrange:
@@ -145,13 +250,15 @@ class NemFacadeTest(unittest.TestCase):
 	def test_can_sign_transaction(self):
 		# Arrange:
 		private_key = PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC')
+		facade = NemFacade('testnet')
+
 		transaction = self._create_real_transfer()
 
 		# Sanity:
 		self.assertEqual(Signature.zero().bytes, transaction.signature.bytes)
 
 		# Act:
-		signature = NemFacade.sign_transaction(NemFacade.KeyPair(private_key), transaction)
+		signature = facade.sign_transaction(NemFacade.KeyPair(private_key), transaction)
 
 		# Assert:
 		expected_signature = Signature(''.join([
@@ -160,20 +267,75 @@ class NemFacadeTest(unittest.TestCase):
 		]))
 		self.assertEqual(expected_signature, signature)
 
-	def test_can_verify_transaction(self):
+	@staticmethod
+	def _sign_transaction(facade, key_pair, transaction):
+		return facade.sign_transaction(key_pair, transaction)
+
+	@staticmethod
+	def _sign_transaction_signing_payload(facade, key_pair, transaction):
+		signing_payload = facade.extract_signing_payload(transaction)
+		return key_pair.sign(signing_payload)
+
+	def _assert_can_verify_transaction(self, transaction, sign):
 		# Arrange:
 		private_key = PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC')
-		transaction = self._create_real_transfer()
+		facade = NemFacade('testnet')
 
 		# Sanity:
 		self.assertEqual(Signature.zero().bytes, transaction.signature.bytes)
 
 		# Act:
-		signature = NemFacade.sign_transaction(NemFacade.KeyPair(private_key), transaction)
-		is_verified = NemFacade.verify_transaction(transaction, signature)
+		signature = sign(facade, NemFacade.KeyPair(private_key), transaction)
+		is_verified = facade.verify_transaction(transaction, signature)
 
 		# Assert:
 		self.assertTrue(is_verified)
+
+	def test_can_verify_signed_transaction(self):
+		self._assert_can_verify_transaction(self._create_real_transfer(), self._sign_transaction)
+
+	def test_can_verify_signed_transaction_signing_payload(self):
+		self._assert_can_verify_transaction(self._create_real_transfer(), self._sign_transaction_signing_payload)
+
+	# endregion
+
+	# region multisig
+
+	def test_can_hash_multisig_transaction(self):
+		# Arrange:
+		transaction = self._create_real_multisig_transaction()
+
+		# Act:
+		hash_value = NemFacade.hash_transaction(transaction)
+
+		# Assert:
+		self.assertEqual(Hash256('B585BC092CDDDCBA535FD6C0DE38F26EB44E6BA638A0BA6DFAD4BAA7E7AAE1B8'), hash_value)
+
+	def test_can_sign_multisig_transaction(self):
+		# Arrange:
+		private_key = PrivateKey('EDB671EB741BD676969D8A035271D1EE5E75DF33278083D877F23615EB839FEC')
+		facade = NemFacade('testnet')
+
+		transaction = self._create_real_multisig_transaction()
+
+		# Sanity:
+		self.assertEqual(Signature.zero().bytes, transaction.signature.bytes)
+
+		# Act:
+		signature = facade.sign_transaction(NemFacade.KeyPair(private_key), transaction)
+
+		# Assert:
+		expected_signature = Signature(''.join([
+			'E324CCA57275D9752A684E6A089733803423647B8DDF5C1627FC23218CC84287'
+			'EB7037AD4C6CB8CB37BBC9F5423FA73F431814A008400A756CFFE35F4533EB00'
+		]))
+		self.assertEqual(expected_signature, signature)
+
+	def test_can_verify_signed_multisig_transaction(self):
+		self._assert_can_verify_transaction(self._create_real_multisig_transaction(), self._sign_transaction)
+
+	def test_can_verify_signed_multisig_transaction_signing_payload(self):
+		self._assert_can_verify_transaction(self._create_real_multisig_transaction(), self._sign_transaction_signing_payload)
 
 	# endregion
 

@@ -1,14 +1,13 @@
-const { ByteArray } = require('../ByteArray');
-const BasicNetwork = require('../Network').Network;
-const BasicNetworkTimestamp = require('../NetworkTimestamp').NetworkTimestamp;
-const { NetworkTimestampDatetimeConverter } = require('../NetworkTimestamp');
-const base32 = require('../utils/base32');
-const { keccak_256 } = require('@noble/hashes/sha3');
+import ByteArray from '../ByteArray.js';
+import { Network as BasicNetwork } from '../Network.js';
+import { NetworkTimestamp as BasicNetworkTimestamp, NetworkTimestampDatetimeConverter } from '../NetworkTimestamp.js';
+import base32 from '../utils/base32.js';
+import { keccak_256 } from '@noble/hashes/sha3.js';
 
 /**
- * Represents a NEM network timestamp with millisecond resolution.
+ * Represents a NEM network timestamp with second resolution.
  */
-class NetworkTimestamp extends BasicNetworkTimestamp {
+export class NetworkTimestamp extends BasicNetworkTimestamp {
 	/**
 	 * Adds a specified number of seconds to this timestamp.
 	 * @override
@@ -23,28 +22,46 @@ class NetworkTimestamp extends BasicNetworkTimestamp {
 /**
  * Represents a NEM address.
  */
-class Address extends ByteArray {
+export class Address extends ByteArray {
+	/**
+	 * Byte size of raw address.
+	 * @type {number}
+	 */
 	static SIZE = 25;
 
+	/**
+	 * Length of encoded address string.
+	 * @type {number}
+	 */
 	static ENCODED_SIZE = 40;
 
 	/**
-	 * Creates a NEM address.
-	 * @param {Uint8Array|string|Address} address Input string, byte array or address.
+	 * Byte array name (required because `constructor.name` is dropped during minification).
+	 * @type {string}
 	 */
-	constructor(address) {
-		let rawBytes = address;
-		if ('string' === typeof address)
-			rawBytes = base32.decode(address);
-		else if (address instanceof Address)
-			rawBytes = address.bytes;
+	static NAME = 'Address';
 
-		super(Address.SIZE, rawBytes);
+	/**
+	 * Creates a NEM address.
+	 * @param {Uint8Array|string|Address} addressInput Input string, byte array or address.
+	 */
+	constructor(addressInput) {
+		const extractAddressBytes = () => {
+			if ('string' === typeof addressInput)
+				return base32.decode(addressInput);
+
+			if (addressInput instanceof Address)
+				return addressInput.bytes;
+
+			return addressInput;
+		};
+
+		super(Address.SIZE, extractAddressBytes());
 	}
 
 	/**
 	 * Returns string representation of this object.
-	 * @returns {string} String representation of this object
+	 * @returns {string} String representation of this object.
 	 */
 	toString() {
 		return base32.encode(this.bytes);
@@ -54,7 +71,25 @@ class Address extends ByteArray {
 /**
  * Represents a NEM network.
  */
-class Network extends BasicNetwork {
+export class Network extends BasicNetwork {
+	/**
+	 * NEM main network.
+	 * @type {Network}
+	 */
+	static MAINNET;
+
+	/**
+	 * NEM test network.
+	 * @type {Network}
+	 */
+	static TESTNET;
+
+	/**
+	 * NEM well known networks.
+	 * @type {Array<Network>}
+	 */
+	static NETWORKS;
+
 	/**
 	 * Creates a new network with the specified name, identifier byte and generation hash seed.
 	 * @param {string} name Network name.
@@ -77,5 +112,3 @@ class Network extends BasicNetwork {
 Network.MAINNET = new Network('mainnet', 0x68, new Date(Date.UTC(2015, 2, 29, 0, 6, 25)));
 Network.TESTNET = new Network('testnet', 0x98, new Date(Date.UTC(2015, 2, 29, 0, 6, 25)));
 Network.NETWORKS = [Network.MAINNET, Network.TESTNET];
-
-module.exports = { Address, Network, NetworkTimestamp };

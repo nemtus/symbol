@@ -10,7 +10,7 @@ function generate_code() {
 	git_root="$(git rev-parse --show-toplevel)"
 
 	PYTHONPATH="${git_root}/catbuffer/parser" python3 -m catparser \
-		--schema "${git_root}/catbuffer/schemas/$1/all_transactions.cats"  \
+		--schema "${git_root}/catbuffer/schemas/$1/all_generated.cats"  \
 		--include "${git_root}/catbuffer/schemas/$1" \
 		--output "${git_root}/sdk/python/symbolchain/$2" \
 		--quiet \
@@ -28,7 +28,7 @@ elif [[ "$1" = "dryrun" ]]; then
 
 	for name in "nc" "sc";
 	do
-		diff "./symbolchain/${name}/__init__.py" "./symbolchain/${name}2/__init__.py"
+		diff --strip-trailing-cr "./symbolchain/${name}/__init__.py" "./symbolchain/${name}2/__init__.py"
 		rm -rf "./symbolchain/${name}2"
 	done
 else

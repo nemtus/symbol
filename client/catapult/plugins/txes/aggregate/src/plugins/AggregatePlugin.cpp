@@ -41,12 +41,20 @@ namespace catapult { namespace plugins {
 					model::Entity_Type_Aggregate_Bonded));
 		}
 
-		manager.addStatelessValidatorHook([config](auto& builder) {
+		const auto& knownCorruptedHashes = manager.config().KnownCorruptAggregateTransactionHashesMap;
+		manager.addStatelessValidatorHook([config, &knownCorruptedHashes](auto& builder) {
+			builder.add(validators::CreateAggregateTransactionsHashValidator(knownCorruptedHashes));
 			builder.add(validators::CreateBasicAggregateCosignaturesValidator(
 					config.MaxTransactionsPerAggregate,
 					config.MaxCosignaturesPerAggregate));
 			if (config.EnableStrictCosignatureCheck)
 				builder.add(validators::CreateStrictAggregateCosignaturesValidator());
+		});
+
+		auto v2ForkHeight = manager.config().ForkHeights.StrictAggregateTransactionHash;
+		auto v3ForkHeight = manager.config().ForkHeights.UniqueAggregateTransactionHash;
+		manager.addStatefulValidatorHook([v2ForkHeight, v3ForkHeight](auto& builder) {
+			builder.add(validators::CreateAggregateTransactionVersionValidator(v2ForkHeight, v3ForkHeight));
 		});
 	}
 }}

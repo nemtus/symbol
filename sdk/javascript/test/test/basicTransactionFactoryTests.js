@@ -1,9 +1,13 @@
-const { PublicKey, Signature } = require('../../src/CryptoTypes');
-const { expect } = require('chai');
-const crypto = require('crypto');
+import { PublicKey, Signature } from '../../src/CryptoTypes.js';
+import { expect } from 'chai';
+import crypto from 'crypto';
 
-const runBasicTransactionFactoryTests = (testDescriptor, includeAttachSignatureTests = true) => {
+export const runBasicTransactionFactoryTests = ( // eslint-disable-line import/prefer-default-export
+	testDescriptor,
+	includeAttachSignatureTests = true
+) => {
 	const TEST_SIGNER_PUBLIC_KEY = new PublicKey(crypto.randomBytes(PublicKey.SIZE));
+	const transactionTypeName = testDescriptor.transactionTypeName || 'transfer_transaction_v1';
 
 	// region create
 
@@ -13,7 +17,7 @@ const runBasicTransactionFactoryTests = (testDescriptor, includeAttachSignatureT
 
 		// Act:
 		const transaction = testDescriptor.createTransaction(factory)({
-			type: 'transfer_transaction',
+			type: transactionTypeName,
 			signerPublicKey: TEST_SIGNER_PUBLIC_KEY
 		});
 
@@ -29,10 +33,31 @@ const runBasicTransactionFactoryTests = (testDescriptor, includeAttachSignatureT
 		// Act + Assert:
 		expect(() => {
 			testDescriptor.createTransaction(factory)({
-				type: 'xtransfer_transaction',
+				type: `x${transactionTypeName}`,
 				signerPublicKey: TEST_SIGNER_PUBLIC_KEY
 			});
 		}).to.throw(`unknown ${testDescriptor.name} type`);
+	});
+
+	// endregion
+
+	// region deserialize
+
+	it('can deserialize transaction from buffer', () => {
+		// Arrange: create a transaction and serialize it to a buffer
+		const factory = testDescriptor.createFactory();
+
+		const transaction = testDescriptor.createTransaction(factory)({
+			type: transactionTypeName,
+			signerPublicKey: TEST_SIGNER_PUBLIC_KEY
+		});
+		const payload = transaction.serialize();
+
+		// Act: deserialize a transaction from the buffer
+		const transactionDeserialized = testDescriptor.deserializeTransaction(payload);
+
+		// Assert: the two transactions are equal
+		expect(transactionDeserialized).to.deep.equal(transaction);
 	});
 
 	// endregion
@@ -44,7 +69,7 @@ const runBasicTransactionFactoryTests = (testDescriptor, includeAttachSignatureT
 			// Arrange:
 			const factory = testDescriptor.createFactory();
 			const transaction = testDescriptor.createTransaction(factory)({
-				type: 'transfer_transaction',
+				type: transactionTypeName,
 				signerPublicKey: TEST_SIGNER_PUBLIC_KEY
 			});
 			const signature = new Signature(crypto.randomBytes(Signature.SIZE));
@@ -64,7 +89,26 @@ const runBasicTransactionFactoryTests = (testDescriptor, includeAttachSignatureT
 		});
 
 		// endregion
+
+		// region toJson
+
+		it('can create transaction json representation', () => {
+			// Arrange:
+			const factory = testDescriptor.createFactory();
+			const transaction = testDescriptor.createTransaction(factory)({
+				type: transactionTypeName,
+				signerPublicKey: TEST_SIGNER_PUBLIC_KEY
+			});
+			const signature = new Signature(crypto.randomBytes(Signature.SIZE));
+			factory.constructor.attachSignature(transaction, signature);
+
+			// Act:
+			const transactionPayload = factory.constructor.toJson(transaction);
+
+			// Assert:
+			testDescriptor.assertSignature(transaction, signature, transactionPayload);
+		});
+
+		// endregion
 	}
 };
-
-module.exports = { runBasicTransactionFactoryTests };

@@ -139,13 +139,16 @@ class RuleBasedTransactionFactoryTest(unittest.TestCase):
 		# Assert:
 		self.assertEqual(expected_value, parsed)
 
+	def test_flags_parser_can_handle_none_string_flag(self):
+		self._assert_flags_parser('none', Module.MosaicFlags.NONE)
+
 	def test_flags_parser_can_handle_single_string_flag(self):
 		self._assert_flags_parser('restrictable', Module.MosaicFlags.RESTRICTABLE)
 
 	def test_flags_parser_can_handle_multiple_string_flags(self):
 		self._assert_flags_parser(
 			'supply_mutable restrictable revokable',
-			Module.MosaicFlags.SUPPLY_MUTABLE | Module.MosaicFlags.RESTRICTABLE | Module.MosaicFlags.REVOKABLE)
+			Module.MosaicFlags.SUPPLY_MUTABLE | (Module.MosaicFlags.RESTRICTABLE | Module.MosaicFlags.REVOKABLE))
 
 	def test_flags_parser_fails_if_any_string_is_unknown(self):
 		# Arrange:
@@ -161,7 +164,7 @@ class RuleBasedTransactionFactoryTest(unittest.TestCase):
 		self._assert_flags_parser(9, Module.MosaicFlags.SUPPLY_MUTABLE | Module.MosaicFlags.REVOKABLE)
 
 	def test_flags_parser_passes_non_parsed_values_as_is(self):
-		value = Module.MosaicFlags.SUPPLY_MUTABLE | Module.MosaicFlags.RESTRICTABLE | Module.MosaicFlags.REVOKABLE
+		value = Module.MosaicFlags.SUPPLY_MUTABLE | (Module.MosaicFlags.RESTRICTABLE | Module.MosaicFlags.REVOKABLE)
 		self._assert_flags_parser(value, value)
 		self._assert_flags_parser(1.2, 1.2)
 		self._assert_flags_parser([1, 2, 3, 4], [1, 2, 3, 4])

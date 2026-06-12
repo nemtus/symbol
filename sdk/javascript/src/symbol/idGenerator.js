@@ -1,4 +1,8 @@
-const { sha3_256 } = require('@noble/hashes/sha3');
+/* eslint-disable no-unused-vars */
+import { Address } from './Network.js';
+/* eslint-enable no-unused-vars */
+import { sha3_256 } from '@noble/hashes/sha3.js';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 
 const NAMESPACE_FLAG = 1n << 63n;
 
@@ -21,7 +25,7 @@ const digestToBigInt = digest => {
  * Generates a mosaic id from an owner address and a nonce.
  * @param {Address} ownerAddress Owner address.
  * @param {number} nonce Nonce.
- * @returns {BigInt} Computed mosaic id.
+ * @returns {bigint} Computed mosaic id.
  */
 const generateMosaicId = (ownerAddress, nonce) => {
 	const hasher = sha3_256.create();
@@ -39,19 +43,29 @@ const generateMosaicId = (ownerAddress, nonce) => {
 /**
  * Generates a namespace id from a name and an optional parent namespace id.
  * @param {string} name Namespace name.
- * @param {BigInt} parentNamespaceId Parent namespace id.
- * @returns {BigInt} Computed namespace id.
+ * @param {bigint} parentNamespaceId Parent namespace id.
+ * @returns {bigint} Computed namespace id.
  */
 const generateNamespaceId = (name, parentNamespaceId = 0n) => {
+	if (name.includes('.'))
+		throw Error(`'name' cannot contain '.'; if ${name} is a namepace path, consider using generateNamespacePath'`);
+
 	const hasher = sha3_256.create();
 	hasher.update(uint32ToBytes(Number(parentNamespaceId & 0xFFFFFFFFn)));
 	hasher.update(uint32ToBytes(Number((parentNamespaceId >> 32n) & 0xFFFFFFFFn)));
-	hasher.update(name);
+	hasher.update(utf8ToBytes(name));
 	const digest = new Uint8Array(hasher.digest());
 
 	const result = digestToBigInt(digest);
 	return result | NAMESPACE_FLAG;
 };
+
+/**
+ * Determines if mosaicId is an alias.
+ * @param {bigint} mosaicId Mosaic id to check.
+ * @returns {boolean} true if the specified mosaic id is an alias.
+ */
+const isMosaicAlias = mosaicId => 0n !== (mosaicId & NAMESPACE_FLAG);
 
 /**
  * Returns true if a name is a valid namespace name.
@@ -75,7 +89,7 @@ const isValidNamespaceName = name => {
 /**
  * Parses a fully qualified namespace name into a path.
  * @param {string} fullyQualifiedName Fully qualified namespace name.
- * @returns {array<BigInt>} Computed namespace path.
+ * @returns {Array<bigint>} Computed namespace path.
  */
 const generateNamespacePath = fullyQualifiedName => {
 	const path = [];
@@ -94,13 +108,18 @@ const generateNamespacePath = fullyQualifiedName => {
 /**
  * Generates a mosaic id from a fully qualified mosaic alias name.
  * @param {string} fullyQualifiedName Fully qualified mosaic name.
- * @returns {BigInt} Computed mosaic id.
+ * @returns {bigint} Computed mosaic id.
  */
 const generateMosaicAliasId = fullyQualifiedName => {
 	const path = generateNamespacePath(fullyQualifiedName);
 	return path[path.length - 1];
 };
 
-module.exports = {
-	generateMosaicId, generateNamespaceId, isValidNamespaceName, generateNamespacePath, generateMosaicAliasId
+export {
+	generateMosaicId,
+	generateNamespaceId,
+	isMosaicAlias,
+	isValidNamespaceName,
+	generateNamespacePath,
+	generateMosaicAliasId
 };

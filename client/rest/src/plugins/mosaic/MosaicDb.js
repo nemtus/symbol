@@ -19,12 +19,12 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { buildOffsetCondition } = require('../../db/dbUtils');
-const MongoDb = require('mongodb');
+import { buildOffsetCondition } from '../../db/dbUtils.js';
+import MongoDb from 'mongodb';
 
 const { Long } = MongoDb;
 
-class MosaicDb {
+export default class MosaicDb {
 	/**
 	 * Creates MosaicDb around CatapultDb.
 	 * @param {module:db/CatapultDb} db Catapult db instance.
@@ -38,7 +38,7 @@ class MosaicDb {
 	 * @param {Uint8Array} ownerAddress Mosaic owner address
 	 * @param {object} options Options for ordering and pagination. Can have an `offset`, and must contain the `sortField`, `sortDirection`,
 	 * `pageSize` and `pageNumber`. 'sortField' must be within allowed 'sortingOptions'.
-	 * @returns {Promise.<object>} Mosaics page.
+	 * @returns {Promise<object>} Mosaics page.
 	 */
 	mosaics(ownerAddress, options) {
 		const sortingOptions = { id: '_id' };
@@ -58,11 +58,11 @@ class MosaicDb {
 
 	/**
 	 * Retrieves mosaics given their ids.
-	 * @param {Array.<module:catapult.utils/uint64~uint64>} ids Mosaic ids.
-	 * @returns {Promise.<array>} Mosaics.
+	 * @param {Array<bigint>} ids Mosaic ids.
+	 * @returns {Promise<Array<object>>} Mosaics.
 	 */
 	mosaicsByIds(ids) {
-		const mosaicIds = ids.map(id => new Long(id[0], id[1]));
+		const mosaicIds = ids.map(id => Long.fromBigInt(id));
 		const conditions = { 'mosaic.id': { $in: mosaicIds } };
 		const collection = this.catapultDb.database.collection('mosaics');
 		return collection.find(conditions)
@@ -71,5 +71,3 @@ class MosaicDb {
 			.then(entities => Promise.resolve(this.catapultDb.sanitizer.renameIds(entities)));
 	}
 }
-
-module.exports = MosaicDb;

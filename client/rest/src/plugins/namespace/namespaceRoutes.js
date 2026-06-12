@@ -19,44 +19,44 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const namespaceUtils = require('./namespaceUtils');
-const catapult = require('../../catapult-sdk/index');
-const dbUtils = require('../../db/dbUtils');
-const merkleUtils = require('../../routes/merkleUtils');
-const routeUtils = require('../../routes/routeUtils');
-const MongoDb = require('mongodb');
+import namespaceUtils from './namespaceUtils.js';
+import catapult from '../../catapult-sdk/index.js';
+import { convertToLong } from '../../db/dbUtils.js';
+import merkleUtils from '../../routes/merkleUtils.js';
+import routeUtils from '../../routes/routeUtils.js';
+import MongoDb from 'mongodb';
+import { utils } from 'symbol-sdk';
+import { models } from 'symbol-sdk/symbol';
 
 const { PacketType } = catapult.packet;
 const { Binary } = MongoDb;
-const { convertToLong } = dbUtils;
-const { uint64 } = catapult.utils;
 
-module.exports = {
+export default {
 	register: (server, db, services) => {
 		const namespaceSender = routeUtils.createSender('namespaceDescriptor');
 
-		server.get('/namespaces', (req, res, next) => {
-			const { params } = req;
+		server.get('/namespaces', async (request, reply) => {
+			const { params } = request;
 
 			const ownerAddress = params.ownerAddress ? routeUtils.parseArgument(params, 'ownerAddress', 'address') : undefined;
 			const registrationType = params.registrationType ? routeUtils.parseArgument(params, 'registrationType', 'uint') : undefined;
-			const level0 = params.level0 ? routeUtils.parseArgument(req.params, 'level0', uint64.fromHex) : undefined;
+			const level0 = params.level0 ? routeUtils.parseArgument(params, 'level0', routeUtils.namedParserMap.uint64hex) : undefined;
 			const aliasType = params.aliasType ? routeUtils.parseArgument(params, 'aliasType', 'uint') : undefined;
 
-			const options = routeUtils.parsePaginationArguments(req.params, services.config.pageSize, { id: 'objectId' });
+			const options = routeUtils.parsePaginationArguments(request.params, services.config.pageSize, { id: 'objectId' });
 
-			return db.namespaces(aliasType, level0, ownerAddress, registrationType, options)
-				.then(result => namespaceSender.sendPage(res, next)(result));
+			const result = await db.namespaces(aliasType, level0, ownerAddress, registrationType, options);
+			return reply.send(namespaceSender.sendPage()(result));
 		});
 
-		server.get('/namespaces/:namespaceId', (req, res, next) => {
-			const namespaceId = routeUtils.parseArgument(req.params, 'namespaceId', uint64.fromHex);
-			return db.namespaceById(namespaceId)
-				.then(namespaceSender.sendOne(req.params.namespaceId, res, next));
+		server.get('/namespaces/:namespaceId', async (request, reply) => {
+			const namespaceId = routeUtils.parseArgument(request.params, 'namespaceId', routeUtils.namedParserMap.uint64hex);
+			const result = await db.namespaceById(namespaceId);
+			return reply.send(namespaceSender.sendOne(request.params.namespaceId)(result));
 		});
 
 		const collectNames = (namespaceNameTuples, namespaceIds) => {
-			const type = catapult.model.EntityType.registerNamespace;
+			const type = models.TransactionType.NAMESPACE_REGISTRATION;
 			return db.catapultDb.findNamesByIds(namespaceIds, type, { id: 'id', name: 'name', parentId: 'parentId' })
 				.then(nameTuples => {
 					nameTuples.forEach(nameTuple => {
@@ -74,27 +74,27 @@ module.exports = {
 				});
 		};
 
-		server.post('/namespaces/names', (req, res, next) => {
-			const namespaceIds = routeUtils.parseArgumentAsArray(req.params, 'namespaceIds', uint64.fromHex);
-			const nameTuplesFuture = new Promise(resolve => {
-				const namespaceNameTuples = [];
+		server.post('/namespaces/names', async (request, reply) => {
+			const namespaceIds = routeUtils.parseArgumentAsArray(request.params, 'namespaceIds', routeUtils.namedParserMap.uint64hex);
+			const namespaceNameTuples = await new Promise(resolve => {
+				const tuples = [];
 				const chain = nextIds => {
 					if (0 === nextIds.length)
-						resolve(namespaceNameTuples);
+						resolve(tuples);
 					else
-						collectNames(namespaceNameTuples, nextIds).then(chain);
+						collectNames(tuples, nextIds).then(chain);
 				};
 
-				collectNames(namespaceNameTuples, namespaceIds).then(chain);
+				collectNames(tuples, namespaceIds).then(chain);
 			});
 
-			return nameTuplesFuture.then(routeUtils.createSender('namespaceNameTuple').sendArray('namespaceIds', res, next));
+			return reply.send(routeUtils.createSender('namespaceNameTuple').sendArray('namespaceIds')(namespaceNameTuples));
 		});
 
 		server.post('/namespaces/mosaic/names', namespaceUtils.aliasNamesRoutesProcessor(
 			db,
-			catapult.model.namespace.aliasType.mosaic,
-			req => routeUtils.parseArgumentAsArray(req.params, 'mosaicIds', uint64.fromHex).map(convertToLong),
+			catapult.model.NamespaceAliasType.MOSAIC_ID,
+			request => routeUtils.parseArgumentAsArray(request.params, 'mosaicIds', routeUtils.namedParserMap.uint64hex).map(convertToLong),
 			(namespace, id) => namespace.namespace.alias.mosaicId.equals(id),
 			'mosaicId',
 			'mosaicNames'
@@ -102,8 +102,8 @@ module.exports = {
 
 		server.post('/namespaces/account/names', namespaceUtils.aliasNamesRoutesProcessor(
 			db,
-			catapult.model.namespace.aliasType.address,
-			req => routeUtils.parseArgumentAsArray(req.params, 'addresses', 'address'),
+			catapult.model.NamespaceAliasType.ADDRESS,
+			request => routeUtils.parseArgumentAsArray(request.params, 'addresses', 'address'),
 			(namespace, id) => Buffer.from(namespace.namespace.alias.address.value())
 				.equals(Buffer.from(new Binary(Buffer.from(id)).value())),
 			'address',
@@ -111,13 +111,11 @@ module.exports = {
 		));
 
 		// this endpoint is here because it is expected to support requests by block other than <current block>
-		server.get('/namespaces/:namespaceId/merkle', (req, res, next) => {
-			const namespaceId = routeUtils.parseArgument(req.params, 'namespaceId', 'uint64hex');
+		server.get('/namespaces/:namespaceId/merkle', async (request, reply) => {
+			const namespaceId = routeUtils.parseArgument(request.params, 'namespaceId', 'uint64hex');
 			const state = PacketType.namespaceStatePath;
-			return merkleUtils.requestTree(services, state, uint64.toBytes(namespaceId)).then(response => {
-				res.send(response);
-				next();
-			});
+			const response = await merkleUtils.requestTree(services, state, utils.intToBytes(namespaceId, 8));
+			return reply.send(response);
 		});
 	}
 };

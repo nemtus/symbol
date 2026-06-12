@@ -1,0 +1,145 @@
+builds:
+  - name: Catbuffer Parser
+    path: catbuffer/parser
+    dependsOn:
+      - linters
+
+  - name: Catapult Client
+    path: client/catapult
+    dependsOn:
+      - linters
+
+  - name: Rest Gateway
+    path: client/rest
+    dependsOn:
+      - linters
+
+  - name: Sdk Python
+    path: sdk/python
+    dependsOn:
+      - catbuffer/parser
+      - linters
+
+  - name: Sdk Javascript
+    path: sdk/javascript
+    dependsOn:
+      - catbuffer/parser
+      - linters
+
+  - name: Jenkins
+    path: jenkins
+    dependsOn:
+      - linters
+
+  - name: Linters
+    path: linters
+    required: true
+
+  - name: OpenAPI
+    path: openapi
+    dependsOn:
+      - linters
+
+customBuilds:
+  - name: Nightly Job
+    jobName: nightlyJob
+    scriptPath: .github/jenkinsfile/nightlyBuild.groovy
+    triggers:
+      - type: cron
+        schedule: '@midnight'
+
+  - name: Build CI Image
+    jobName: /Infrastructure/build-ci-image
+    scriptPath: jenkins/infra/jenkins/build-ci-image.groovy
+
+  - name: Build All CI Images
+    jobName: /Infrastructure/build-ci-image-all
+    scriptPath: jenkins/infra/jenkins/build-ci-image-all.groovy
+    triggers:
+      - type: cron
+        schedule: '@weekly'
+
+  - name: Backup Mainnet Dual Node
+    jobName: /Infrastructure/backup-mainnet-dual-node
+    scriptPath: .github/jenkinsfile/mainnetBackupDual.groovy
+    triggers:
+      - type: cron
+        schedule: '@weekly'
+
+  - name: Backup Mainnet Peer Node
+    jobName: /Infrastructure/backup-mainnet-peer-node
+    scriptPath: .github/jenkinsfile/mainnetBackupPeer.groovy
+    triggers:
+      - type: cron
+        schedule: '@weekly'
+
+  - name: Build Base Image
+    jobName: /symbol/catapult-client/catapult-client-build-base-image
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-base-image.groovy
+
+  - name: Build Base Image All
+    jobName: /symbol/catapult-client/catapult-client-build-base-image-all
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-base-image-all.groovy
+    triggers:
+      - type: cron
+        schedule: H 0 2 * *
+
+  - name: Build Catapult Project
+    jobName: /symbol/catapult-client/catapult-client-build-catapult-project
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-catapult-project.groovy
+    targetDirectory: catapult-src
+
+  - name: Build Catapult Project Daily Tests
+    jobName: /symbol/catapult-client/catapult-client-build-catapult-project-daily
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-catapult-project-daily.groovy
+    triggers:
+      - type: cron
+        schedule: '@midnight'
+
+  - name: Build Catapult Project Weekly Tests
+    jobName: /symbol/catapult-client/catapult-client-build-catapult-project-weekly
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-catapult-project-weekly.groovy
+    triggers:
+      - type: cron
+        schedule: '@weekly'
+
+  - name: Build Compiler Image
+    jobName: /symbol/catapult-client/catapult-client-build-compiler-image
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-compiler-image.groovy
+
+  - name: Build Compiler Image All
+    jobName: /symbol/catapult-client/catapult-client-build-compiler-image-all
+    scriptPath: jenkins/catapult/jenkins/catapult-client-build-compiler-image-all.groovy
+    triggers:
+      - type: cron
+        schedule: H 0 1 * *
+
+  - name: Clone Symbol Branches to internal
+    jobName: /Infrastructure/clone-symbol-branches-to-internal
+    scriptPath: .github/jenkinsfile/cloneSymbolBranches.groovy
+    triggers:
+      - type: cron
+        schedule: '@weekly'
+
+  - name: Prepare Base Image
+    jobName: /symbol/catapult-client/catapult-client-prepare-base-image
+    scriptPath: jenkins/catapult/jenkins/catapult-client-prepare-base-image.groovy
+
+  - name: Release Build
+    jobName: /symbol/catapult-client/catapult-client-release-build
+    scriptPath: jenkins/catapult/jenkins/catapult-client-release-build.groovy
+    targetDirectory: symbol-mono
+
+  - name: Catapult Dependency Updater
+    jobName: /symbol/catapult-client/catapult-dependency-updater
+    scriptPath: .github/jenkinsfile/catapultDependency.groovy
+    triggers:
+      - type: cron
+        schedule: '@monthly'
+
+  - name: Weekly Job
+    jobName: weeklyJob
+    scriptPath: .github/jenkinsfile/weeklyBuild.groovy
+    triggers:
+      - type: cron
+        schedule: '@weekly'

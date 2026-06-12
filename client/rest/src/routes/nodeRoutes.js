@@ -19,24 +19,20 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const routeResultTypes = require('./routeResultTypes');
-const catapult = require('../catapult-sdk/index');
-const nodeInfoCodec = require('../sockets/nodeInfoCodec');
-const nodePeersCodec = require('../sockets/nodePeersCodec');
-const nodeTimeCodec = require('../sockets/nodeTimeCodec');
-const fs = require('fs');
-const path = require('path');
+import routeResultTypes from './routeResultTypes.js';
+import catapult from '../catapult-sdk/index.js';
+import nodeInfoCodec from '../sockets/nodeInfoCodec.js';
+import nodePeersCodec from '../sockets/nodePeersCodec.js';
+import nodeTimeCodec from '../sockets/nodeTimeCodec.js';
+import { utils } from 'symbol-sdk';
+import fs from 'fs';
+import path from 'path';
 
 const packetHeader = catapult.packet.header;
 const { PacketType } = catapult.packet;
 const { BinaryParser } = catapult.parser;
 
-// ATM, both rest and rest sdk share the same version. In the future,
-// we will have an open api and sdk dependencies with their given versions.
-const restVersion = fs
-	.readFileSync(path.resolve(__dirname, '../../version.txt'), 'UTF-8')
-	.trim();
-const sdkVersion = restVersion;
+const restVersion = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '../../package.json'), 'UTF-8')).version;
 
 const buildResponse = (packet, codec, resultType) => {
 	const binaryParser = new BinaryParser();
@@ -48,12 +44,12 @@ const buildResponse = (packet, codec, resultType) => {
 	};
 };
 
-module.exports = {
+export default {
 	register: (server, db, services) => {
 		const { connections } = services;
 		const { timeout } = services.config.apiNode;
 
-		server.get('/node/health', (req, res, next) => {
+		server.get('/node/health', async (request, reply) => {
 			const parseNodeInfoPacket = packet => {
 				const binaryParser = new BinaryParser();
 				binaryParser.push(packet.payload);
@@ -63,14 +59,6 @@ module.exports = {
 			const ServiceStatus = Object.freeze({
 				up: 'up',
 				down: 'down'
-			});
-
-			// Check database status
-			const dbStatusPromise = new Promise((resolve, reject) => {
-				if (db.database.serverConfig.isConnected())
-					resolve();
-				else
-					reject();
 			});
 
 			// Check apiNode status
@@ -84,61 +72,50 @@ module.exports = {
 					connection.pushPull(packetBuffer, services.config.apiNode.timeout))
 				.then(packet => parseNodeInfoPacket(packet));
 
-			return Promise.allSettled([dbStatusPromise, apiNodeStatusPromise]).then(results => {
-				const statusCode = results.some(result => 'fulfilled' !== result.status) ? 503 : 200;
-				const checkResult = result => ('fulfilled' === result.status ? ServiceStatus.up : ServiceStatus.down);
+			const dbStatusPromise = db.client.db().admin().ping();
 
-				res.status(statusCode);
-				res.send({
-					payload: {
-						status: {
-							apiNode: checkResult(results[1]),
-							db: checkResult(results[0])
-						}
-					},
-					type: routeResultTypes.nodeHealth
-				});
-				next();
+			const results = await Promise.allSettled([dbStatusPromise, apiNodeStatusPromise]);
+			const statusCode = results.some(result => 'fulfilled' !== result.status) ? 503 : 200;
+			const checkResult = result => ('fulfilled' === result.status ? ServiceStatus.up : ServiceStatus.down);
+
+			reply.code(statusCode);
+			return reply.send({
+				payload: {
+					status: {
+						apiNode: checkResult(results[1]),
+						db: checkResult(results[0])
+					}
+				},
+				type: routeResultTypes.nodeHealth
 			});
 		});
 
-		server.get('/node/info', (req, res, next) => {
+		server.get('/node/info', async (request, reply) => {
 			const packetBuffer = packetHeader.createBuffer(
 				PacketType.nodeDiscoveryPullPing,
 				packetHeader.size
 			);
-			return connections
-				.singleUse()
-				.then(connection => connection.pushPull(packetBuffer, timeout))
-				.then(packet => {
-					const response = buildResponse(packet, nodeInfoCodec, routeResultTypes.nodeInfo);
-					response.payload.nodePublicKey = services.config.apiNode.nodePublicKey;
-					res.send(response);
-					next();
-				});
+			const packet = await connections.singleUse().then(connection => connection.pushPull(packetBuffer, timeout));
+			const response = buildResponse(packet, nodeInfoCodec, routeResultTypes.nodeInfo);
+			response.payload.nodePublicKey = services.config.apiNode.nodePublicKey;
+			return reply.send(response);
 		});
 
-		server.get('/node/peers', (req, res, next) => {
+		server.get('/node/peers', async (request, reply) => {
 			const packetBuffer = packetHeader.createBuffer(
 				PacketType.nodeDiscoveryPullPeers,
 				packetHeader.size
 			);
-			return connections
-				.singleUse()
-				.then(connection => connection.pushPull(packetBuffer, timeout))
-				.then(packet => {
-					res.send(buildResponse(packet, nodePeersCodec, routeResultTypes.nodeInfo));
-					next();
-				});
+			const packet = await connections.singleUse().then(connection => connection.pushPull(packetBuffer, timeout));
+			return reply.send(buildResponse(packet, nodePeersCodec, routeResultTypes.nodeInfo));
 		});
 
-		server.get('/node/server', (req, res, next) => {
+		server.get('/node/server', async (request, reply) => {
 			const { deployment } = services.config;
-			res.send({
+			return reply.send({
 				payload: {
 					serverInfo: {
 						restVersion,
-						sdkVersion,
 						deployment: {
 							deploymentTool: deployment && deployment.deploymentTool ? deployment.deploymentTool : 'N/A',
 							deploymentToolVersion: deployment && deployment.deploymentToolVersion
@@ -150,51 +127,33 @@ module.exports = {
 				},
 				type: routeResultTypes.serverInfo
 			});
-			return next();
 		});
 
-		server.get('/node/storage', (req, res, next) =>
-			db.storageInfo().then(storageInfo => {
-				res.send({ payload: storageInfo, type: routeResultTypes.storageInfo });
-				next();
-			}));
+		server.get('/node/storage', async (request, reply) => {
+			const storageInfo = await db.storageInfo();
+			return reply.send({ payload: storageInfo, type: routeResultTypes.storageInfo });
+		});
 
-		server.get('/node/time', (req, res, next) => {
+		server.get('/node/time', async (request, reply) => {
 			const packetBuffer = packetHeader.createBuffer(
 				PacketType.timeSyncNodeTime,
 				packetHeader.size
 			);
-			return connections
-				.singleUse()
-				.then(connection => connection.pushPull(packetBuffer, timeout))
-				.then(packet => {
-					res.send(buildResponse(packet, nodeTimeCodec, routeResultTypes.nodeTime));
-					next();
-				});
+			const packet = await connections.singleUse().then(connection => connection.pushPull(packetBuffer, timeout));
+			return reply.send(buildResponse(packet, nodeTimeCodec, routeResultTypes.nodeTime));
 		});
 
-		server.get('/node/unlockedaccount', (req, res, next) => {
-			const { convert } = catapult.utils;
+		server.get('/node/unlockedaccount', async (request, reply) => {
 			const headerBuffer = packetHeader.createBuffer(
 				PacketType.unlockedAccount,
 				packetHeader.size
 			);
 			const packetBuffer = headerBuffer;
-			return connections
-				.singleUse()
-				.then(connection => connection.pushPull(packetBuffer, timeout))
-				.then(packet => {
-					const unlockedKeys = convert
-						.uint8ToHex(packet.payload)
-						.match(/.{1,64}/g);
-					res.send({ unlockedAccount: !unlockedKeys ? [] : unlockedKeys });
-					next();
-				});
+			const packet = await connections.singleUse().then(connection => connection.pushPull(packetBuffer, timeout));
+			const unlockedKeys = utils.uint8ToHex(packet.payload).match(/.{1,64}/g);
+			return reply.send({ unlockedAccount: !unlockedKeys ? [] : unlockedKeys });
 		});
 
-		server.get('/node/metadata', (req, res, next) => {
-			res.send(services.config.nodeMetadata);
-			next();
-		});
+		server.get('/node/metadata', async (request, reply) => reply.send(services.config.nodeMetadata));
 	}
 };

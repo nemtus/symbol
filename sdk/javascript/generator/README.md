@@ -9,6 +9,5 @@
 Run test vectors (assuming node project is `sdk/javascript`):
 
 ```bash
-BLOCKCHAIN=nem npm run catvectors
-BLOCKCHAIN=symbol npm run catvectors
+SCHEMAS_PATH="$(git rev-parse --show-toplevel)/tests/vectors" npm run catvectors
 ```

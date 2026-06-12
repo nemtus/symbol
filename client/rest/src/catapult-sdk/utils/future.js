@@ -21,11 +21,11 @@
 
 /** @module utils/future */
 
-const future = {
+export default {
 	/**
 	 * Makes a future retryable.
 	 * @param {Function} futureSupplier Function that returns a new instance of the wrapped future.
-	 * @param {Numeric} maxAttempts Maximum number of attempts.
+	 * @param {number} maxAttempts Maximum number of attempts.
 	 * @param {Function} waitTimeSupplier Function that calculates the amount of time to wait after a failure.
 	 * @returns {Promise} A promise that is resolved when the future succeeds or the maximum number of attempts have failed.
 	 */
@@ -53,5 +53,3 @@ const future = {
 		});
 	}
 };
-
-module.exports = future;

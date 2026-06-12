@@ -1,12 +1,13 @@
 import argparse
 import os
+import shutil
 from pathlib import Path
 
 from BasicBuildManager import BasicBuildManager
 from environment import EnvironmentManager
 from process import ProcessManager
 
-CONAN_NEMTECH_REMOTE = 'https://catapult.jfrog.io/artifactory/api/conan/symbol-conan'
+CONAN_NEMTECH_REMOTE = 'https://conan.symbol.dev/artifactory/api/conan/catapult'
 
 
 class BuildEnvironment:
@@ -15,59 +16,63 @@ class BuildEnvironment:
 		self.dispatch_subprocess = process_manager.dispatch_subprocess
 		self.environment_manager = environment_manager
 
-	def prepare(self, enable_code_coverage, out_dir):
-		self._prepare_directory(enable_code_coverage, out_dir)
+	def prepare(self, build_path):
+		self._prepare_directory(build_path)
 		self._prepare_environment_variables()
+		self.dispatch_subprocess(['ccache', '-M', '30G'])
+		self.dispatch_subprocess(['ccache', '-s'])
 
-		if not self.environment_manager.is_windows_platform():
-			self.dispatch_subprocess(['ccache', '-M', '30G'])
-			self.dispatch_subprocess(['ccache', '-s'])
-
-	def _prepare_directory(self, enable_code_coverage, out_dir):
-		build_path = f'{out_dir}/_build' if enable_code_coverage else '/tmp/_build'
+	def _prepare_directory(self, build_path):
 		self.environment_manager.mkdirs(build_path)
 		self.environment_manager.chdir(build_path)
 
 	def _prepare_environment_variables(self):
 		if self.use_conan:
 			# conan cache directory
-			if self.environment_manager.is_windows_platform():
-				self.environment_manager.set_env_var('CONAN_USER_HOME', '/conan')
-				self.environment_manager.set_env_var('CONAN_USER_HOME_SHORT', 'None')
-			else:
-				self.environment_manager.set_env_var('HOME', '/conan')
+			self.environment_manager.set_env_var(
+				'CONAN_HOME',
+				'c:\\conan' if self.environment_manager.is_windows_platform() else '/conan'
+			)
 		else:
 			if self.environment_manager.is_windows_platform():
-				self.environment_manager.set_env_var('BOOST_ROOT', 'c:/deps/boost')
-				self.environment_manager.set_env_var('GTEST_ROOT', 'c:/deps/google')
+				self.environment_manager.set_env_var('BOOST_ROOT', 'c:/usr/catapult/deps/boost')
+				self.environment_manager.set_env_var('GTEST_ROOT', 'c:/usr/catapult/deps/google')
 			else:
 				self.environment_manager.set_env_var('BOOST_ROOT', '/mybuild')
 				self.environment_manager.set_env_var('GTEST_ROOT', '/usr/local')
 
-	def prepare_conan(self, settings):
+	def prepare_conan(self):
 		# create default profile if it does not exist
-		if self.dispatch_subprocess(['conan', 'profile', 'get', 'settings.compiler', 'default'], show_output=False, handle_error=False):
-			self.dispatch_subprocess(['conan', 'profile', 'new', 'default', '--detect'])
+		if self.dispatch_subprocess(['conan', 'profile', 'show', '--profile', 'default'], show_output=False, handle_error=False):
+			self.dispatch_subprocess(['conan', 'profile', 'detect', '--name', 'default'])
 
-		self.dispatch_subprocess(['conan', 'profile', 'show', 'default'])
+		self.dispatch_subprocess(['conan', 'profile', 'show', '--profile', 'default'])
 		self.dispatch_subprocess(['conan', 'remote', 'add', '--force', 'nemtech', CONAN_NEMTECH_REMOTE])
-		self.dispatch_subprocess(['conan', 'config', 'set', 'general.revisions_enabled=True'])
 
-		for key, value in settings.items():
-			self.dispatch_subprocess(['conan', 'profile', 'update', f'settings.compiler.{key}={value}', 'default'])
-
-	def run_conan_install(self, source_path):
+	def run_conan_install(self, source_path, settings, build_path, build_type):
 		# assuming working directory == build directory
-		self.dispatch_subprocess(['conan', 'profile', 'show', 'default'])
-		self.dispatch_subprocess(['conan', 'install', source_path, '--build', 'missing'])
+		setting_overrides = []
+		for key, value in settings.items():
+			setting_overrides += ['-s', f'compiler.{key}={value}']
+		self.dispatch_subprocess(['conan', 'profile', 'show', '--profile', 'default'])
+		conan_install_rc = self.dispatch_subprocess([
+			'conan', 'install', source_path,
+			'--build', 'missing',
+			'--output-folder', build_path,
+			'-s', f'build_type={build_type}'
+		] + setting_overrides,
+			handle_error=not self.environment_manager.is_windows_platform())
+		if 0 != conan_install_rc:
+			raise RuntimeError(f'conan install failed: {conan_install_rc}')
 
 
 class BuildManager(BasicBuildManager):
-	def __init__(self, args, process_manager, environment_manager):
+	def __init__(self, args, process_manager, environment_manager, build_type):
 		super().__init__(args.compiler_configuration, args.build_configuration)
 		self.dispatch_subprocess = process_manager.dispatch_subprocess
 		self.list_dir = process_manager.list_dir
 		self.environment_manager = environment_manager
+		self.build_type = build_type
 
 	def cmake_settings(self, output_path):
 		settings = [
@@ -78,9 +83,12 @@ class BuildManager(BasicBuildManager):
 			('ENABLE_CODE_COVERAGE', 'ON' if self.enable_code_coverage else 'OFF')
 		]
 
-		if not self.environment_manager.is_windows_platform():
-			# ARCHITECTURE_NAME is used to set `-march`, disable on windows
-			settings.append(('ARCHITECTURE_NAME', self.architecture))
+		if self.environment_manager.is_windows_platform():
+			settings.append(('USE_CCACHE_ON_WINDOWS', 'ON'))
+		else:
+			if 'arm64' != self.architecture:
+				# ARCHITECTURE_NAME is used to set `-march`, disable on windows and arm
+				settings.append(('ARCHITECTURE_NAME', self.architecture))
 
 		if self.enable_diagnostics:
 			settings.append(('ENABLE_CATAPULT_DIAGNOSTICS', 'ON'))
@@ -91,14 +99,13 @@ class BuildManager(BasicBuildManager):
 			if self.environment_manager.is_windows_platform():
 				settings.append((
 					'CMAKE_PREFIX_PATH',
-					';'.join(f'c:/deps/{package}' for package in ['boost', 'facebook', 'google', 'mongodb', 'openssl', 'zeromq'])
+					';'.join(f'c:/usr/catapult/deps/{package}' for package in ['boost', 'facebook', 'google', 'mongodb', 'openssl', 'zeromq'])
 				))
+			else:
+				settings.append(('OPENSSL_ROOT_DIR', '/usr/catapult/deps'))
 
 		if self.sanitizers:
-			settings.extend([
-				('USE_SANITIZER', ','.join(self.sanitizers)),
-				('OPENSSL_ROOT_DIR', '/usr/local')
-			])
+			settings.append(('USE_SANITIZER', ','.join(self.sanitizers)))
 
 		if self.is_release:
 			settings.append(('CATAPULT_BUILD_RELEASE', 'ON'))
@@ -109,64 +116,81 @@ class BuildManager(BasicBuildManager):
 
 		return [f'-D{key}={value}' for key, value in settings]
 
-	def run_cmake(self, source_path, output_path):
+	def run_cmake(self, source_path, output_path, cmake_preset):
 		cmake_settings = self.cmake_settings(output_path)
 		if self.environment_manager.is_windows_platform():
 			self.dispatch_subprocess(
-				['cmake'] + cmake_settings + [
+				['cmake'] + cmake_preset + cmake_settings + [
 					'-G', 'Visual Studio 16 2019' if 16 == self.compiler.version else 'Visual Studio 17 2022', '-A', 'x64', source_path
 				]
 			)
 		else:
-			self.dispatch_subprocess(['cmake'] + cmake_settings + ['-G', 'Ninja', source_path])
+			self.dispatch_subprocess(['cmake'] + cmake_preset + cmake_settings + ['-G', 'Ninja', source_path])
 
 	def build(self):
 		if self.environment_manager.is_windows_platform():
-			self.dispatch_subprocess(['cmake', '--build', '.', '--target', 'publish'])
-			self.dispatch_subprocess(
-				['msbuild', '/p:Configuration=RelWithDebInfo', '/p:Platform=x64', '/m', 'ALL_BUILD.vcxproj'],
-				True,
-				False
-			)
-			self.dispatch_subprocess(
-				['msbuild', '/p:Configuration=RelWithDebInfo', '/p:Platform=x64', '/m', 'INSTALL.vcxproj'],
+			# copy the real ccache.exe since shim version is in the path
+			shutil.copy2('C:/Users/ContainerAdministrator/scoop/apps/ccache/current/ccache.exe', 'c:/tmp/_build/cl.exe')
+			self.dispatch_subprocess([
+				'msbuild',
+				f'/p:Configuration={self.build_type}',
+				'/p:Platform=x64',
+				'/m',
+				'/p:UseMultiToolTask=true',
+				'INSTALL.vcxproj',
+				'/p:CLToolPath=c:/tmp/_build'
+			],
 				True,
 				False
 			)
 		else:
 			cpu_count = os.cpu_count()
 			cpu_count_str = str(cpu_count if cpu_count > 0 else 1)
-			self.dispatch_subprocess(['ninja', 'publish'])
 			self.dispatch_subprocess(['ninja', '-j', cpu_count_str])
 			self.dispatch_subprocess(['ninja', 'install'])
 
+		self.dispatch_subprocess(['ccache', '--show-stats'])
+
 	def copy_dependencies(self, destination):
 		if self.use_conan:
-			if not self.environment_manager.is_windows_platform():
-				self.environment_manager.copy_tree_with_symlinks('./deps', destination)
 			return
 
 		self.environment_manager.mkdirs(destination)
 		if self.environment_manager.is_windows_platform():
-			self.environment_manager.copy_glob_with_symlinks('c:/deps/boost/lib', '*.dll', destination)
+			self.environment_manager.copy_glob_with_symlinks('c:/usr/catapult/deps/boost/lib', '*.dll', destination)
 			for name in ['facebook', 'mongodb', 'openssl', 'zeromq']:
-				self.environment_manager.copy_glob_with_symlinks(f'c:/deps/{name}/bin', '*.dll', destination)
+				self.environment_manager.copy_glob_with_symlinks(f'c:/usr/catapult/deps/{name}/bin', '*.dll', destination)
 
-			self.environment_manager.copy_tree_with_symlinks('c:/deps/openssl/lib/engines-1_1', Path(destination) / 'engines-1_1')
+			for name in ['engines-3', 'ossl-modules']:
+				self.environment_manager.copy_tree_with_symlinks(f'c:/usr/catapult/deps/openssl/lib/{name}', Path(destination) / 'openssl/lib' / name)
+
 			return
 
-		for name in ['atomic', 'chrono', 'date_time', 'filesystem', 'log', 'log_setup', 'program_options', 'regex', 'thread']:
+		for name in [
+			'atomic',
+			'chrono',
+			'container',
+			'date_time',
+			'filesystem',
+			'log',
+			'log_setup',
+			'program_options',
+			'regex',
+			'serialization',
+			'thread']:
 			self.environment_manager.copy_glob_with_symlinks('/mybuild/lib', f'libboost_{name}.so*', destination)
 
-		for name in ['bson-1.0', 'mongoc-1.0', 'bsoncxx', 'mongocxx', 'zmq', 'rocksdb', 'snappy', 'gflags']:
+		for name in ['bson2', 'mongoc2', 'bsoncxx', 'mongocxx', 'zmq', 'rocksdb', 'snappy', 'gflags']:
 			system_bin_path = self.environment_manager.system_bin_path
 			self.environment_manager.copy_glob_with_symlinks(system_bin_path, f'lib{name}.so*', destination)
 
-		local_lib_path = self.environment_manager.local_lib_path
+		openssl_source_directory = Path('/usr/catapult/deps')
+		self.environment_manager.mkdirs(Path(destination), exist_ok=True)
 		for name in ['crypto', 'ssl']:
-			self.environment_manager.copy_glob_with_symlinks(local_lib_path, f'lib{name}*', destination)
+			self.environment_manager.copy_glob_with_symlinks(openssl_source_directory, f'lib{name}.so*', Path(destination))
 
-		self.environment_manager.copy_tree_with_symlinks(f'{local_lib_path}/engines-1.1', Path(destination) / 'engines-1.1')
+		for name in ['engines-3', 'ossl-modules']:
+			self.environment_manager.copy_tree_with_symlinks(openssl_source_directory / name, Path(destination) / name)
 
 	def copy_compiler_deps(self, destination):
 		if not self.compiler.deps:
@@ -181,10 +205,8 @@ class BuildManager(BasicBuildManager):
 		deps_output_path = Path(f'{output_path}/deps').resolve()
 		tests_output_path = Path(f'{output_path}/tests').resolve()
 
-		# copy deps into the tests folder for windows
-		dest_path = tests_output_path if EnvironmentManager.is_windows_platform() else deps_output_path
-		self.copy_dependencies(dest_path)
-		self.copy_compiler_deps(dest_path)
+		self.copy_dependencies(deps_output_path)
+		self.copy_compiler_deps(deps_output_path)
 
 		# copy tests
 		if not self.is_release:
@@ -210,24 +232,30 @@ def main():
 	parser.add_argument('--dry-run', help='outputs desired commands without running them', action='store_true')
 	parser.add_argument('--source-path', help='path to the catapult source code', required=True)
 	parser.add_argument('--out-dir', help='output path to copy catapult binaries', required=True)
+	parser.add_argument('--build-type', help='build type for the build', default='RelWithDebInfo')
 	args = parser.parse_args()
 
 	process_manager = ProcessManager(args.dry_run)
 	environment_manager = EnvironmentManager(args.dry_run)
 
-	builder = BuildManager(args, process_manager, environment_manager)
+	builder = BuildManager(args, process_manager, environment_manager, args.build_type)
 	conan_options = {'version': builder.compiler.version, 'libcxx': builder.stl.lib}
 	if builder.is_msvc:
-		conan_options = {'version': builder.compiler.version}
+		conan_options = {'cppstd': 17}
 
 	env = BuildEnvironment(builder.use_conan, process_manager, environment_manager)
-	env.prepare(builder.enable_code_coverage, args.source_path)
+	build_path = f'{args.source_path}/_build' if builder.enable_code_coverage else '/tmp/_build'
+	env.prepare(build_path)
 
+	cmake_preset = []
 	if builder.use_conan:
-		env.prepare_conan(conan_options)
-		env.run_conan_install(args.source_path)
+		env.prepare_conan()
+		env.run_conan_install(args.source_path, conan_options, build_path, args.build_type)
+		environment_manager.chdir(f'{build_path}/build' if environment_manager.is_windows_platform() else f'{build_path}/build/{args.build_type}')
+		conan_preset_name = 'conan-default' if environment_manager.is_windows_platform() else f'conan-{args.build_type.lower()}'
+		cmake_preset = [f'--preset={conan_preset_name}']
 
-	builder.run_cmake(args.source_path, args.out_dir)
+	builder.run_cmake(args.source_path, args.out_dir, cmake_preset)
 	builder.build()
 	builder.copy_files(args.out_dir)
 

@@ -1,13 +1,14 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.23)
 
 message("--- locating mongo dependencies ---")
-find_package(MONGOCXX 3.6.7 EXACT REQUIRED)
-find_package(MONGOC-1.0 1.22.0 EXACT REQUIRED)
+find_package(MONGOCXX 4.1.4 EXACT REQUIRED)
+find_package(mongoc 2.2.1 EXACT REQUIRED)
 
 message("mongocxx  ver: ${MONGOCXX_VERSION}")
-message("mongoc    ver: ${MONGOC-1.0_VERSION}")
+message("mongoc    ver: ${mongoc_VERSION}")
 get_library_path("MONGOCXX_LIBRARY_PATH" mongo::mongocxx_shared)
-message("mongocxx  lib: ${MONGOCXX_LIBRARY_PATH}")
+message("mongocxx  lib: ${mongocxx_LIBRARIES}")
+message("mongocxx  dir: ${mongocxx_INCLUDE_DIRS}")
 
 ### find and set mongo includes and libraries
 function(catapult_add_mongo_dependencies TARGET_NAME)

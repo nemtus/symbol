@@ -19,9 +19,9 @@
  * along with Catapult.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const { buildOffsetCondition } = require('../../db/dbUtils');
+import { buildOffsetCondition } from '../../db/dbUtils.js';
 
-class LockSecretDb {
+export default class LockSecretDb {
 	/**
 	 * Creates LockSecretDb around CatapultDb.
 	 * @param {module:db/CatapultDb} db Catapult db instance.
@@ -34,11 +34,11 @@ class LockSecretDb {
 
 	/**
 	 * Retrieves secret infos for given accounts filtered and paginated.
-	 * @param {array<{Uint8Array}>} addresses Account addresses.
+	 * @param {Array<Uint8Array>} addresses Account addresses.
 	 * @param {Uint8Array} secret Secret hash.
 	 * @param {object} options Options for ordering and pagination. Can have an `offset`, and must contain the `sortField`, `sortDirection`,
 	 * `pageSize` and `pageNumber`. 'sortField' must be within allowed 'sortingOptions'.
-	 * @returns {Promise.<array>} Secret lock infos for all accounts.
+	 * @returns {Promise<Array<object>>} Secret lock infos for all accounts.
 	 */
 	secretLocks(addresses, secret, options) {
 		const sortingOptions = { id: '_id' };
@@ -71,5 +71,3 @@ class LockSecretDb {
 
 	// endregion
 }
-
-module.exports = LockSecretDb;
