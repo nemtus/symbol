@@ -9,14 +9,20 @@
 #   - publishConfig.access=public (scoped package)
 #   - repository / bugs / homepage point at nemtus/symbol
 #   - a "mirror" notice is prepended to the root README.md
+#   - upstream-provided GitHub automation is stripped (we keep only the nemtus
+#     workflows), so upstream CI (e.g. codeql-analysis) and Dependabot do not run
+#     against the mirror.
 #
 # Running it repeatedly produces the same result. The mirror-sync workflow runs
-# it after every `git reset --hard upstream/dev`.
+# it after every upstream merge.
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 pkg_dir="${repo_root}/sdk/javascript"
 readme="${repo_root}/README.md"
+
+# nemtus-owned GitHub workflows that must survive the strip below.
+nemtus_workflows=('publish.yml' 'mirror-sync.yml')
 
 echo "==> patching ${pkg_dir}/package.json"
 cd "${pkg_dir}"
@@ -53,5 +59,20 @@ EOF
 else
 	echo "    notice already present"
 fi
+
+echo "==> stripping upstream GitHub automation (keeping only nemtus workflows)"
+workflows_dir="${repo_root}/.github/workflows"
+if [ -d "${workflows_dir}" ]; then
+	keep_args=()
+	for wf in "${nemtus_workflows[@]}"; do
+		keep_args+=(! -name "${wf}")
+	done
+	# Remove every workflow file except the nemtus-owned ones (covers upstream's
+	# codeql-analysis.yaml, combine-dependabot-pr.yaml, and anything added later).
+	find "${workflows_dir}" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) \
+		"${keep_args[@]}" -print -delete
+fi
+# Upstream Dependabot config would open dependency PRs against the mirror; remove it.
+rm -f "${repo_root}/.github/dependabot.yaml" "${repo_root}/.github/dependabot.yml"
 
 echo "==> done"
