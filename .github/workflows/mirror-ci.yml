@@ -46,7 +46,7 @@ jobs:
           fi
       - name: Assert no merge conflict markers
         run: |
-          if git grep -nE '^(<{7}|={7}|>{7})( |$)' -- . ':(exclude).github/workflows/mirror-ci.yml'; then
+          if git grep -nE '^(<{7}|={7}|>{7})( |$)' -- .; then
             echo "::error::Merge conflict markers found." >&2
             exit 1
           fi
