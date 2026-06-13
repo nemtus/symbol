@@ -24,6 +24,12 @@ on:
       - 'openapi/package.json'
   workflow_dispatch:
 
+# Minimal default for every job; the publish job re-grants id-token: write below
+# for npm Trusted Publishing (OIDC). Keeps the check job from inheriting a broad
+# GITHUB_TOKEN (CodeQL: actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   # Decide whether the version on dev differs from what is already on npm.
   # Kept separate so the npm-production approval prompt only appears when we
