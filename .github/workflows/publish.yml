@@ -22,6 +22,12 @@ on:
       - 'sdk/javascript/package.json'
   workflow_dispatch:
 
+# Minimal default for every job; the publish job re-grants id-token: write below
+# for npm Trusted Publishing (OIDC). Keeps the check job from inheriting a broad
+# GITHUB_TOKEN (CodeQL: actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   # Decide whether the version on dev differs from what is already on npm.
   # Kept separate so the npm-production approval prompt only appears when we
@@ -43,7 +49,14 @@ jobs:
         id: decide
         run: |
           version="$(node -p "require('./sdk/javascript/package.json').version")"
-          npm_version="$(npm view @nemtus/symbol-sdk version 2>/dev/null || echo '0.0.0')"
+          # Fail closed: the package already exists, so if `npm view` returns no
+          # version it's a transient registry/network error. Falling back to 0.0.0
+          # would falsely flag a publish (and an unnecessary npm-production approval,
+          # then a failing publish), so abort instead of guessing.
+          if ! npm_version="$(npm view @nemtus/symbol-sdk version 2>/dev/null)" || [ -z "${npm_version}" ]; then
+            echo "::error::could not read @nemtus/symbol-sdk version from npm; aborting to avoid a false publish." >&2
+            exit 1
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           if [ "${version}" != "${npm_version}" ]; then
             echo "npm ${npm_version} -> ${version}: will publish."
