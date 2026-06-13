@@ -35,6 +35,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: dev
+          # This workflow never pushes to git (publishing is via OIDC), so don't
+          # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
+          persist-credentials: false
 
       - name: Compare dev version with npm
         id: decide
@@ -65,6 +68,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: dev
+          # This workflow never pushes to git (publishing is via OIDC), so don't
+          # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
+          persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
