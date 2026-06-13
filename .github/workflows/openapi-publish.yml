@@ -1,0 +1,104 @@
+name: publish @nemtus/symbol-openapi
+
+# Single, trusted publish path for the scoped mirror spec package.
+# Ships ONLY the bundled OpenAPI spec (openapi3.yml/json + postman.json) so
+# downstream REST-client codegen can pin one self-owned source.
+# Publishing uses npm Trusted Publishing (OIDC) — NO long-lived NPM_TOKEN.
+# The `npm-production` environment carries a required-reviewers protection rule,
+# so every publish pauses for manual approval.
+#
+# Triggers:
+#   - push to dev touching openapi/package.json (i.e. a merged mirror-sync PR
+#     that bumped the upstream OpenAPI version) -> auto-publish, gated by approval
+#   - manual workflow_dispatch
+#
+# npmjs.com Trusted Publisher config must match:
+#   repository:  nemtus/symbol
+#   workflow:    openapi-publish.yml
+#   environment: npm-production
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'openapi/package.json'
+  workflow_dispatch:
+
+jobs:
+  # Decide whether the version on dev differs from what is already on npm.
+  # Kept separate so the npm-production approval prompt only appears when we
+  # actually intend to publish.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: dev
+          # This workflow never pushes to git (publishing is via OIDC), so don't
+          # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
+          persist-credentials: false
+
+      - name: Compare dev version with npm
+        id: decide
+        run: |
+          version="$(node -p "require('./openapi/package.json').version")"
+          npm_version="$(npm view @nemtus/symbol-openapi version 2>/dev/null || echo '0.0.0')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${version}" != "${npm_version}" ]; then
+            echo "npm ${npm_version} -> ${version}: will publish."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm already at ${npm_version}: nothing to publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: npm-production
+    permissions:
+      id-token: write   # required for npm Trusted Publishing (OIDC)
+      contents: read
+    defaults:
+      run:
+        working-directory: ./openapi
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: dev
+          # This workflow never pushes to git (publishing is via OIDC), so don't
+          # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          registry-url: 'https://registry.npmjs.org'
+
+      # OIDC trusted publishing requires npm CLI >= 11.5.1.
+      - name: Upgrade npm to OIDC-capable version
+        run: npm install -g npm@latest
+
+      # Idempotent safety net: ensures the @nemtus/symbol-openapi name, files and
+      # exports are set even on a manual dispatch from a not-yet-patched tree.
+      - name: Apply nemtus rename layer (@nemtus/symbol-openapi)
+        run: bash ../.github/scripts/apply-nemtus-patch.sh
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Bundle the modular spec into single files (openapi3.yml/json + postman.json).
+      - name: Build bundled spec
+        run: npm run build
+
+      # Flatten built artifacts to the package root so they ship at the names the
+      # package.json "files"/"exports" reference (e.g. @nemtus/symbol-openapi/openapi3.json).
+      - name: Stage spec artifacts at package root
+        run: cp _build/openapi3.yml _build/openapi3.json _build/postman.json .
+
+      - name: Publish to npm (OIDC, provenance)
+        run: npm publish --access public

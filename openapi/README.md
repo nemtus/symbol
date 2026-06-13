@@ -1,3 +1,12 @@
+<!-- nemtus-mirror-notice -->
+> **Note (nemtus mirror):** This package (`@nemtus/symbol-openapi`) is a content
+> mirror of the OpenAPI specification from
+> [`symbol/symbol`](https://github.com/symbol/symbol) (`openapi/`). The only change
+> from upstream is the npm package name; the specification content is unmodified.
+> Licensed under Apache-2.0. For the canonical project, see
+> [symbol/symbol](https://github.com/symbol/symbol).
+<!-- /nemtus-mirror-notice -->
+
 # symbol-openapi
 
 OpenAPI specification for catapult-rest.
