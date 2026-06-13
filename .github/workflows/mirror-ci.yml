@@ -1,0 +1,158 @@
+name: mirror-ci (parity + publishability)
+
+# Mirror-specific CI for the @nemtus/symbol-sdk republish mirror. Source is identical
+# to upstream symbol/symbol, so this validates that each sync PR (mirror-sync.yml) and
+# each push to dev still: (1) has the rename layer cleanly applied, (2) lints, (3) tests,
+# (4) builds the exact artifacts publish.yml will publish, and (5) passes the crypto /
+# catbuffer vectors. Catches sync/merge/rename breakage BEFORE merge and publish.
+#
+# NOTE: this workflow is kept by apply-nemtus-patch.sh's nemtus_workflows allow-list, so
+# mirror-sync does not strip it. The :jenkins script variants (JUnit/lcov for upstream's
+# Jenkinsfile), bundle:clean (local cleanup) and generate-docs (typedoc, not in npm
+# "files") are intentionally not run here.
+
+on:
+  pull_request: {}
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Mirror-specific: re-running the idempotent rename patch must produce NO diff.
+  # This proves name=@nemtus/symbol-sdk, metadata, README notice, and the workflow
+  # strip are all intact, and (via the conflict-marker grep) that no merge markers leaked.
+  verify-rename-layer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - name: Re-apply rename layer and assert no drift
+        run: |
+          bash .github/scripts/apply-nemtus-patch.sh
+          if ! git diff --exit-code; then
+            echo "::error::Rename layer drift - apply-nemtus-patch.sh produced changes." >&2
+            exit 1
+          fi
+      - name: Assert no merge conflict markers
+        run: |
+          if git grep -nE '^(<{7}|={7}|>{7})( |$)' -- .; then
+            echo "::error::Merge conflict markers found." >&2
+            exit 1
+          fi
+
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sdk/javascript
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sdk/javascript
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - run: npm test
+
+  # Same build publish.yml performs, so a broken publishable build fails here at PR time.
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sdk/javascript
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - run: npm run bundle                              # dist/* (webpack + wasm-pack)
+      - run: npx tsc -p ./tsconfig/build-bindings.json   # ts/src/* declarations
+
+  vectors:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        blockchain: [nem, symbol]
+    defaults:
+      run:
+        working-directory: ./sdk/javascript
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - run: npm run vectors
+        env:
+          BLOCKCHAIN: ${{ matrix.blockchain }}
+
+  catvectors:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sdk/javascript
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - run: npm run catvectors
+        env:
+          SCHEMAS_PATH: ${{ github.workspace }}/tests/vectors
+
+  # OpenAPI parity/build gate: the spec must still lint and bundle cleanly, so a
+  # broken sync never reaches openapi-publish.yml. We lint the source spec, bundle
+  # it (the exact artifacts the publish flow ships), and lint the bundle. We do NOT
+  # run `verify-links` here — it fetches external URLs and would make the gate flaky.
+  openapi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./openapi
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - run: npm ci
+      - run: npm run lint                  # redocly lint of the source spec
+      - run: npm run build                 # bundle -> _build/openapi3.yml/json + postman.json
+      - run: npm run lint:openapi:build    # redocly lint of the bundled output

@@ -1,8 +1,7 @@
 {
-  "name": "symbol-openapi",
+  "name": "@nemtus/symbol-openapi",
   "version": "1.0.5",
   "description": "OpenAPI Specification of catapult-rest",
-  "main": "index.js",
   "scripts": {
     "lint:openapi:source": "redocly lint --config .redocly.yaml spec/openapi.yml",
     "lint:openapi:build": "redocly lint --config .redocly.yaml _build/openapi3.yml _build/openapi3.json",
@@ -19,18 +18,29 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/symbol/symbol.git",
+    "url": "git+https://github.com/nemtus/symbol.git",
     "directory": "openapi"
   },
-  "license": "Apache 2.0",
-  "bugs": {
-    "url": "https://github.com/symbol/symbol/issues"
-  },
-  "homepage": "https://github.com/symbol/symbol/tree/dev/openapi#readme",
-  "dependencies": {},
+  "license": "Apache-2.0",
+  "bugs": "https://github.com/nemtus/symbol/issues",
+  "homepage": "https://github.com/nemtus/symbol/tree/dev/openapi#readme",
   "devDependencies": {
     "@redocly/cli": "^2.31.5",
     "markdown-link-check": "^3.14.2",
     "openapi-to-postmanv2": "^6.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "openapi3.yml",
+    "openapi3.json",
+    "postman.json"
+  ],
+  "exports": {
+    ".": "./openapi3.json",
+    "./openapi3.json": "./openapi3.json",
+    "./openapi3.yml": "./openapi3.yml",
+    "./postman.json": "./postman.json"
   }
 }

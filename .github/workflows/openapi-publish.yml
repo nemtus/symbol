@@ -1,25 +1,27 @@
-name: publish @nemtus/symbol-sdk
+name: publish @nemtus/symbol-openapi
 
-# Single, trusted publish path for the scoped mirror package.
+# Single, trusted publish path for the scoped mirror spec package.
+# Ships ONLY the bundled OpenAPI spec (openapi3.yml/json + postman.json) so
+# downstream REST-client codegen can pin one self-owned source.
 # Publishing uses npm Trusted Publishing (OIDC) — NO long-lived NPM_TOKEN.
 # The `npm-production` environment carries a required-reviewers protection rule,
 # so every publish pauses for manual approval.
 #
 # Triggers:
-#   - push to dev touching sdk/javascript/package.json (i.e. a merged mirror-sync
-#     PR that bumped the upstream version) -> auto-publish, gated by approval
+#   - push to dev touching openapi/package.json (i.e. a merged mirror-sync PR
+#     that bumped the upstream OpenAPI version) -> auto-publish, gated by approval
 #   - manual workflow_dispatch
 #
 # npmjs.com Trusted Publisher config must match:
-#   repository: nemtus/symbol
-#   workflow:   publish.yml
+#   repository:  nemtus/symbol
+#   workflow:    openapi-publish.yml
 #   environment: npm-production
 
 on:
   push:
     branches: [dev]
     paths:
-      - 'sdk/javascript/package.json'
+      - 'openapi/package.json'
   workflow_dispatch:
 
 # Minimal default for every job; the publish job re-grants id-token: write below
@@ -54,13 +56,13 @@ jobs:
       - name: Compare dev version with npm
         id: decide
         run: |
-          version="$(node -p "require('./sdk/javascript/package.json').version")"
+          version="$(node -p "require('./openapi/package.json').version")"
           # Fail closed: the package already exists, so if `npm view` returns no
           # version it's a transient registry/network error. Falling back to 0.0.0
           # would falsely flag a publish (and an unnecessary npm-production approval,
           # then a failing publish), so abort instead of guessing.
-          if ! npm_version="$(npm view @nemtus/symbol-sdk version 2>/dev/null)" || [ -z "${npm_version}" ]; then
-            echo "::error::could not read @nemtus/symbol-sdk version from npm; aborting to avoid a false publish." >&2
+          if ! npm_version="$(npm view @nemtus/symbol-openapi version 2>/dev/null)" || [ -z "${npm_version}" ]; then
+            echo "::error::could not read @nemtus/symbol-openapi version from npm; aborting to avoid a false publish." >&2
             exit 1
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
@@ -82,7 +84,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: ./sdk/javascript
+        working-directory: ./openapi
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -100,20 +102,22 @@ jobs:
       - name: Upgrade npm to OIDC-capable version
         run: npm install -g npm@11.5.1
 
-      # Idempotent safety net: ensures the @nemtus/symbol-sdk name is set even on
-      # a manual dispatch from a not-yet-patched tree.
-      - name: Apply nemtus rename layer (@nemtus/symbol-sdk)
-        run: bash ../../.github/scripts/apply-nemtus-patch.sh
+      # Idempotent safety net: ensures the @nemtus/symbol-openapi name, files and
+      # exports are set even on a manual dispatch from a not-yet-patched tree.
+      - name: Apply nemtus rename layer (@nemtus/symbol-openapi)
+        run: bash ../.github/scripts/apply-nemtus-patch.sh
 
       - name: Install dependencies
         run: npm ci
 
-      # Build artifacts referenced by package.json "files": dist/* and ts/src/*.
-      - name: Build browser bundle (dist/*)
-        run: npm run bundle
+      # Bundle the modular spec into single files (openapi3.yml/json + postman.json).
+      - name: Build bundled spec
+        run: npm run build
 
-      - name: Build TypeScript declarations (ts/src/*)
-        run: npx tsc -p ./tsconfig/build-bindings.json
+      # Flatten built artifacts to the package root so they ship at the names the
+      # package.json "files"/"exports" reference (e.g. @nemtus/symbol-openapi/openapi3.json).
+      - name: Stage spec artifacts at package root
+        run: cp _build/openapi3.yml _build/openapi3.json _build/postman.json .
 
       - name: Publish to npm (OIDC, provenance)
         run: npm publish --access public
