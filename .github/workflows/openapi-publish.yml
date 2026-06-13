@@ -51,7 +51,14 @@ jobs:
         id: decide
         run: |
           version="$(node -p "require('./openapi/package.json').version")"
-          npm_version="$(npm view @nemtus/symbol-openapi version 2>/dev/null || echo '0.0.0')"
+          # Fail closed: the package already exists, so if `npm view` returns no
+          # version it's a transient registry/network error. Falling back to 0.0.0
+          # would falsely flag a publish (and an unnecessary npm-production approval,
+          # then a failing publish), so abort instead of guessing.
+          if ! npm_version="$(npm view @nemtus/symbol-openapi version 2>/dev/null)" || [ -z "${npm_version}" ]; then
+            echo "::error::could not read @nemtus/symbol-openapi version from npm; aborting to avoid a false publish." >&2
+            exit 1
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           if [ "${version}" != "${npm_version}" ]; then
             echo "npm ${npm_version} -> ${version}: will publish."
