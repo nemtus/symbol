@@ -22,7 +22,7 @@ pkg_dir="${repo_root}/sdk/javascript"
 readme="${repo_root}/README.md"
 
 # nemtus-owned GitHub workflows that must survive the strip below.
-nemtus_workflows=('publish.yml' 'mirror-sync.yml')
+nemtus_workflows=('publish.yml' 'mirror-sync.yml' 'pinact.yml')
 
 echo "==> patching ${pkg_dir}/package.json"
 cd "${pkg_dir}"

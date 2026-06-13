@@ -1,0 +1,29 @@
+name: pinact (verify SHA pinning)
+
+# The repo enforces Settings -> Actions -> General -> "Require actions to be
+# pinned to a full-length commit SHA" (sha_pinning_required). Any workflow with
+# a tag/branch `uses:` ref fails at startup. This job validates pinning in PRs
+# (and pushes to dev) so the breakage surfaces here instead of silently in the
+# next scheduled mirror-sync run. Validate-only: `fix: "false"` never modifies
+# files or pushes, so no GitHub App / write token is needed.
+
+on:
+  pull_request: {}
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - uses: suzuki-shunsuke/pinact-action@896d595f299e71d65b9d28349d6956abe144390a # v3.0.0
+        with:
+          fix: "false"
