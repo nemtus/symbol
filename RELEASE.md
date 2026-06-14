@@ -62,7 +62,7 @@ git checkout dev && git pull
 git tag sdk/javascript/v3.3.2
 git push origin sdk/javascript/v3.3.2
 
-gh release create sdk/javascript/v3.3.2 \
+gh release create sdk/javascript/v3.3.2 --repo nemtus/symbol \
   --title "@nemtus/symbol-sdk v3.3.2" \
   --notes "Mirror of upstream symbol/symbol. Published @nemtus/symbol-sdk@3.3.2."
 ```
@@ -73,7 +73,7 @@ git checkout dev && git pull
 git tag openapi/v1.0.6
 git push origin openapi/v1.0.6
 
-gh release create openapi/v1.0.6 \
+gh release create openapi/v1.0.6 --repo nemtus/symbol \
   --title "@nemtus/symbol-openapi v1.0.6" \
   --notes "Mirror of upstream symbol/symbol. Published @nemtus/symbol-openapi@1.0.6."
 ```
@@ -88,6 +88,10 @@ gh release create openapi/v1.0.6 \
       v3.3.2`) to keep the Releases list readable.
 - [ ] If you need to re-tag the same version, delete the existing tag first
       (`git push origin :sdk/javascript/v3.3.2` removes it on the remote).
+- [ ] **Always pass `--repo nemtus/symbol` to `gh`** (e.g. `gh pr create`,
+      `gh release create`). This clone also has the upstream `symbol/symbol`
+      remote, so `gh` resolves the default repo to `symbol/symbol` and would
+      otherwise target the wrong repository.
 
 ## Future automation (reference)
 
