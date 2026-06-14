@@ -6,6 +6,15 @@ name: mirror-sync (upstream symbol/symbol)
 # reviews and merges it; publishing then happens via publish.yml when the merged
 # package.json version differs from npm.
 #
+# IMPORTANT: merge these sync PRs with a MERGE COMMIT (never "Squash and merge").
+# The sync branch carries upstream/dev as a parent; squashing would drop that
+# parent, leaving upstream/dev out of dev's ancestry again and making every run
+# replay the entire upstream history as a giant diff.
+#
+# The "build and decide" step below is CONTENT-based: it builds the merged +
+# re-renamed tree and only opens a PR when that tree actually differs from dev.
+# This is robust even if dev's ancestry is ever disconnected from upstream/dev.
+#
 # Requires repo setting: Settings -> Actions -> General ->
 #   "Allow GitHub Actions to create and approve pull requests" = enabled.
 
@@ -39,28 +48,39 @@ jobs:
           git remote add upstream https://github.com/symbol/symbol.git
           git fetch upstream dev
 
-      - name: Stop if already up to date
+      - name: Build sync branch and decide (content-based)
         id: check
         run: |
+          # Fast path: if dev already contains every upstream commit, stop early.
           if git merge-base --is-ancestor upstream/dev HEAD; then
             echo "dev already contains upstream/dev; nothing to sync."
             echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "upstream_sha=$(git rev-parse --short upstream/dev)" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Build sync branch (merge upstream + re-apply rename layer)
-        if: steps.check.outputs.changed == 'true'
-        run: |
-          branch="sync/upstream-${{ steps.check.outputs.upstream_sha }}"
-          echo "SYNC_BRANCH=${branch}" >> "$GITHUB_ENV"
+          upstream_sha="$(git rev-parse --short upstream/dev)"
+          branch="sync/upstream-${upstream_sha}"
           git checkout -B "${branch}"
           # Prefer upstream on any conflict; the rename layer is restored next.
           git merge -X theirs --no-edit --no-commit upstream/dev || true
           bash .github/scripts/apply-nemtus-patch.sh
           git add -A
-          git commit --no-edit -m "chore: sync upstream ${{ steps.check.outputs.upstream_sha }} + nemtus republish layer"
+
+          # Content guard: if the merged + re-renamed tree is identical to dev,
+          # there is nothing to sync even though ancestry differs. Don't open a
+          # noise PR — abort the in-progress merge and return to dev.
+          if git diff --cached --quiet; then
+            echo "merged tree == dev; nothing to sync."
+            git merge --abort 2>/dev/null || git reset --hard HEAD
+            git checkout dev
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git commit --no-edit -m "chore: sync upstream ${upstream_sha} + nemtus republish layer"
+          echo "SYNC_BRANCH=${branch}" >> "$GITHUB_ENV"
+          echo "upstream_sha=${upstream_sha}" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Push sync branch and open PR
         if: steps.check.outputs.changed == 'true'
