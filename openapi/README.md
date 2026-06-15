@@ -93,7 +93,7 @@ This prepares:
 Optional: create a GitHub release with assets (requires authenticated `gh` CLI):
 
 ```sh
-OPENAPI_RELEASE_CREATE_GH=1 OPENAPI_RELEASE_TAG=openapi/v<version> scripts/ci/publish.sh
+OPENAPI_RELEASE_CREATE_GH=1 OPENAPI_RELEASE_TAG=@nemtus/symbol-openapi@<version> scripts/ci/publish.sh
 ```
 
 ## Contributing

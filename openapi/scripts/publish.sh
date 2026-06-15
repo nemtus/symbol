@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 VERSION="$(npm run version --silent)"
-TAG="${OPENAPI_RELEASE_TAG:-openapi/v${VERSION}}"
+TAG="${OPENAPI_RELEASE_TAG:-@nemtus/symbol-openapi@${VERSION}}"
 OUTPUT_DIR="_build/v${VERSION}"
 
 echo "Preparing OpenAPI release artifacts for ${TAG}"
@@ -30,10 +30,12 @@ if [[ -n "${OPENAPI_RELEASE_CREATE_GH:-}" ]]; then
 	fi
 
 	echo "Creating GitHub release ${TAG}"
-	gh release create "${TAG}" \
+	# --repo nemtus/symbol: this clone also has the upstream symbol/symbol remote,
+	# so gh would otherwise resolve the default repo to upstream. See RELEASE.md.
+	gh release create "${TAG}" --repo nemtus/symbol \
 		"_build/openapi3.yml" \
 		"_build/openapi3.json" \
 		"_build/postman.json" \
-		--title "OpenAPI ${VERSION}" \
+		--title "@nemtus/symbol-openapi v${VERSION}" \
 		--notes "Automated OpenAPI artifact release."
 fi
