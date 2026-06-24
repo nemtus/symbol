@@ -107,8 +107,15 @@ jobs:
       - name: Apply nemtus rename layer (@nemtus/symbol-openapi)
         run: bash ../.github/scripts/apply-nemtus-patch.sh
 
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable) — a hard supply-chain gate on the
+      # publish path. `sfw` wraps the install so malware fails before it's fetched.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
       - name: Install dependencies
-        run: npm ci
+        run: sfw npm ci
 
       # Bundle the modular spec into single files (openapi3.yml/json + postman.json).
       - name: Build bundled spec
