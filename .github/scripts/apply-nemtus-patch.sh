@@ -190,7 +190,7 @@ triggerPaths:
   - '**/package.json'
   - '**/package-lock.json'
   - '**/pyproject.toml'
-  - '**/requirements.txt'
+  - '**/*requirements*.txt'   # requirements.txt, dev_requirements.txt, lint_requirements.txt
   - '**/poetry.lock'
   - '**/Cargo.toml'
   - '**/Cargo.lock'
