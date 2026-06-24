@@ -12,7 +12,7 @@
 #
 # Environment overrides:
 #   IMAGE           image tag to build        (default: nemtus/catapult-server:local)
-#   UBUNTU_VERSION  base ubuntu image version (default: image default, 25.10)
+#   UBUNTU_VERSION  base ubuntu image version (default: image default, 24.04)
 #
 # Example:
 #   IMAGE=nemtus/catapult-server:v1 UBUNTU_VERSION=24.04 \

@@ -86,7 +86,8 @@ is the complete, recorded compliance evidence — nothing to sign by hand.
 **One-time setup (first publish only).** GHCR creates a *private* package on the first
 push. Flip it to public once (package settings → Change visibility → Public; optionally
 link it to this repo). Every later release then stays public automatically. The workflow
-also attempts this via the API best-effort.
+does NOT change visibility itself (no REST endpoint flips container-package visibility);
+it only emits a reminder until the package is already public.
 
 **Exception path — the gate failed.** If `check-license-scope.sh` reports findings
 (e.g. an upstream sync introduced a Tech Bureau Commercial-licensed file), the build and

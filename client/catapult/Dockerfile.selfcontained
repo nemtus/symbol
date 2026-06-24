@@ -61,6 +61,18 @@ RUN PYTHONPATH=/src/jenkins/catapult python3 /src/jenkins/catapult/installDepsLo
 COPY client/catapult /src/client/catapult
 WORKDIR /src/client/catapult
 
+# Licensing gate baked into the build (defense in depth + automatic in-image evidence):
+# the image cannot be built from a tree containing Tech Bureau Commercial-licensed files,
+# and the PASS report travels with the image as proof the gate held at build time. Placed
+# BEFORE cmake/ninja so a source-scope violation fails fast without an expensive build.
+RUN set -eu; \
+    mkdir -p /opt/catapult/licenses; \
+    if bash scripts/check-license-scope.sh > /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt 2>&1; then \
+        cat /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt; \
+    else \
+        cat /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt; exit 1; \
+    fi
+
 # catapult's CMakeLists.txt requires a .git at the repo root (../../.git) and
 # derives its version string from `git` (CMakeGlobalSettings.cmake). We copy only
 # subtrees (not the monorepo .git) to keep the build context small, so synthesize a
@@ -96,17 +108,6 @@ RUN set -eux; \
     for d in facebook google mongodb zeromq openssl; do \
         cp -aL /opt/deps/$d/lib*/*.so* /opt/catapult/deps/ 2>/dev/null || true; \
     done
-
-# Licensing gate baked into the build (defense in depth + automatic in-image evidence):
-# the image cannot be built from a tree containing Tech Bureau Commercial-licensed files,
-# and the PASS report travels with the image as proof the gate held at build time. A
-# failure here aborts the build, so no image ever carries a failing report.
-RUN set -eu; \
-    if bash scripts/check-license-scope.sh > /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt 2>&1; then \
-        cat /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt; \
-    else \
-        cat /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt; exit 1; \
-    fi
 
 ############################ Stage 2: runtime ############################
 FROM ubuntu:${UBUNTU_VERSION} AS runtime

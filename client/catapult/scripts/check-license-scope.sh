@@ -30,7 +30,7 @@ unexpected="$(find . -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname
   | grep -vE '^\./(LICENSE\.txt|COPYING\.LESSER)$' || true)"
 if [ -n "${unexpected}" ]; then
   echo "  FAIL: unexpected license declaration(s):"
-  printf '    %s\n' ${unexpected}
+  printf '%s\n' "${unexpected}" | sed 's/^/    /'
   fail=1
 else
   echo "  OK: only root COPYING.LESSER + LICENSE.txt"
@@ -42,7 +42,7 @@ markers="$(grep -rilE 'tech bureau commercial|commercial license|proprietary|con
   --include='*.h' --include='*.cpp' --include='*.hpp' --include='*.c' --include='*.inc' . || true)"
 if [ -n "${markers}" ]; then
   echo "  FAIL: file(s) with commercial/proprietary markers:"
-  printf '    %s\n' ${markers}
+  printf '%s\n' "${markers}" | sed 's/^/    /'
   fail=1
 else
   echo "  OK: 0 files"
@@ -57,7 +57,7 @@ for d in src plugins extensions tools sdk external; do
     if ! grep -qi 'GNU Lesser General Public License' "${f}"; then
       nonlgpl="${nonlgpl}${f}"$'\n'
     fi
-  done < <(find "./${d}" -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.c' \))
+  done < <(find "./${d}" -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.inc' \))
 done
 if [ -n "${nonlgpl}" ]; then
   echo "  FAIL: non-LGPL source outside external/donna (needs license review):"

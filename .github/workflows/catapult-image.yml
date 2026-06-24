@@ -41,6 +41,7 @@ on:
     paths:
       - 'client/catapult/**'
       - 'jenkins/catapult/**'
+      - '.dockerignore'
       - '.github/workflows/catapult-image.yml'
   push:
     tags:
