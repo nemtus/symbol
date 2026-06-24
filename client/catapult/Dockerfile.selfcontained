@@ -1,0 +1,159 @@
+# syntax=docker/dockerfile:1.7
+#
+# Self-contained catapult-server build.
+#
+# Goals:
+#   1. Keep the host clean: only Docker is required; the whole toolchain, all
+#      native dependencies, and the build artifacts live inside the image.
+#   2. No dependency on upstream (symbol/symbol) implicit assets:
+#        - NOT FROM symbolplatform/symbol-server-build-base (prebuilt Docker Hub image)
+#        - NOT using the conan.symbol.dev artifactory / @nemtech/stable recipes
+#      Instead we use the "manual" build path (docs/BUILD-manual.md): every native
+#      dependency is built from its canonical upstream source by
+#      jenkins/catapult/installDepsLocal.py (boost -> archives.boost.io,
+#      others -> github.com/{google,mongodb,zeromq,facebook,openssl}).
+#   3. Reproducible: all dependency versions are locked in
+#      jenkins/catapult/versions.properties.
+#
+# Build context MUST be the repository root (this file references both
+# jenkins/catapult and client/catapult):
+#   DOCKER_BUILDKIT=1 docker build -f client/catapult/Dockerfile.selfcontained -t nemtus/catapult-server:local .
+#
+# Base image / compiler choice:
+#   Default is ubuntu:24.04 (LTS, supported into 2029) whose stock gcc-13 is
+#   within catapult's supported compiler range (gcc 9..15). Older gcc is also
+#   safer w.r.t. -Werror (new warnings tend to come with newer gcc).
+#   If a build issue appears, fall back to the upstream-validated toolchain with
+#   `UBUNTU_VERSION=25.10` (gcc-15, matches versions.properties `ubuntu = 25.10`).
+#   Both stages share UBUNTU_VERSION so libstdc++ ABI stays consistent.
+#   For production, pin by digest, e.g. `FROM ubuntu:24.04@sha256:<digest>`.
+
+ARG UBUNTU_VERSION=24.04
+
+############################ Stage 1: builder ############################
+FROM ubuntu:${UBUNTU_VERSION} AS builder
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Build toolchain only. We deliberately do NOT install distro libssl/boost/etc.;
+# catapult requires specific versions that installDepsLocal.py builds from source.
+# (perl is required by OpenSSL's ./Configure; python3-yaml is the only third-party
+# python module installDepsLocal.py needs -- see jenkins/catapult/requirements.txt.
+# Installed via apt instead of pip because Ubuntu's system python is PEP 668
+# externally-managed.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build pkg-config \
+        git curl ca-certificates perl tar xz-utils python3 python3-yaml \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- dependency layer ---------------------------------------------------------
+# Copy ONLY jenkins/catapult first so that editing catapult source code does not
+# invalidate this (expensive) layer. installDepsLocal.py imports only modules
+# under jenkins/catapult and writes everything into --target (/opt/deps).
+COPY jenkins/catapult /src/jenkins/catapult
+RUN PYTHONPATH=/src/jenkins/catapult python3 /src/jenkins/catapult/installDepsLocal.py \
+        --target /opt/deps \
+        --versions /src/jenkins/catapult/versions.properties \
+        --download --build
+
+# --- catapult build -----------------------------------------------------------
+# USE_CONAN defaults to OFF, so this is the manual build path (no conan remote).
+COPY client/catapult /src/client/catapult
+WORKDIR /src/client/catapult
+
+# catapult's CMakeLists.txt requires a .git at the repo root (../../.git) and
+# derives its version string from `git` (CMakeGlobalSettings.cmake). We copy only
+# subtrees (not the monorepo .git) to keep the build context small, so synthesize a
+# minimal repo at /src that satisfies the existence check and the version commands.
+# Kept DETERMINISTIC and independent of the build's VCS ref on purpose: this layer
+# sits above the expensive cmake/ninja layer, so referencing a changing VCS_REF here
+# would bust the compile cache on every commit. The true source revision is carried
+# losslessly by the OCI image.revision label in the runtime stage instead; the
+# in-binary version string just shows this stable synthetic commit.
+RUN cd /src && git init -q -b dev \
+    && git -c user.email=build@nemtus.invalid -c user.name=nemtus-build \
+           commit -q --allow-empty -m "self-contained build"
+
+RUN mkdir _build && cd _build \
+    && BOOST_ROOT=/opt/deps/boost cmake .. \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_PREFIX_PATH="/opt/deps/facebook;/opt/deps/google;/opt/deps/mongodb;/opt/deps/zeromq;/opt/deps/openssl" \
+        -GNinja \
+    && ninja -j"$(nproc)"
+
+# --- collect artifacts + runtime shared libraries into a clean tree -----------
+# Also bundle the license texts and third-party notices so the published image is
+# self-describing for LGPL-3.0 compliance (license + corresponding-source pointer).
+RUN set -eux; \
+    mkdir -p /opt/catapult/bin /opt/catapult/lib /opt/catapult/deps /opt/catapult/resources /opt/catapult/licenses; \
+    cp -aL _build/bin/*     /opt/catapult/bin/; \
+    cp -aL _build/lib/*.so* /opt/catapult/lib/  2>/dev/null || true; \
+    cp -aL resources/*      /opt/catapult/resources/ 2>/dev/null || true; \
+    cp -aL COPYING.LESSER   /opt/catapult/licenses/LGPL-3.0.txt; \
+    cp -aL LICENSE.txt      /opt/catapult/licenses/LICENSE.txt; \
+    cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
+    cp -aL /opt/deps/boost/lib/*.so* /opt/catapult/deps/ 2>/dev/null || true; \
+    for d in facebook google mongodb zeromq openssl; do \
+        cp -aL /opt/deps/$d/lib*/*.so* /opt/catapult/deps/ 2>/dev/null || true; \
+    done
+
+# Licensing gate baked into the build (defense in depth + automatic in-image evidence):
+# the image cannot be built from a tree containing Tech Bureau Commercial-licensed files,
+# and the PASS report travels with the image as proof the gate held at build time. A
+# failure here aborts the build, so no image ever carries a failing report.
+RUN set -eu; \
+    if bash scripts/check-license-scope.sh > /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt 2>&1; then \
+        cat /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt; \
+    else \
+        cat /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt; exit 1; \
+    fi
+
+############################ Stage 2: runtime ############################
+FROM ubuntu:${UBUNTU_VERSION} AS runtime
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
+# Minimal runtime: the C++/atomic runtime libs (everything else was built from
+# source in the builder stage and is copied below).
+# Recent ubuntu images already ship a non-root user at UID 1000, so reuse it
+# (creating another UID 1000 would fail with "UID 1000 is not unique"). Only
+# create one if the image happens not to have it.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libstdc++6 libatomic1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && if ! getent passwd 1000 >/dev/null; then useradd --uid 1000 -ms /bin/bash catapult; fi
+
+COPY --from=builder /opt/catapult /opt/catapult
+
+# Provenance / licensing metadata (OCI image-spec annotations). VCS_REF is the real
+# upstream commit (the in-binary version string carries the synthetic build commit
+# instead, see the builder stage). image.source + image.revision give the
+# corresponding-source pointer required for LGPL-3.0 redistribution; the full
+# third-party inventory is bundled at /opt/catapult/licenses/THIRD_PARTY_NOTICES.md.
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.title="catapult-server" \
+      org.opencontainers.image.description="Symbol catapult server (self-contained build, no upstream prebuilt base image or conan remote)" \
+      org.opencontainers.image.vendor="nemtus" \
+      org.opencontainers.image.source="https://github.com/nemtus/symbol" \
+      org.opencontainers.image.url="https://github.com/nemtus/symbol/tree/dev/client/catapult" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.version="${VCS_REF}" \
+      org.opencontainers.image.licenses="LGPL-3.0-or-later" \
+      org.opencontainers.image.documentation="https://github.com/nemtus/symbol/blob/dev/client/catapult/docs/PUBLISHING-COMPLIANCE.md"
+
+ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps
+ENV PATH=/opt/catapult/bin:$PATH
+
+# Numeric USER avoids coupling to the image's default user name (ubuntu).
+USER 1000
+WORKDIR /opt/catapult
+
+# bin/ contains catapult.server, catapult.broker, catapult.recovery and
+# catapult.tools.* . The default entrypoint is the server, which takes a resources
+# directory as its first argument, e.g.
+#   docker run --rm -v "$PWD/userconfig:/cfg" <image> /cfg
+# To run a different binary (e.g. a tool), OVERRIDE the entrypoint -- otherwise its
+# name is passed to catapult.server as a resources path:
+#   docker run --rm --entrypoint catapult.tools.addressgen <image> --count 1
+#   docker run --rm --entrypoint catapult.tools.address    <image> --mode public --input <pubkeyhex>
+ENTRYPOINT ["catapult.server"]

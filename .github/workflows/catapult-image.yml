@@ -1,0 +1,181 @@
+name: catapult-image (build / publish)
+
+# Nemtus-owned workflow that builds the self-contained catapult-server container
+# image (client/catapult/Dockerfile.selfcontained) and, on a release tag, publishes
+# it to GHCR. The image is built WITHOUT any upstream implicit asset (no
+# symbolplatform/* base image, no conan.symbol.dev): all native deps are compiled
+# from canonical upstream sources by jenkins/catapult/installDepsLocal.py.
+#
+# IMPORTANT (mirror): this workflow is in the `nemtus_workflows` allow-list in
+# .github/scripts/apply-nemtus-patch.sh, so mirror-sync does NOT strip it. If you
+# rename this file, update that allow-list too (mirror-ci enforces no-drift).
+#
+# Supply-chain posture: we deliberately use NO third-party marketplace actions here
+# (only the already-pinned actions/checkout). The build runs via the runner's
+# preinstalled `docker buildx`, with SBOM + provenance attestations attached
+# natively by buildx on publish.
+#
+# Triggers:
+#   - pull_request touching the catapult build inputs -> build + smoke-test ONLY
+#     (never pushes an image).
+#   - push of a tag `catapult-image-v*` -> build + PUBLISH to GHCR (+ SBOM/provenance).
+#   - workflow_dispatch -> build; push only when `push=true` is selected.
+#
+# Publishing posture: catapult is published as a PUBLIC image. The gate is fully
+# automated and the licensing evidence is recorded automatically — no per-release
+# manual step while the gate is green:
+#   1. check-license-scope.sh hard-blocks the build if any Tech Bureau Commercial-
+#      licensed file is present (dual-license clause in client/catapult/LICENSE.txt).
+#      It runs both as an explicit step here AND inside the Dockerfile, which bundles
+#      its PASS report into the image at /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt.
+#   2. buildx attaches an SBOM + SLSA provenance attestation to the pushed image.
+#   3. the "Record publish evidence" step writes revision/digest/result to the run
+#      summary (durable, automatic).
+# A human only intervenes in the EXCEPTION case where the gate fails — see
+# client/catapult/docs/PUBLISHING-COMPLIANCE.md. GHCR package visibility is a ONE-TIME
+# setup (first publish creates a private package; flip it to public once, then every
+# release stays public automatically).
+
+on:
+  pull_request:
+    paths:
+      - 'client/catapult/**'
+      - 'jenkins/catapult/**'
+      - '.github/workflows/catapult-image.yml'
+  push:
+    tags:
+      - 'catapult-image-v*'
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Publish the image to GHCR'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catapult-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # only used by the push step below
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/catapult-server
+    steps:
+      # The from-source dependency build is disk-hungry; reclaim space the runner
+      # spends on preinstalled toolchains we don't need.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          df -h /
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # This workflow authenticates to GHCR with GITHUB_TOKEN via docker login,
+          # not git, so don't persist credentials into the local git config.
+          persist-credentials: false
+
+      # Licensing gate: fail if the source carries any Tech Bureau Commercial-licensed
+      # file (dual-license clause in client/catapult/LICENSE.txt). On a PR this is just a
+      # visible red check (keep it OUT of the dev branch-protection required checks so it
+      # never blocks the verbatim SDK mirror sync); on a publish run it runs BEFORE the
+      # push steps, so a failure here makes publishing a non-LGPL image impossible.
+      - name: License-scope check (no commercial-licensed files)
+        run: bash client/catapult/scripts/check-license-scope.sh
+
+      - name: Decide push + tags
+        id: meta
+        run: |
+          push=false
+          if [ "${{ github.event_name }}" = "push" ]; then push=true; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.push }}" = "true" ]; then push=true; fi
+          echo "push=${push}" >> "$GITHUB_OUTPUT"
+
+          ref="${{ github.ref_name }}"
+          version="${ref#catapult-image-}"   # tag catapult-image-v1.2.3 -> v1.2.3
+          sha="$(git rev-parse --short HEAD)"
+          echo "vcs_ref=${sha}" >> "$GITHUB_OUTPUT"
+          tags="${IMAGE}:sha-${sha}"
+          if [ "${{ github.event_name }}" = "push" ]; then tags="${tags},${IMAGE}:${version},${IMAGE}:latest"; fi
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up buildx (docker-container driver for registry cache)
+        run: docker buildx create --use --name nemtus --driver docker-container
+
+      - name: Log in to GHCR
+        if: steps.meta.outputs.push == 'true'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # PR / non-push: build and load locally so we can smoke-test the artifact.
+      - name: Build (verify, no push)
+        if: steps.meta.outputs.push != 'true'
+        run: |
+          docker buildx build \
+            -f client/catapult/Dockerfile.selfcontained \
+            --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
+            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+            -t "${IMAGE}:ci" \
+            --load \
+            .
+
+      - name: Smoke test (toolchain runs)
+        if: steps.meta.outputs.push != 'true'
+        run: |
+          docker run --rm --entrypoint catapult.tools.addressgen "${IMAGE}:ci" --count 1
+          docker run --rm --entrypoint sh "${IMAGE}:ci" -c 'ls /opt/catapult/licenses'
+
+      # Release tag / dispatch-with-push: publish to GHCR with SBOM + provenance, and
+      # warm the registry build cache for future runs. The in-Dockerfile license-scope
+      # gate also runs here, so a non-LGPL tree cannot produce a pushed image.
+      - name: Build and publish (GHCR)
+        if: steps.meta.outputs.push == 'true'
+        run: |
+          docker buildx build \
+            -f client/catapult/Dockerfile.selfcontained \
+            --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
+            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+            --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
+            --provenance=true --sbom=true \
+            --metadata-file /tmp/build-meta.json \
+            $(printf -- '-t %s ' $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' ')) \
+            --push \
+            .
+
+      # Automated evidence: no manual sign-off while the gate is green. This record is
+      # retained with the workflow run; the same PASS report is also bundled inside the
+      # image and an SBOM/provenance attestation is attached to it in the registry.
+      - name: Record publish evidence
+        if: steps.meta.outputs.push == 'true'
+        run: |
+          digest="$(jq -r '."containerimage.digest" // "unknown"' /tmp/build-meta.json 2>/dev/null || echo unknown)"
+          {
+            echo "## catapult-server image published"
+            echo ""
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| tags | \`${{ steps.meta.outputs.tags }}\` |"
+            echo "| digest | \`${digest}\` |"
+            echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` (\`${{ github.sha }}\`) |"
+            echo "| license-scope gate | PASSED (also bundled in image at /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt) |"
+            echo "| attestations | SBOM + SLSA provenance attached via buildx |"
+            echo "| run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Published ${IMAGE} @ ${digest}"
+
+      # GHCR creates a PRIVATE package on first push; making it public is a ONE-TIME
+      # setting in the package UI (Package settings -> Change visibility -> Public),
+      # not a per-release action. After that, every release stays public automatically.
+      # (No REST endpoint flips container-package visibility, so this is a reminder, not
+      # an automated step — it only surfaces until the package is already public.)
+      - name: Package-visibility reminder (one-time)
+        if: steps.meta.outputs.push == 'true'
+        run: |
+          echo "::notice::If ghcr.io/${{ github.repository_owner }}/catapult-server is still PRIVATE,"
+          echo "::notice::set it to Public once in the package settings; later releases stay public automatically."
