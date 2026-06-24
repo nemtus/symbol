@@ -1,0 +1,43 @@
+# socket.yml — Socket (https://socket.dev) configuration for the nemtus/symbol mirror.
+#
+# Managed by the nemtus republish layer: .github/scripts/apply-nemtus-patch.sh
+# rewrites this file verbatim on every upstream sync, so edit it THERE, not here —
+# otherwise the next mirror-sync reverts your change, and mirror-ci.yml's no-drift
+# check fails when this file and the script disagree.
+#
+# Socket is free and unlimited for public/open-source repos, so this adds supply
+# chain scanning at zero cost. Scope: every dependency manifest in the monorepo —
+# npm (sdk/javascript, openapi, client/rest), Python (sdk/python, catbuffer/parser),
+# Rust/WASM (sdk/javascript/wasm) and C/C++ (client/catapult: conanfile.py, vcpkg.json).
+version: 2
+
+# Run a PR scan only when a dependency manifest actually changes (gitignore-style
+# globs matched against the PR's changed files). The daily mirror-sync PR bumps these.
+triggerPaths:
+  - '**/package.json'
+  - '**/package-lock.json'
+  - '**/pyproject.toml'
+  - '**/requirements.txt'
+  - '**/poetry.lock'
+  - '**/Cargo.toml'
+  - '**/Cargo.lock'
+  - '**/conanfile.py'
+  - '**/vcpkg.json'
+
+# High-signal supply-chain alerts for a mirror that ingests upstream deps daily.
+# issueRules is coarse (on/off per alert type); fine-grained block-vs-warn tuning
+# lives in the Socket dashboard, and the required-status-check branch-protection rule
+# is what turns a failing scan into a hard merge block. Only documented slugs are
+# used here to avoid silently breaking the config.
+issueRules:
+  malware: true
+  installScripts: true
+  didYouMean: true     # typosquats
+  gitDependency: true
+  telemetry: false     # noisy for a crypto/blockchain dep tree; left to the dashboard
+
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: true
+  # Do NOT list the mirror-sync bot here: its automated PRs are exactly what we scan.
+  ignoreUsers: []

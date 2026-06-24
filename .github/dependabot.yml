@@ -1,0 +1,30 @@
+# Dependabot — nemtus mirror layer. Owned by .github/scripts/apply-nemtus-patch.sh,
+# which rewrites this file verbatim on every upstream sync (mirror-ci.yml enforces no
+# drift). Edit it THERE, not here.
+#
+# Scoped to github-actions ONLY: it keeps our SHA-pinned actions current — including
+# SocketDev/action, the supply-chain gate — behind a human-reviewed PR, while pinact.yml
+# re-asserts SHA pinning. We deliberately do NOT enable npm/cargo/pip updates: this is a
+# mirror whose package deps track upstream symbol/symbol, so dependency PRs against them
+# would diverge the mirror from upstream.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: sunday
+    labels: [dependencies]
+    commit-message:
+      prefix: '[dependency]'
+    # Buffer so a freshly published action release has time to surface regressions
+    # before Dependabot proposes it (Socket's recommended cooldown).
+    cooldown:
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      github-actions:
+        patterns:
+          - '*'

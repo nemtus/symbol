@@ -6,6 +6,12 @@ name: mirror-ci (parity + publishability)
 # (4) builds the exact artifacts publish.yml will publish, and (5) passes the crypto /
 # catbuffer vectors. Catches sync/merge/rename breakage BEFORE merge and publish.
 #
+# Supply-chain hardening: every `npm ci` runs under Socket Firewall (`sfw`, free, no
+# account), installed via Socket's SHA-pinned action (kept current by Dependabot), so a
+# confirmed-malicious dependency pulled in by an upstream sync fails the install — and
+# thus the job — before it can build or be published. Pairs with the Socket GitHub App
+# (PR-time scanning) and the required-status-check on dev.
+#
 # NOTE: this workflow is kept by apply-nemtus-patch.sh's nemtus_workflows allow-list, so
 # mirror-sync does not strip it. The :jenkins script variants (JUnit/lcov for upstream's
 # Jenkinsfile), bundle:clean (local cleanup) and generate-docs (typedoc, not in npm
@@ -63,7 +69,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-      - run: npm ci
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable). `sfw` then wraps the install so
+      # confirmed-malicious packages fail before they're fetched — a hard supply-chain gate.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
       - run: npm run lint
 
   test:
@@ -78,7 +90,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-      - run: npm ci
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable). `sfw` then wraps the install so
+      # confirmed-malicious packages fail before they're fetched — a hard supply-chain gate.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
       - run: npm test
 
   # Same build publish.yml performs, so a broken publishable build fails here at PR time.
@@ -94,7 +112,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-      - run: npm ci
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable). `sfw` then wraps the install so
+      # confirmed-malicious packages fail before they're fetched — a hard supply-chain gate.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
       - run: npm run bundle                              # dist/* (webpack + wasm-pack)
       - run: npx tsc -p ./tsconfig/build-bindings.json   # ts/src/* declarations
 
@@ -114,7 +138,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-      - run: npm ci
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable). `sfw` then wraps the install so
+      # confirmed-malicious packages fail before they're fetched — a hard supply-chain gate.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
       - run: npm run vectors
         env:
           BLOCKCHAIN: ${{ matrix.blockchain }}
@@ -131,7 +161,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-      - run: npm ci
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable). `sfw` then wraps the install so
+      # confirmed-malicious packages fail before they're fetched — a hard supply-chain gate.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
       - run: npm run catvectors
         env:
           SCHEMAS_PATH: ${{ github.workspace }}/tests/vectors
@@ -152,7 +188,13 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
-      - run: npm ci
+      # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
+      # action (pinact-enforced, Dependabot-updatable). `sfw` then wraps the install so
+      # confirmed-malicious packages fail before they're fetched — a hard supply-chain gate.
+      - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - run: sfw npm ci
       - run: npm run lint                  # redocly lint of the source spec
       - run: npm run build                 # bundle -> _build/openapi3.yml/json + postman.json
       - run: npm run lint:openapi:build    # redocly lint of the bundled output

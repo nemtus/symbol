@@ -11,9 +11,13 @@
 #   - publishConfig.access=public (scoped packages)
 #   - repository / bugs / homepage point at nemtus/symbol
 #   - a "mirror" notice is prepended to the root README.md
+#   - socket.yml (Socket supply-chain config) is (re)written at the repo root so it
+#     survives every upstream sync (Socket is free/unlimited for public repos)
 #   - upstream-provided GitHub automation is stripped (we keep only the nemtus
-#     workflows), so upstream CI (e.g. codeql-analysis) and Dependabot do not run
-#     against the mirror.
+#     workflows), so upstream CI (e.g. codeql-analysis) does not run against the mirror
+#   - Dependabot is replaced with a nemtus github-actions-only config (.github/
+#     dependabot.yml) that keeps the SHA-pinned actions — including the Socket gate —
+#     current, without opening npm/cargo PRs that would diverge from upstream
 #
 # Running it repeatedly produces the same result. The mirror-sync workflow runs
 # it after every upstream merge.
@@ -160,6 +164,58 @@ else
 	echo "    notice already present"
 fi
 
+# Socket (https://socket.dev) supply-chain config. Owned by the nemtus layer and
+# rewritten verbatim each run so it always survives an upstream sync and the
+# mirror-ci no-drift check stays green. Keep this heredoc byte-identical to the
+# committed socket.yml.
+socket_yml="${repo_root}/socket.yml"
+echo "==> writing ${socket_yml}"
+cat > "${socket_yml}" <<'EOF'
+# socket.yml — Socket (https://socket.dev) configuration for the nemtus/symbol mirror.
+#
+# Managed by the nemtus republish layer: .github/scripts/apply-nemtus-patch.sh
+# rewrites this file verbatim on every upstream sync, so edit it THERE, not here —
+# otherwise the next mirror-sync reverts your change, and mirror-ci.yml's no-drift
+# check fails when this file and the script disagree.
+#
+# Socket is free and unlimited for public/open-source repos, so this adds supply
+# chain scanning at zero cost. Scope: every dependency manifest in the monorepo —
+# npm (sdk/javascript, openapi, client/rest), Python (sdk/python, catbuffer/parser),
+# Rust/WASM (sdk/javascript/wasm) and C/C++ (client/catapult: conanfile.py, vcpkg.json).
+version: 2
+
+# Run a PR scan only when a dependency manifest actually changes (gitignore-style
+# globs matched against the PR's changed files). The daily mirror-sync PR bumps these.
+triggerPaths:
+  - '**/package.json'
+  - '**/package-lock.json'
+  - '**/pyproject.toml'
+  - '**/requirements.txt'
+  - '**/poetry.lock'
+  - '**/Cargo.toml'
+  - '**/Cargo.lock'
+  - '**/conanfile.py'
+  - '**/vcpkg.json'
+
+# High-signal supply-chain alerts for a mirror that ingests upstream deps daily.
+# issueRules is coarse (on/off per alert type); fine-grained block-vs-warn tuning
+# lives in the Socket dashboard, and the required-status-check branch-protection rule
+# is what turns a failing scan into a hard merge block. Only documented slugs are
+# used here to avoid silently breaking the config.
+issueRules:
+  malware: true
+  installScripts: true
+  didYouMean: true     # typosquats
+  gitDependency: true
+  telemetry: false     # noisy for a crypto/blockchain dep tree; left to the dashboard
+
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: true
+  # Do NOT list the mirror-sync bot here: its automated PRs are exactly what we scan.
+  ignoreUsers: []
+EOF
+
 echo "==> stripping upstream GitHub automation (keeping only nemtus workflows)"
 workflows_dir="${repo_root}/.github/workflows"
 if [ -d "${workflows_dir}" ]; then
@@ -172,7 +228,47 @@ if [ -d "${workflows_dir}" ]; then
 	find "${workflows_dir}" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) \
 		"${keep_args[@]}" -print -delete
 fi
-# Upstream Dependabot config would open dependency PRs against the mirror; remove it.
-rm -f "${repo_root}/.github/dependabot.yaml" "${repo_root}/.github/dependabot.yml"
+# Dependabot: replace upstream's multi-ecosystem config (npm/cargo/github-actions —
+# the npm/cargo updates would open PRs that diverge the mirror from upstream) with a
+# nemtus-owned github-actions-ONLY config. This keeps the SHA-pinned actions current,
+# including SocketDev/action (our supply-chain gate), behind a reviewed PR. Owned by
+# this script and rewritten verbatim, so it survives every sync (matches the committed
+# file -> mirror-ci no-drift check stays green). Remove upstream's .yaml so only ours
+# (.yml) remains (GitHub errors if both exist).
+rm -f "${repo_root}/.github/dependabot.yaml"
+dependabot_yml="${repo_root}/.github/dependabot.yml"
+echo "==> writing ${dependabot_yml}"
+cat > "${dependabot_yml}" <<'EOF'
+# Dependabot — nemtus mirror layer. Owned by .github/scripts/apply-nemtus-patch.sh,
+# which rewrites this file verbatim on every upstream sync (mirror-ci.yml enforces no
+# drift). Edit it THERE, not here.
+#
+# Scoped to github-actions ONLY: it keeps our SHA-pinned actions current — including
+# SocketDev/action, the supply-chain gate — behind a human-reviewed PR, while pinact.yml
+# re-asserts SHA pinning. We deliberately do NOT enable npm/cargo/pip updates: this is a
+# mirror whose package deps track upstream symbol/symbol, so dependency PRs against them
+# would diverge the mirror from upstream.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: sunday
+    labels: [dependencies]
+    commit-message:
+      prefix: '[dependency]'
+    # Buffer so a freshly published action release has time to surface regressions
+    # before Dependabot proposes it (Socket's recommended cooldown).
+    cooldown:
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+EOF
 
 echo "==> done"
