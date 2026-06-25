@@ -29,7 +29,7 @@ if ! git -C "${REPO_ROOT}" diff --quiet HEAD 2>/dev/null; then
 	VCS_REF="${VCS_REF}-dirty"
 fi
 
-build_args=(--build-arg "VCS_REF=${VCS_REF}")
+build_args=(--build-arg "VCS_REF=${VCS_REF}" --build-arg "IMAGE_VERSION=${IMAGE_VERSION:-local}")
 [[ -n "${UBUNTU_VERSION:-}" ]] && build_args+=(--build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}")
 [[ -n "${NODE_MAJOR:-}" ]] && build_args+=(--build-arg "NODE_MAJOR=${NODE_MAJOR}")
 

@@ -43,10 +43,21 @@ else
   echo "  OK: only root COPYING.LESSER + LICENSE.txt"
 fi
 
-echo "== (2) commercial / proprietary markers in src =="
-# NB: 'All rights reserved' is part of the standard LGPL header, so it is NOT a marker.
-markers="$(grep -rilE 'tech bureau commercial|commercial license|proprietary|confidential' \
-  --include='*.js' src || true)"
+echo "== (2) commercial-license markers across the whole shipped tree =="
+# The image ships the entire client/rest tree (COPY . .), so scan it all, not just src.
+# A file placed under the Tech Bureau Commercial License names it (like the LGPL header
+# names the LGPL), so the high-signal phrases below are scanned tree-wide -- EXCEPT the
+# files that legitimately *describe* the dual license rather than being licensed under it.
+# (node_modules holds third-party permissive packages; ./licenses is this gate's report.)
+# 'All rights reserved' is part of the standard LGPL header, so it is NOT a marker; the
+# generic 'proprietary'/'confidential' words appear in upstream docs (CODE_OF_CONDUCT etc.)
+# so they are only applied to src/*.js where they are meaningful and noise-free.
+meta_allow='^\./(LICENSE\.txt|COPYING\.LESSER|THIRD_PARTY_NOTICES\.md|Dockerfile\.nemtus|docs/PUBLISHING-COMPLIANCE\.md|scripts/check-license-scope\.sh)$'
+tree_markers="$(grep -rilE 'tech bureau commercial|commercial license' . \
+    --exclude-dir=node_modules --exclude-dir=licenses --exclude-dir=.git 2>/dev/null \
+  | grep -vE "${meta_allow}" || true)"
+src_markers="$(grep -rilE 'proprietary|confidential' --include='*.js' src 2>/dev/null || true)"
+markers="$(printf '%s\n%s\n' "${tree_markers}" "${src_markers}" | grep -vE '^[[:space:]]*$' | sort -u || true)"
 if [ -n "${markers}" ]; then
   echo "  FAIL: file(s) with commercial/proprietary markers:"
   printf '%s\n' "${markers}" | sed 's/^/    /'

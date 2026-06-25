@@ -56,6 +56,8 @@ FROM ubuntu:${UBUNTU_VERSION} AS runtime
 ARG NODE_MAJOR
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VCS_REF=unknown
+# Release version for image.version (e.g. v2.5.1 on a tag build); VCS_REF stays the commit.
+ARG IMAGE_VERSION=unknown
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg ca-certificates \
     && mkdir -p /etc/apt/keyrings \
@@ -74,7 +76,7 @@ LABEL org.opencontainers.image.title="symbol-rest" \
       org.opencontainers.image.source="https://github.com/nemtus/symbol" \
       org.opencontainers.image.url="https://github.com/nemtus/symbol/tree/dev/client/rest" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.version="${VCS_REF}" \
+      org.opencontainers.image.version="${IMAGE_VERSION}" \
       org.opencontainers.image.licenses="LGPL-3.0-or-later" \
       org.opencontainers.image.documentation="https://github.com/nemtus/symbol/blob/dev/client/rest/docs/PUBLISHING-COMPLIANCE.md"
 
