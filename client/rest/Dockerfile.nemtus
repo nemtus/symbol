@@ -1,0 +1,95 @@
+# syntax=docker/dockerfile:1.7
+#
+# Nemtus-owned image for client/rest (symbol-api-rest), published to GHCR as
+# ghcr.io/nemtus/symbol-rest by .github/workflows/rest-image.yml.
+#
+# This mirrors the upstream client/rest/Dockerfile build (Ubuntu + Node from
+# NodeSource, `npm install --omit=dev`) and adds the nemtus publishing layer:
+#   - a license-scope gate (defense in depth) that fails the build on any Tech Bureau
+#     Commercial-licensed file and bundles its PASS report into the image,
+#   - OCI image labels (source / revision / licenses) for LGPL-3.0 redistribution,
+#   - a default ENTRYPOINT so the image is runnable out of the box.
+#
+# We keep this SEPARATE from the upstream client/rest/Dockerfile (which mirror-sync
+# overwrites) so the nemtus layer survives upstream syncs. If upstream bumps the Node
+# major or base image, update this file to match.
+#
+# Build context is client/rest (the same as the upstream Dockerfile).
+# For production pin the base by digest, e.g. `FROM ubuntu:24.04@sha256:<digest>`.
+
+ARG UBUNTU_VERSION=24.04
+ARG NODE_MAJOR=24
+
+############################ Stage 1: builder ############################
+FROM ubuntu:${UBUNTU_VERSION} AS builder
+ARG NODE_MAJOR
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg ca-certificates \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" \
+       > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+# Licensing gate (defense in depth + automatic in-image evidence): the image cannot
+# be built from a tree containing Tech Bureau Commercial-licensed files. The PASS
+# report travels with the image as proof the gate held at build time. Runs BEFORE
+# `npm install` so a source-scope violation fails fast.
+RUN set -eu; mkdir -p /app/licenses; \
+    if bash scripts/check-license-scope.sh > /app/licenses/LICENSE-SCOPE-REPORT.txt 2>&1; then \
+        cat /app/licenses/LICENSE-SCOPE-REPORT.txt; \
+    else \
+        cat /app/licenses/LICENSE-SCOPE-REPORT.txt; exit 1; \
+    fi
+
+# Production dependencies only. Each package keeps its own LICENSE under node_modules,
+# so the image is self-describing; the published image also carries an SBOM attestation.
+RUN npm install --omit=dev
+
+############################ Stage 2: runtime ############################
+FROM ubuntu:${UBUNTU_VERSION} AS runtime
+ARG NODE_MAJOR
+ARG DEBIAN_FRONTEND=noninteractive
+ARG VCS_REF=unknown
+# Release version for image.version (e.g. v2.5.1 on a tag build); VCS_REF stays the commit.
+ARG IMAGE_VERSION=unknown
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg ca-certificates \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" \
+       > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Provenance / licensing metadata. image.source + image.revision give the
+# corresponding-source pointer required for LGPL-3.0 redistribution; the third-party
+# inventory is at /app/THIRD_PARTY_NOTICES.md and the bundled license texts under /app.
+LABEL org.opencontainers.image.title="symbol-rest" \
+      org.opencontainers.image.description="Symbol REST API gateway (catapult-rest / symbol-api-rest)" \
+      org.opencontainers.image.vendor="nemtus" \
+      org.opencontainers.image.source="https://github.com/nemtus/symbol" \
+      org.opencontainers.image.url="https://github.com/nemtus/symbol/tree/dev/client/rest" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.version="${IMAGE_VERSION}" \
+      org.opencontainers.image.licenses="LGPL-3.0-or-later" \
+      org.opencontainers.image.documentation="https://github.com/nemtus/symbol/blob/dev/client/rest/docs/PUBLISHING-COMPLIANCE.md"
+
+# Numeric USER avoids coupling to the image's default user name (ubuntu, UID 1000).
+USER 1000
+WORKDIR /app
+COPY --chown=1000:1000 --from=builder /app .
+
+EXPOSE 3000
+
+# Default runs the full REST gateway (needs MongoDB + a catapult API node + broker).
+# ENTRYPOINT is `node`, so override the script for the light / rosetta variants:
+#   docker run --rm <image> src/index.light.js
+#   docker run --rm <image> src/index.rosetta.js
+ENTRYPOINT ["node"]
+CMD ["src/index.js"]

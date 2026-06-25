@@ -29,7 +29,7 @@ openapi_dir="${repo_root}/openapi"
 readme="${repo_root}/README.md"
 
 # nemtus-owned GitHub workflows that must survive the strip below.
-nemtus_workflows=('publish.yml' 'openapi-publish.yml' 'mirror-sync.yml' 'pinact.yml' 'mirror-ci.yml' 'catapult-image.yml')
+nemtus_workflows=('publish.yml' 'openapi-publish.yml' 'mirror-sync.yml' 'pinact.yml' 'mirror-ci.yml' 'catapult-image.yml' 'rest-image.yml')
 
 echo "==> patching ${pkg_dir}/package.json"
 cd "${pkg_dir}"

@@ -1,0 +1,166 @@
+name: rest-image (build / publish)
+
+# Nemtus-owned workflow that builds the client/rest (symbol-api-rest) container image
+# from client/rest/Dockerfile.nemtus and, on a release tag, publishes it to GHCR as
+# ghcr.io/nemtus/symbol-rest. This mirrors the upstream client/rest build (Ubuntu +
+# Node from NodeSource, `npm install --omit=dev`) plus the nemtus publishing layer.
+#
+# IMPORTANT (mirror): this workflow is in the `nemtus_workflows` allow-list in
+# .github/scripts/apply-nemtus-patch.sh, so mirror-sync does NOT strip it. If you
+# rename this file, update that allow-list too (mirror-ci enforces no-drift).
+#
+# Supply-chain posture: NO third-party marketplace actions (only the already-pinned
+# actions/checkout); the build runs via the runner's preinstalled `docker buildx`.
+# Least privilege: the `build` job (which runs on PRs, i.e. on untrusted mirror-sync
+# input) is `contents: read` only. `packages: write` lives solely in the `publish` job,
+# which runs only on a release tag / dispatch-with-push.
+#
+# Triggers:
+#   - pull_request touching client/rest -> build + smoke-test ONLY (read-only token).
+#   - push of a tag `rest-image-v*` -> publish to GHCR (+ SBOM/provenance).
+#   - workflow_dispatch -> build (push=false) or publish (push=true).
+#
+# Publishing posture: symbol-rest is published as a PUBLIC image. The license-scope gate
+# is automated and the evidence is recorded automatically — no per-release manual step
+# while the gate is green. See client/rest/docs/PUBLISHING-COMPLIANCE.md. GHCR package
+# visibility is a ONE-TIME setup (first publish creates a private package; flip it to
+# public once — the org must also allow public packages — then releases stay public).
+
+on:
+  pull_request:
+    paths:
+      - 'client/rest/**'
+      - '.github/workflows/rest-image.yml'
+  push:
+    tags:
+      - 'rest-image-v*'
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Publish the image to GHCR'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rest-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build + smoke test only. Read-only token (NO packages:write), so a malicious PR
+  # cannot reach the registry. Runs on PRs and on a dispatch that is not publishing.
+  build:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.push != true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/symbol-rest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      # Licensing gate: fail if the source carries any Tech Bureau Commercial-licensed
+      # file (dual-license clause in client/rest/LICENSE.txt). Keep this OUT of the dev
+      # branch-protection required checks so it never blocks the verbatim SDK mirror sync.
+      - name: License-scope check (no commercial-licensed files)
+        run: bash client/rest/scripts/check-license-scope.sh
+
+      - name: Set up buildx
+        run: docker buildx create --use --name nemtus --driver docker-container
+
+      - name: Build (verify, no push)
+        run: |
+          sha="$(git rev-parse --short HEAD)"
+          docker buildx build \
+            -f client/rest/Dockerfile.nemtus \
+            --build-arg "VCS_REF=${sha}" \
+            --build-arg "IMAGE_VERSION=${{ github.ref_name }}" \
+            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+            -t "${IMAGE}:ci" \
+            --load \
+            client/rest
+
+      # The backends (MongoDB / catapult API node / broker) aren't available in CI, so
+      # the smoke test syntax-loads each entrypoint and confirms the licenses are bundled.
+      - name: Smoke test (entrypoints load, licenses bundled)
+        run: |
+          docker run --rm "${IMAGE}:ci" --check src/index.js
+          docker run --rm "${IMAGE}:ci" --check src/index.light.js
+          docker run --rm "${IMAGE}:ci" --check src/index.rosetta.js
+          docker run --rm --entrypoint sh "${IMAGE}:ci" -c 'ls /app/licenses && test -f /app/THIRD_PARTY_NOTICES.md'
+
+  # Publish to GHCR. The ONLY job with packages:write, and only on a tag push or a
+  # dispatch with push=true. The license-scope gate runs again here (and inside the
+  # Dockerfile), so a non-LGPL tree cannot produce a published image.
+  publish:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/symbol-rest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: License-scope check (no commercial-licensed files)
+        run: bash client/rest/scripts/check-license-scope.sh
+
+      - name: Decide tags
+        id: meta
+        run: |
+          ref="${{ github.ref_name }}"
+          version="${ref#rest-image-}"   # tag rest-image-v2.5.1 -> v2.5.1
+          sha="$(git rev-parse --short HEAD)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "vcs_ref=${sha}" >> "$GITHUB_OUTPUT"
+          echo "tags=${IMAGE}:sha-${sha},${IMAGE}:${version},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Set up buildx
+        run: docker buildx create --use --name nemtus --driver docker-container
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and publish (GHCR)
+        run: |
+          docker buildx build \
+            -f client/rest/Dockerfile.nemtus \
+            --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
+            --build-arg "IMAGE_VERSION=${{ steps.meta.outputs.version }}" \
+            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+            --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
+            --provenance=true --sbom=true \
+            --metadata-file /tmp/build-meta.json \
+            $(printf -- '-t %s ' $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' ')) \
+            --push \
+            client/rest
+
+      - name: Record publish evidence
+        run: |
+          digest="$(jq -r '."containerimage.digest" // "unknown"' /tmp/build-meta.json 2>/dev/null || echo unknown)"
+          {
+            echo "## symbol-rest image published"
+            echo ""
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| tags | \`${{ steps.meta.outputs.tags }}\` |"
+            echo "| digest | \`${digest}\` |"
+            echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` (\`${{ github.sha }}\`) |"
+            echo "| license-scope gate | PASSED (also bundled in image at /app/licenses/LICENSE-SCOPE-REPORT.txt) |"
+            echo "| attestations | SBOM + SLSA provenance attached via buildx |"
+            echo "| run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Published ${IMAGE} @ ${digest}"
+
+      - name: Package-visibility reminder (one-time)
+        run: |
+          echo "::notice::If ghcr.io/${{ github.repository_owner }}/symbol-rest is still PRIVATE,"
+          echo "::notice::set it to Public once in the package settings (the org must also allow public packages);"
+          echo "::notice::later releases stay public automatically."
