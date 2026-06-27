@@ -151,12 +151,16 @@ fi
 
 # --- PyPI mirror layer (sdk/python, catbuffer/parser) ----------------------------
 #
-# PyPI has no scopes, so the distribution name is a flat unique string. We only
-# rewrite the *distribution* name (and repository/description metadata) — the
-# import module name (`symbolchain`, `catparser`) is intentionally left untouched,
-# matching the "change only the published name" mirror principle. pyproject.toml is
-# not npm, so we edit it with anchored sed. The patterns match the EXACT upstream
-# lines, so a second run is a no-op (idempotent -> mirror-ci no-drift stays green).
+# PyPI has no scopes, so the distribution name is a flat unique string. We
+# rewrite the *distribution* name (and repository/description metadata), and point
+# `maintainers` at NEMTUS (support@nemtus.com) since NEMTUS maintains the
+# republished distribution. `authors` is deliberately LEFT as upstream ("Symbol
+# Contributors") — they wrote the code; changing it would misstate authorship and
+# contradict the LICENSE provenance note. The import module name (`symbolchain`,
+# `catparser`) is also left untouched, matching the "change only the published
+# name / packaging contact" mirror principle. pyproject.toml is not npm, so we edit
+# it with anchored sed. The patterns match the EXACT upstream lines, so a second
+# run is a no-op (idempotent -> mirror-ci no-drift stays green).
 py_sdk_toml="${py_sdk_dir}/pyproject.toml"
 echo "==> patching ${py_sdk_toml}"
 # name: symbol-sdk-python -> nemtus-symbol-sdk (drop redundant -python on PyPI)
@@ -164,6 +168,9 @@ sed -i "s|^name = 'symbol-sdk-python'\$|name = 'nemtus-symbol-sdk'|" "${py_sdk_t
 # description: disambiguate from the npm @nemtus/symbol-sdk (same stem, other registry)
 sed -i "s|^description = 'Symbol SDK'\$|description = 'Symbol Python SDK (nemtus mirror of upstream symbol-sdk-python; import module: symbolchain)'|" "${py_sdk_toml}"
 sed -i "s|^repository = 'https://github.com/symbol/symbol/tree/main/sdk/python'\$|repository = 'https://github.com/nemtus/symbol/tree/dev/sdk/python'|" "${py_sdk_toml}"
+# maintainers -> NEMTUS (packaging contact for the republished dist). `^authors =`
+# is a different line, so this anchored pattern leaves authorship untouched.
+sed -i "s|^maintainers = \['Symbol Contributors <contributors@symbol.dev>'\]\$|maintainers = ['NEMTUS Technical Support <support@nemtus.com>']|" "${py_sdk_toml}"
 
 py_parser_toml="${py_parser_dir}/pyproject.toml"
 echo "==> patching ${py_parser_toml}"
@@ -171,6 +178,8 @@ echo "==> patching ${py_parser_toml}"
 # line does NOT start with `name = `, so the anchored pattern can't touch it.
 sed -i "s|^name = 'catparser'\$|name = 'nemtus-catparser'|" "${py_parser_toml}"
 sed -i "s|^repository = 'https://github.com/symbol/symbol/tree/main/catbuffer/parser'\$|repository = 'https://github.com/nemtus/symbol/tree/dev/catbuffer/parser'|" "${py_parser_toml}"
+# maintainers -> NEMTUS (packaging contact); authors left as upstream.
+sed -i "s|^maintainers = \['Symbol Contributors <contributors@symbol.dev>'\]\$|maintainers = ['NEMTUS Technical Support <support@nemtus.com>']|" "${py_parser_toml}"
 
 # sdk/python ships NO LICENSE upstream (catbuffer/parser already ships an MIT one,
 # which we leave untouched). Mirror the sdk/javascript approach: create an MIT
