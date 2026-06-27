@@ -1,7 +1,7 @@
 [tool.poetry]
-name = 'symbol-sdk-python'
+name = 'nemtus-symbol-sdk'
 version = '3.3.2'
-description = 'Symbol SDK'
+description = 'Symbol Python SDK (nemtus mirror of upstream symbol-sdk-python; import module: symbolchain)'
 authors = ['Symbol Contributors <contributors@symbol.dev>']
 maintainers = ['Symbol Contributors <contributors@symbol.dev>']
 license = 'MIT'
@@ -10,7 +10,7 @@ readme = 'README.md'
 
 packages = [{ include = 'symbolchain' }]
 
-repository = 'https://github.com/symbol/symbol/tree/main/sdk/python'
+repository = 'https://github.com/nemtus/symbol/tree/dev/sdk/python'
 
 keywords = ['symbol', 'sdk', 'Symbol SDK']
 

@@ -10,30 +10,61 @@ conventions for **manually creating tags and GitHub Releases**.
 | --- | --- | --- | --- |
 | `sdk/javascript` | `@nemtus/symbol-sdk` | MIT | npm |
 | `openapi` | `@nemtus/symbol-openapi` | Apache-2.0 | npm |
+| `sdk/python` | `nemtus-symbol-sdk` (import module `symbolchain`) | MIT | PyPI |
+| `catbuffer/parser` | `nemtus-catparser` (import module `catparser`) | MIT | PyPI |
 | `client/rest` | `symbol-api-rest` | LGPL family | **Not published** (no tag) |
+
+> PyPI has no scopes, so the distribution names are flat. Upstream is
+> `symbol-sdk-python` / `catparser`; nemtus republishes them as `nemtus-symbol-sdk`
+> / `nemtus-catparser`. Only the **distribution** name changes — the import module
+> name (`symbolchain` / `catparser`) is unchanged. The SDK drops the redundant
+> `-python` suffix so it reads alongside `@nemtus/symbol-sdk` on npm; the two are
+> different artifacts on different registries (PyPI/Python vs npm/JavaScript).
 
 ## Principles
 
 - **Each artifact is versioned independently with semver.** A bump in the SDK
-  does not require bumping openapi. The `version` field in each `package.json`
-  is the source of truth for that package.
-- **Tags do NOT trigger npm publishing.** Publishing is driven by the following
-  workflows, which compare the `version` in the relevant `package.json` against
-  what is already on npm whenever `dev` is pushed (*version-diff driven*):
+  does not require bumping openapi. The `version` field in each package manifest
+  is the source of truth for that package — `package.json` for the npm packages
+  (`sdk/javascript`, `openapi`), `pyproject.toml` for the PyPI packages
+  (`sdk/python`, `catbuffer/parser`).
+- **Tags do NOT trigger publishing.** Publishing is driven by the following
+  workflows, which compare the `version` in the relevant manifest against what is
+  already on the registry (npm or PyPI) whenever `dev` is pushed (*version-diff
+  driven*):
   - `.github/workflows/publish.yml` — `@nemtus/symbol-sdk`
   - `.github/workflows/openapi-publish.yml` — `@nemtus/symbol-openapi`
+  - `.github/workflows/pypi-sdk-publish.yml` — `nemtus-symbol-sdk` (PyPI)
+  - `.github/workflows/pypi-catparser-publish.yml` — `nemtus-catparser` (PyPI)
 
-  Both publish through the `npm-production` environment, which requires reviewer
-  approval.
+  The npm workflows publish through the `npm-production` environment; the PyPI
+  workflows publish through `pypi-production`. Both environments require reviewer
+  approval. npm uses npm Trusted Publishing (OIDC); PyPI uses PyPI Trusted
+  Publishing (OIDC). Neither uses a long-lived token.
+
+  > First-time PyPI setup (one-off, manual): register each package as a PyPI
+  > **pending publisher** (repository `nemtus/symbol`, the workflow filename above,
+  > environment `pypi-production`) before the first run, and create the
+  > `pypi-production` GitHub environment with required reviewers.
+
+  **Tagging differs by ecosystem.** The npm workflows do NOT tag (see the manual
+  procedure below). The **PyPI workflows tag automatically**: after a successful
+  publish, a separate `tag` job creates `nemtus-symbol-sdk@<version>` /
+  `nemtus-catparser@<version>` and a matching GitHub Release. That job is the only
+  place `contents: write` is granted, and it runs **no build and no third-party
+  code** (just the `gh` CLI), so the `contents: read` build/publish job is never
+  exposed to a write token. The job is idempotent (skips if the release exists).
 - Therefore **tags / Releases are not the publish trigger; they are record-keeping
   markers** that pin "which commit corresponds to which version of which artifact."
 
 ## Tag naming convention
 
-Use the **published npm coordinate** as the tag name:
+Use the **published package coordinate** as the tag name — the npm package name
+for npm artifacts, the PyPI distribution name for PyPI artifacts:
 
 ```text
-@nemtus/<package>@<version>
+@nemtus/<package>@<version>   # npm artifacts
+<dist-name>@<version>         # PyPI artifacts
 ```
 
 Examples:
@@ -41,7 +72,13 @@ Examples:
 ```text
 @nemtus/symbol-sdk@3.3.2       → @nemtus/symbol-sdk@3.3.2 on npm
 @nemtus/symbol-openapi@1.0.6   → @nemtus/symbol-openapi@1.0.6 on npm
+nemtus-symbol-sdk@3.3.2        → nemtus-symbol-sdk 3.3.2 on PyPI
+nemtus-catparser@3.2.0         → nemtus-catparser 3.2.0 on PyPI
 ```
+
+(PyPI distribution names have no `@scope`, so the tag is just
+`<dist-name>@<version>`. It still lives in a namespace upstream never uses, so it
+cannot collide with upstream's `sdk/python/v*` / `catbuffer/parser/v*` tags.)
 
 - **Do NOT use a `<package path>/v<semver>` scheme** (e.g. `sdk/javascript/v3.3.2`,
   `openapi/v1.0.6`). This repository is a mirror, so it inherits upstream

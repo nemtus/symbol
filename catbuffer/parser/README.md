@@ -1,3 +1,13 @@
+<!-- nemtus-mirror-notice -->
+> **Note (nemtus mirror):** This package is a content mirror of the catbuffer
+> parser from [`symbol/symbol`](https://github.com/symbol/symbol)
+> (`catbuffer/parser`, upstream PyPI name `catparser`). nemtus republishes it on
+> PyPI as [`nemtus-catparser`](https://pypi.org/project/nemtus-catparser/); the
+> only change from upstream is the published distribution name. The import module
+> name is unchanged — you still `import catparser`. For the canonical project, see
+> [symbol/symbol](https://github.com/symbol/symbol).
+<!-- /nemtus-mirror-notice -->
+
 # catbuffer-parser
 
 [![Build Status](https://api.travis-ci.com/symbol/catbuffer-parser.svg?branch=main)](https://travis-ci.com/symbol/catbuffer-parser)

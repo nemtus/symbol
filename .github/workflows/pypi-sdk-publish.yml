@@ -1,0 +1,188 @@
+name: publish nemtus-symbol-sdk (PyPI)
+
+# Single, trusted publish path for the scoped mirror of the Python SDK.
+# Publishing uses PyPI Trusted Publishing (OIDC) — NO long-lived PyPI token.
+# The `pypi-production` environment carries a required-reviewers protection rule,
+# so every publish pauses for manual approval.
+#
+# Mirror identity:
+#   upstream PyPI dist:  symbol-sdk-python   (import module: symbolchain)
+#   nemtus PyPI dist:    nemtus-symbol-sdk   (import module unchanged: symbolchain)
+# Only the published distribution name changes; the version tracks upstream.
+#
+# Triggers:
+#   - push to dev touching sdk/python/pyproject.toml (i.e. a merged mirror-sync
+#     PR that bumped the upstream version) -> auto-publish, gated by approval
+#   - manual workflow_dispatch
+#
+# PyPI Trusted Publisher config must match:
+#   repository:  nemtus/symbol
+#   workflow:    pypi-sdk-publish.yml
+#   environment: pypi-production
+# For the very first release, register this as a PyPI "pending publisher" (the
+# project does not exist yet); the first successful run creates the project.
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'sdk/python/pyproject.toml'
+  workflow_dispatch:
+
+# Minimal default for every job; the publish job re-grants id-token: write below
+# for PyPI Trusted Publishing (OIDC).
+permissions:
+  contents: read
+
+env:
+  PYPI_NAME: nemtus-symbol-sdk
+  PKG_DIR: sdk/python
+
+jobs:
+  # Decide whether the version on dev differs from what is already on PyPI.
+  # Kept separate so the pypi-production approval prompt only appears when we
+  # actually intend to publish.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          # This workflow never pushes to git (publishing is via OIDC), so don't
+          # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
+          persist-credentials: false
+
+      # Pin the runtime so the gate doesn't depend on the runner's preinstalled
+      # Python. tomllib is stdlib on 3.11+.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Compare dev version with PyPI
+        id: decide
+        run: |
+          version="$(python -c "import tomllib;print(tomllib.load(open('${PKG_DIR}/pyproject.toml','rb'))['tool']['poetry']['version'])")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          # Query the PyPI JSON API for the current latest version.
+          #   200 -> compare versions
+          #   404 -> project does not exist yet (first/bootstrap publish)
+          #   anything else -> fail closed (transient registry/network error); guessing
+          #     would either skip a real publish or trigger a doomed one + needless approval.
+          code="$(curl -sS -o /tmp/pypi.json -w '%{http_code}' "https://pypi.org/pypi/${PYPI_NAME}/json" || echo 000)"
+          if [ "${code}" = "404" ]; then
+            echo "PyPI has no ${PYPI_NAME} yet: bootstrap publish of ${version}."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "${code}" = "200" ]; then
+            pypi_version="$(python -c "import json;print(json.load(open('/tmp/pypi.json'))['info']['version'])")"
+            # Publish only on a FORWARD version move. `sort -V` puts the higher
+            # version last; require that to equal ours. This blocks a downgrade /
+            # backfill (dev reverted, or an older run approved after a newer release
+            # already exists) from trying to publish an old version over a newer one.
+            newest="$(printf '%s\n%s\n' "${version}" "${pypi_version}" | sort -V | tail -n1)"
+            if [ "${version}" != "${pypi_version}" ] && [ "${newest}" = "${version}" ]; then
+              echo "PyPI ${pypi_version} -> ${version}: forward move, will publish."
+              echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "PyPI at ${pypi_version}, dev at ${version}: not a forward move, nothing to publish."
+              echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "::error::unexpected HTTP ${code} from PyPI for ${PYPI_NAME}; aborting to avoid a false publish." >&2
+            exit 1
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi-production
+    permissions:
+      id-token: write   # required for PyPI Trusted Publishing (OIDC)
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      # The rename layer also rewrites sdk/javascript/package.json via `npm pkg set`,
+      # so Node must be present for the idempotent safety net to run (matches publish.yml).
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      # Idempotent safety net: ensures the nemtus-symbol-sdk distribution name is set
+      # even on a manual dispatch from a not-yet-patched tree.
+      - name: Apply nemtus rename layer
+        run: bash .github/scripts/apply-nemtus-patch.sh
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      # Faithful-mirror dependency injection.
+      # Upstream symbol-sdk-python keeps its runtime deps in requirements.txt (NOT in
+      # [tool.poetry.dependencies], which only declares python), and upstream's publish
+      # pipeline injects them — its published wheel declares all 9 as Requires-Dist
+      # (e.g. cryptography>=49.0.0,<49.1.0). We reproduce that so `pip install
+      # nemtus-symbol-sdk` pulls the same deps; without this the mirror would install
+      # but fail at `import symbolchain` (missing cryptography et al.). `poetry add`
+      # uses poetry-core's own PEP 440 parser, so requirements.txt `~=` specifiers map
+      # to the exact same ranges upstream publishes — no hand-rolled translation. This
+      # edits the runner's working tree only (never committed), exactly like upstream's
+      # ephemeral build-time injection.
+      - name: Inject runtime dependencies from requirements.txt
+        working-directory: ${{ env.PKG_DIR }}
+        run: |
+          mapfile -t reqs < <(grep -vE '^[[:space:]]*(#|$)' requirements.txt)
+          echo "Injecting ${#reqs[@]} runtime deps: ${reqs[*]}"
+          poetry add --lock "${reqs[@]}"
+
+      - name: Build sdist + wheel
+        working-directory: ${{ env.PKG_DIR }}
+        run: poetry build
+
+      - name: Publish to PyPI (OIDC, attestations)
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          packages-dir: ${{ env.PKG_DIR }}/dist
+
+  # Record-keeping tag + GitHub Release for the version just published.
+  #
+  # SECURITY: contents: write is isolated to THIS job, which runs NO build and NO
+  # third-party code — only the `gh` CLI against the GitHub API. The build/publish
+  # job above stays at contents: read, so a supply-chain compromise in `poetry build`
+  # can never reach this write token. There is no checkout step (gh needs none), so
+  # nothing from the repo tree executes here either.
+  tag:
+    needs: [check, publish]   # runs only if publish succeeded
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          tag="${PYPI_NAME}@${VERSION}"
+          # Idempotent: a re-run (or a manual dispatch after a tag already exists)
+          # must not fail.
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists; nothing to do."
+            exit 0
+          fi
+          # Tag the exact commit this run published from (the dev commit carrying the
+          # published pyproject for a push; the dispatched dev tip otherwise).
+          gh release create "${tag}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${PYPI_NAME} v${VERSION}" \
+            --notes "Mirror of upstream symbol/symbol. Published \`${PYPI_NAME}\` ${VERSION} to PyPI (import module: symbolchain)."
