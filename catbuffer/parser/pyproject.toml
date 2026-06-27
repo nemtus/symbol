@@ -3,7 +3,7 @@ name = 'nemtus-catparser'
 version = '3.2.0'
 description = 'Symbol Catbuffer Parser'
 authors = ['Symbol Contributors <contributors@symbol.dev>']
-maintainers = ['Symbol Contributors <contributors@symbol.dev>']
+maintainers = ['NEMTUS Technical Support <support@nemtus.com>']
 license = 'MIT'
 
 readme = 'README.md'
