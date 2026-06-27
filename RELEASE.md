@@ -24,11 +24,14 @@ conventions for **manually creating tags and GitHub Releases**.
 ## Principles
 
 - **Each artifact is versioned independently with semver.** A bump in the SDK
-  does not require bumping openapi. The `version` field in each `package.json`
-  is the source of truth for that package.
-- **Tags do NOT trigger npm publishing.** Publishing is driven by the following
-  workflows, which compare the `version` in the relevant `package.json` against
-  what is already on npm whenever `dev` is pushed (*version-diff driven*):
+  does not require bumping openapi. The `version` field in each package manifest
+  is the source of truth for that package — `package.json` for the npm packages
+  (`sdk/javascript`, `openapi`), `pyproject.toml` for the PyPI packages
+  (`sdk/python`, `catbuffer/parser`).
+- **Tags do NOT trigger publishing.** Publishing is driven by the following
+  workflows, which compare the `version` in the relevant manifest against what is
+  already on the registry (npm or PyPI) whenever `dev` is pushed (*version-diff
+  driven*):
   - `.github/workflows/publish.yml` — `@nemtus/symbol-sdk`
   - `.github/workflows/openapi-publish.yml` — `@nemtus/symbol-openapi`
   - `.github/workflows/pypi-sdk-publish.yml` — `nemtus-symbol-sdk` (PyPI)
@@ -56,10 +59,12 @@ conventions for **manually creating tags and GitHub Releases**.
 
 ## Tag naming convention
 
-Use the **published npm coordinate** as the tag name:
+Use the **published package coordinate** as the tag name — the npm package name
+for npm artifacts, the PyPI distribution name for PyPI artifacts:
 
 ```text
-@nemtus/<package>@<version>
+@nemtus/<package>@<version>   # npm artifacts
+<dist-name>@<version>         # PyPI artifacts
 ```
 
 Examples:

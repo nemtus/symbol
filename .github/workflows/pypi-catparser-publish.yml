@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: dev
+          ref: ${{ github.sha }}
           # This workflow never pushes to git (publishing is via OIDC), so don't
           # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
           persist-credentials: false
@@ -78,11 +78,16 @@ jobs:
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           elif [ "${code}" = "200" ]; then
             pypi_version="$(python -c "import json;print(json.load(open('/tmp/pypi.json'))['info']['version'])")"
-            if [ "${version}" != "${pypi_version}" ]; then
-              echo "PyPI ${pypi_version} -> ${version}: will publish."
+            # Publish only on a FORWARD version move. `sort -V` puts the higher
+            # version last; require that to equal ours. This blocks a downgrade /
+            # backfill (dev reverted, or an older run approved after a newer release
+            # already exists) from trying to publish an old version over a newer one.
+            newest="$(printf '%s\n%s\n' "${version}" "${pypi_version}" | sort -V | tail -n1)"
+            if [ "${version}" != "${pypi_version}" ] && [ "${newest}" = "${version}" ]; then
+              echo "PyPI ${pypi_version} -> ${version}: forward move, will publish."
               echo "should_publish=true" >> "$GITHUB_OUTPUT"
             else
-              echo "PyPI already at ${pypi_version}: nothing to publish."
+              echo "PyPI at ${pypi_version}, dev at ${version}: not a forward move, nothing to publish."
               echo "should_publish=false" >> "$GITHUB_OUTPUT"
             fi
           else
@@ -101,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: dev
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
