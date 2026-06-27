@@ -1,0 +1,170 @@
+name: publish nemtus-catparser (PyPI)
+
+# Single, trusted publish path for the scoped mirror of the catbuffer parser.
+# Publishing uses PyPI Trusted Publishing (OIDC) — NO long-lived PyPI token.
+# The `pypi-production` environment carries a required-reviewers protection rule,
+# so every publish pauses for manual approval.
+#
+# Mirror identity:
+#   upstream PyPI dist:  catparser          (import module: catparser)
+#   nemtus PyPI dist:    nemtus-catparser   (import module unchanged: catparser)
+# Only the published distribution name changes; the version tracks upstream.
+#
+# Triggers:
+#   - push to dev touching catbuffer/parser/pyproject.toml (i.e. a merged
+#     mirror-sync PR that bumped the upstream version) -> auto-publish, gated by approval
+#   - manual workflow_dispatch
+#
+# PyPI Trusted Publisher config must match:
+#   repository:  nemtus/symbol
+#   workflow:    pypi-catparser-publish.yml
+#   environment: pypi-production
+# For the very first release, register this as a PyPI "pending publisher" (the
+# project does not exist yet); the first successful run creates the project.
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'catbuffer/parser/pyproject.toml'
+  workflow_dispatch:
+
+# Minimal default for every job; the publish job re-grants id-token: write below
+# for PyPI Trusted Publishing (OIDC).
+permissions:
+  contents: read
+
+env:
+  PYPI_NAME: nemtus-catparser
+  PKG_DIR: catbuffer/parser
+
+jobs:
+  # Decide whether the version on dev differs from what is already on PyPI.
+  # Kept separate so the pypi-production approval prompt only appears when we
+  # actually intend to publish.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: dev
+          # This workflow never pushes to git (publishing is via OIDC), so don't
+          # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
+          persist-credentials: false
+
+      # Pin the runtime so the gate doesn't depend on the runner's preinstalled
+      # Python. tomllib is stdlib on 3.11+.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Compare dev version with PyPI
+        id: decide
+        run: |
+          version="$(python -c "import tomllib;print(tomllib.load(open('${PKG_DIR}/pyproject.toml','rb'))['tool']['poetry']['version'])")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          # Query the PyPI JSON API for the current latest version.
+          #   200 -> compare versions
+          #   404 -> project does not exist yet (first/bootstrap publish)
+          #   anything else -> fail closed (transient registry/network error); guessing
+          #     would either skip a real publish or trigger a doomed one + needless approval.
+          code="$(curl -sS -o /tmp/pypi.json -w '%{http_code}' "https://pypi.org/pypi/${PYPI_NAME}/json" || echo 000)"
+          if [ "${code}" = "404" ]; then
+            echo "PyPI has no ${PYPI_NAME} yet: bootstrap publish of ${version}."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "${code}" = "200" ]; then
+            pypi_version="$(python -c "import json;print(json.load(open('/tmp/pypi.json'))['info']['version'])")"
+            if [ "${version}" != "${pypi_version}" ]; then
+              echo "PyPI ${pypi_version} -> ${version}: will publish."
+              echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "PyPI already at ${pypi_version}: nothing to publish."
+              echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "::error::unexpected HTTP ${code} from PyPI for ${PYPI_NAME}; aborting to avoid a false publish." >&2
+            exit 1
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi-production
+    permissions:
+      id-token: write   # required for PyPI Trusted Publishing (OIDC)
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: dev
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      # The rename layer also rewrites sdk/javascript/package.json via `npm pkg set`,
+      # so Node must be present for the idempotent safety net to run (matches publish.yml).
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      # Idempotent safety net: ensures the nemtus-catparser distribution name is set
+      # even on a manual dispatch from a not-yet-patched tree.
+      - name: Apply nemtus rename layer
+        run: bash .github/scripts/apply-nemtus-patch.sh
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      # NOTE: unlike the SDK, we do NOT inject requirements.txt here. Upstream's
+      # published `catparser` declares NO runtime dependencies (PyPI requires_dist is
+      # null), even though its requirements.txt lists lark/PyYAML. A faithful mirror
+      # matches upstream exactly, so a plain `poetry build` (deps: python only) is
+      # correct — it reproduces upstream's empty Requires-Dist.
+      - name: Build sdist + wheel
+        working-directory: ${{ env.PKG_DIR }}
+        run: poetry build
+
+      - name: Publish to PyPI (OIDC, attestations)
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          packages-dir: ${{ env.PKG_DIR }}/dist
+
+  # Record-keeping tag + GitHub Release for the version just published.
+  #
+  # SECURITY: contents: write is isolated to THIS job, which runs NO build and NO
+  # third-party code — only the `gh` CLI against the GitHub API. The build/publish
+  # job above stays at contents: read, so a supply-chain compromise in `poetry build`
+  # can never reach this write token. There is no checkout step (gh needs none), so
+  # nothing from the repo tree executes here either.
+  tag:
+    needs: [check, publish]   # runs only if publish succeeded
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          tag="${PYPI_NAME}@${VERSION}"
+          # Idempotent: a re-run (or a manual dispatch after a tag already exists)
+          # must not fail.
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists; nothing to do."
+            exit 0
+          fi
+          # Tag the exact commit this run published from (the dev commit carrying the
+          # published pyproject for a push; the dispatched dev tip otherwise).
+          gh release create "${tag}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${PYPI_NAME} v${VERSION}" \
+            --notes "Mirror of upstream symbol/symbol. Published \`${PYPI_NAME}\` ${VERSION} to PyPI (import module: catparser)."

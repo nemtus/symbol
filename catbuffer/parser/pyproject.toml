@@ -1,5 +1,5 @@
 [tool.poetry]
-name = 'catparser'
+name = 'nemtus-catparser'
 version = '3.2.0'
 description = 'Symbol Catbuffer Parser'
 authors = ['Symbol Contributors <contributors@symbol.dev>']
@@ -10,7 +10,7 @@ readme = 'README.md'
 
 packages = [{ include = 'catparser' }]
 
-repository = 'https://github.com/symbol/symbol/tree/main/catbuffer/parser'
+repository = 'https://github.com/nemtus/symbol/tree/dev/catbuffer/parser'
 
 keywords = ['symbol', 'catbuffer', 'catparser', 'parser', 'catbuffer-parser']
 

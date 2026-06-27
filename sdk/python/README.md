@@ -1,3 +1,14 @@
+<!-- nemtus-mirror-notice -->
+> **Note (nemtus mirror):** This package is a content mirror of the **Python** SDK
+> from [`symbol/symbol`](https://github.com/symbol/symbol) (`sdk/python`, upstream
+> PyPI name `symbol-sdk-python`). nemtus republishes it on PyPI as
+> [`nemtus-symbol-sdk`](https://pypi.org/project/nemtus-symbol-sdk/); the only
+> change from upstream is the published distribution name. The import module name
+> is unchanged — you still `import symbolchain`. This is distinct from
+> `@nemtus/symbol-sdk` on npm, which mirrors the JavaScript SDK. For the canonical
+> project, see [symbol/symbol](https://github.com/symbol/symbol).
+<!-- /nemtus-mirror-notice -->
+
 # Symbol-SDK
 
 [![lint][sdk-python-lint]][sdk-python-job] [![test][sdk-python-test]][sdk-python-job] [![vectors][sdk-python-vectors]][sdk-python-job] [![][sdk-python-cov]][sdk-python-cov-link] [![][sdk-python-package]][sdk-python-package-link]
