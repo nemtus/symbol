@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'nemtus-catparser'
-version = '3.2.0'
+version = '3.2.0.post1'
 description = 'Symbol Catbuffer Parser'
 authors = ['Symbol Contributors <contributors@symbol.dev>']
 maintainers = ['NEMTUS Technical Support <support@nemtus.com>']

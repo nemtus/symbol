@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'nemtus-symbol-sdk'
-version = '3.3.2'
+version = '3.3.2.post1'
 description = 'Symbol Python SDK (nemtus mirror of upstream symbol-sdk-python; import module: symbolchain)'
 authors = ['Symbol Contributors <contributors@symbol.dev>']
 maintainers = ['NEMTUS Technical Support <support@nemtus.com>']
