@@ -1,8 +1,9 @@
 # RELEASE — Release / Tag Conventions
 
 This repository is a rename-republish mirror of upstream `symbol/symbol`, and the
-monorepo hosts multiple artifacts side by side. This document defines the
-conventions for **manually creating tags and GitHub Releases**.
+monorepo hosts multiple artifacts side by side. This document defines the tag /
+GitHub Release conventions. Tags and Releases are created **automatically by the
+publish workflows**; the manual procedure below remains as a recovery fallback.
 
 ## Published artifacts
 
@@ -47,13 +48,14 @@ conventions for **manually creating tags and GitHub Releases**.
   > environment `pypi-production`) before the first run, and create the
   > `pypi-production` GitHub environment with required reviewers.
 
-  **Tagging differs by ecosystem.** The npm workflows do NOT tag (see the manual
-  procedure below). The **PyPI workflows tag automatically**: after a successful
-  publish, a separate `tag` job creates `nemtus-symbol-sdk@<version>` /
-  `nemtus-catparser@<version>` and a matching GitHub Release. That job is the only
-  place `contents: write` is granted, and it runs **no build and no third-party
-  code** (just the `gh` CLI), so the `contents: read` build/publish job is never
-  exposed to a write token. The job is idempotent (skips if the release exists).
+  **All four publish paths tag automatically.** After a successful publish, a
+  separate `tag` job creates the package-coordinate tag
+  (`@nemtus/symbol-sdk@<version>`, `@nemtus/symbol-openapi@<version>`,
+  `nemtus-symbol-sdk@<version>`, `nemtus-catparser@<version>`) and a matching
+  GitHub Release. That job is the only place `contents: write` is granted, and it
+  runs **no build and no third-party code** (just the `gh` CLI), so the
+  `contents: read` build/publish job is never exposed to a write token. The job
+  is idempotent (skips if the release exists).
 - Therefore **tags / Releases are not the publish trigger; they are record-keeping
   markers** that pin "which commit corresponds to which version of which artifact."
 
@@ -96,9 +98,12 @@ cannot collide with upstream's `sdk/python/v*` / `catbuffer/parser/v*` tags.)
   `origin`.
 - Do not tag the non-published `client/rest`.
 
-## Procedure
+## Manual procedure (fallback)
 
-Create the tag / Release **after npm publishing has completed.**
+Normally unnecessary — the `tag` jobs create the tag + Release automatically after
+every successful publish. Use this only for recovery (e.g. a deleted tag, or a
+publish that predates the automation). Create the tag / Release **after npm
+publishing has completed.**
 
 1. A mirror-sync PR is merged into `dev`.
 2. `publish.yml` / `openapi-publish.yml` completes the npm publish
@@ -147,10 +152,9 @@ gh release create '@nemtus/symbol-openapi@1.0.6' --repo nemtus/symbol \
       remote, so `gh` resolves the default repo to `symbol/symbol` and would
       otherwise target the wrong repository.
 
-## Future automation (reference)
+## Automation status
 
-Today the flow is "publish via version-diff → tag manually." To avoid missing
-tags, a step that automatically creates the tag + Release could be added after
-the successful publish step in each workflow (this would require granting
-`permissions: contents: write` and revisiting the auth setup used for the push).
-For now, the manual procedure in this document is the rule.
+Implemented: all four publish workflows (npm and PyPI) auto-create the tag +
+Release via an isolated `tag` job — `contents: write` is granted only there, and
+the job runs no build, no third-party code, and no checkout. The manual procedure
+above remains as a recovery fallback.

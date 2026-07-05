@@ -40,7 +40,10 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: dev
+          # Pin the run to one commit: the pushed dev commit (or the dispatched
+          # ref tip). Keeps check/publish/tag all on the same tree even if dev
+          # advances mid-run, and matches the PyPI workflows.
+          ref: ${{ github.sha }}
           # This workflow never pushes to git (publishing is via OIDC), so don't
           # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
           persist-credentials: false
@@ -86,7 +89,8 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: dev
+          # Same commit the check job evaluated (and the tag job will target).
+          ref: ${{ github.sha }}
           # This workflow never pushes to git (publishing is via OIDC), so don't
           # persist GITHUB_TOKEN into the local git config (zizmor: artipacked).
           persist-credentials: false
@@ -124,3 +128,35 @@ jobs:
 
       - name: Publish to npm (OIDC, provenance)
         run: npm publish --access public
+
+  # Record-keeping tag + GitHub Release for the version just published.
+  #
+  # SECURITY: contents: write is isolated to THIS job, which runs NO build and NO
+  # third-party code — only the `gh` CLI against the GitHub API. The build/publish
+  # job above stays at contents: read + id-token: write, so a supply-chain
+  # compromise in the npm build can never reach this write token. There is no
+  # checkout step (gh needs none), so nothing from the repo tree executes here.
+  tag:
+    needs: [check, publish]   # runs only if publish succeeded
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          tag="@nemtus/symbol-sdk@${VERSION}"
+          # Idempotent: a re-run (or a manual dispatch after a tag already exists)
+          # must not fail.
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists; nothing to do."
+            exit 0
+          fi
+          # Tag the exact commit this run published from.
+          gh release create "${tag}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "@nemtus/symbol-sdk v${VERSION}" \
+            --notes "Mirror of upstream symbol/symbol. Published \`@nemtus/symbol-sdk\` ${VERSION} to npm."
