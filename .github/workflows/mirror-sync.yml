@@ -17,19 +17,25 @@ name: mirror-sync (upstream symbol/symbol)
 #
 # Requires repo setting: Settings -> Actions -> General ->
 #   "Allow GitHub Actions to create and approve pull requests" = enabled.
+#
+# Companion jobs:
+#   - `keepalive` resets GitHub's 60-day scheduled-workflow auto-disable clock on
+#     every run. To stop a schedule permanently, DELETE its cron trigger — a manual
+#     "disable workflow" would just be re-enabled by the next keepalive.
+#   - `notify` pings Discord (org secret DISCORD_WEBHOOK_URL) when a scheduled run
+#     fails; it skips silently when the secret is not configured.
 
 on:
   schedule:
     - cron: '17 3 * * *'   # daily 03:17 UTC
   workflow_dispatch:
 
-permissions:
-  contents: write        # push the sync branch
-  pull-requests: write   # open the PR
-
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # push the sync branch
+      pull-requests: write   # open the PR
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -96,3 +102,39 @@ jobs:
               --title "Sync upstream symbol/symbol@${{ steps.check.outputs.upstream_sha }}" \
               --body "Automated mirror sync. Merges upstream symbol/symbol@dev and re-applies the @nemtus/symbol-sdk rename layer. After merge, publish.yml publishes if the version changed."
           fi
+
+  # Reset GitHub's 60-day scheduled-workflow auto-disable clock on every run
+  # (scheduled workflows in repos with no recent activity get disabled; upstream
+  # can be quiet for long stretches). Independent of the sync outcome.
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-enable scheduled workflows (60-day inactivity guard)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for wf in mirror-sync.yml; do
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/enable"
+          done
+
+  # Push-notification on failure — a red scheduled run used to be the only signal.
+  # No third-party action: plain curl to a Discord webhook. Details stay in the
+  # run's step summary/logs; this is just the pager.
+  notify:
+    needs: [sync]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Notify Discord (mirror-sync failed)
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "${WEBHOOK}" ]; then
+            echo "DISCORD_WEBHOOK_URL not configured; skipping notification."
+            exit 0
+          fi
+          payload="$(jq -n --arg c "[mirror-sync] ${GITHUB_REPOSITORY} failed: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" '{content: $c}')"
+          curl -fsS -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"
