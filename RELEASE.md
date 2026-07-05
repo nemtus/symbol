@@ -95,8 +95,28 @@ cannot collide with upstream's `sdk/python/v*` / `catbuffer/parser/v*` tags.)
   `git tag '@nemtus/symbol-sdk@3.3.2'`).
 - Bare `v3.0.x` tags and any `sdk/*` / `openapi/*` tags are legacy / upstream
   tags. Do not add new ones, and do not push the inherited upstream tags to
-  `origin`.
+  `origin` as tags. (Upstream tags ARE preserved on the fork automatically —
+  outside the tag namespace; see "Upstream tag archive" below.)
 - Do not tag the non-published `client/rest`.
+
+## Upstream tag archive
+
+`mirror-sync.yml`'s `upstream-tags` job mirrors every upstream `symbol/symbol` tag
+into this fork's `refs/upstream/tags/*` namespace (append-only: no force, no
+prune). Archived refs deliberately do NOT appear in `git tag` or the Releases UI —
+the visible tag namespace stays 100% NEMTUS release coordinates — but every
+upstream release point and its objects are preserved on the fork for disaster
+recovery / hard-fork readiness.
+
+- List them: `git ls-remote origin 'refs/upstream/tags/*'`
+- Local clones with the standard fetch-only `upstream` remote already carry the
+  same tags as `refs/remotes/upstream/tags/*`, fetched directly from upstream.
+- A rejected (non-fast-forward) push in that job means upstream **moved** a tag.
+  The failing run is the tamper alarm working as designed — investigate upstream
+  intent before resolving.
+- Hard-fork promotion: create a NEMTUS-named tag/branch pointing at the archived
+  ref (e.g. `git tag catapult-fork-base <sha>`); never republish bare upstream
+  tag names.
 
 ## Manual procedure (fallback)
 
