@@ -52,7 +52,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git remote add upstream https://github.com/symbol/symbol.git
-          git fetch upstream dev
+          # --no-tags: keep implicit tag auto-following out of refs/tags; upstream
+          # tags are archived explicitly by the upstream-tags job below.
+          git fetch --no-tags upstream dev
 
       - name: Build sync branch and decide (content-based)
         id: check
@@ -115,9 +117,49 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for wf in mirror-sync.yml; do
+          for wf in mirror-sync.yml upstream-release-watch.yml; do
             gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/enable"
           done
+
+  # Archive upstream release points on the fork WITHOUT touching refs/tags/*
+  # (RELEASE.md forbids pushing inherited upstream tags as tags): every upstream
+  # tag is mirrored append-only into the refs/upstream/tags/* namespace. Nothing
+  # in refs/tags/* changes, so image/publish tag triggers can never fire from
+  # upstream tag names. A rejected (non-fast-forward) push means upstream MOVED
+  # a tag — treated as a tamper alarm: the job fails and notify pages.
+  upstream-tags:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: dev
+          persist-credentials: true
+
+      - name: Mirror upstream tags into refs/upstream/tags/* (append-only)
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/symbol/symbol.git
+          git fetch --no-tags upstream '+refs/tags/*:refs/upstream/tags/*'
+          # No --force, no --prune:
+          #   new tag       -> pushed
+          #   unchanged tag -> up-to-date no-op
+          #   moved tag     -> push rejected => fail loudly (possible history rewrite)
+          #   deleted tag   -> retained on the fork (DR posture)
+          if ! git push origin 'refs/upstream/tags/*:refs/upstream/tags/*' 2>push.log; then
+            {
+              echo '## upstream-tags: push rejected (moved upstream tag?)'
+              echo '```'
+              grep -E 'rejected|error' push.log || cat push.log
+              echo '```'
+              echo 'Investigate upstream intent before resolving — this alarm fires on upstream tag moves/rewrites.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            cat push.log
+            exit 1
+          fi
+          cat push.log
+          echo "archived upstream tags: $(git for-each-ref 'refs/upstream/tags' | wc -l)" >> "$GITHUB_STEP_SUMMARY"
 
   # Push-notification on failure — a red scheduled run used to be the only signal.
   # No third-party action: plain curl to a Discord webhook. Details stay in the
