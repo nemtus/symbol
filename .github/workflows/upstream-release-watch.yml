@@ -29,49 +29,38 @@ jobs:
   watch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          ref: dev
-          fetch-tags: true
-          persist-credentials: false
-
+      # No checkout: everything is read via anonymous ls-remote / curl.
+      # (checkout with fetch-tags:true + the default shallow depth did not
+      # actually deliver this repo's tags on the first run — ls-remote is
+      # exact, cheaper, and token-free.)
       - name: Compare upstream releases vs published images vs versions.env
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           set -euo pipefail
 
-          # Robustness notes (learned from the first run, which died in ~200ms
-          # with zero output):
-          # - Every helper ends in `|| true`: under `set -euo pipefail` a
-          #   pipeline whose grep matches nothing exits 1 and kills the whole
-          #   script through the command substitution, silently. Empty results
-          #   are legitimate and handled explicitly below.
-          # - The upstream ls-remote clears the checkout's inherited auth
-          #   header: sending this repo's token to another repository can make
-          #   the request fail instead of falling back to anonymous.
-          latest_upstream() {
-            { git -c http.https://github.com/.extraheader= \
-                ls-remote --tags https://github.com/symbol/symbol.git "refs/tags/${1}*" \
-                | awk '{print $2}' | sed -e 's|^refs/tags/||' -e 's|\^{}$||' | sort -u \
-                | sed -n "s|^${1}||p" | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1; } || true
-          }
-          latest_local() {
-            { git tag --list "${1}*" | sed -n "s|^${1}||p" \
-                | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1; } || true
+          # Robustness (learned from the first runs): every helper ends in
+          # `|| true` — under `set -euo pipefail` a pipeline whose grep matches
+          # nothing exits 1 and would kill the whole script through the command
+          # substitution, silently. Empty results are legitimate and handled
+          # explicitly below.
+          latest_tag() { # $1 = repo url, $2 = tag prefix; newest stable X.Y[.Z..]
+            { git ls-remote "${1}" "refs/tags/${2}*" \
+                | grep -v '\^{}$' | awk '{print $2}' | sed -e 's|^refs/tags/||' | sort -u \
+                | sed -n "s|^${2}||p" | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1; } || true
           }
           newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]; }
 
           echo "collecting versions..."
           # Fail closed: an empty upstream tag list is a network/query anomaly,
           # not "no releases" (these tags exist today).
-          up_cat="$(latest_upstream client/catapult/v)"
-          up_rest="$(latest_upstream rest/v)"
+          up_cat="$(latest_tag https://github.com/symbol/symbol.git client/catapult/v)"
+          up_rest="$(latest_tag https://github.com/symbol/symbol.git rest/v)"
           [ -n "${up_cat}" ]  || { echo "::error::empty upstream client/catapult tag list (network anomaly?)"; exit 1; }
           [ -n "${up_rest}" ] || { echo "::error::empty upstream rest tag list (network anomaly?)"; exit 1; }
 
-          img_cat="$(latest_local catapult-image-v)"
-          img_rest="$(latest_local rest-image-v)"
+          img_cat="$(latest_tag "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" catapult-image-v)"
+          img_rest="$(latest_tag "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" rest-image-v)"
 
           env_file="$(curl -fsS https://raw.githubusercontent.com/nemtus/symbol-networks/main/.github/network-config/versions.env)"
           pin_cat="$(printf '%s\n' "${env_file}" | sed -n 's/^CATAPULT_IMAGE_VERSION=v//p')"
@@ -125,7 +114,10 @@ jobs:
           if [ -n "${WEBHOOK}" ]; then
             msg="$(printf '[release-watch] %s\n' "${GITHUB_REPOSITORY}"; printf -- '- %s\n' "${findings[@]}")"
             payload="$(jq -n --arg c "${msg}" '{content: $c}')"
-            curl -fsS -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"
+            # --retry handles transient Discord 429/5xx (honors Retry-After).
+            # If delivery still fails the job goes red on purpose: findings are
+            # in the summary, and the failure email flags the broken channel.
+            curl -fsS --retry 3 -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"
           else
             echo "DISCORD_WEBHOOK_URL not configured; step summary only."
           fi
@@ -147,4 +139,4 @@ jobs:
             exit 0
           fi
           payload="$(jq -n --arg c "[release-watch] ${GITHUB_REPOSITORY} run failed: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" '{content: $c}')"
-          curl -fsS -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"
+          curl -fsS --retry 3 -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"

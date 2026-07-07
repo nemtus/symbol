@@ -193,4 +193,5 @@ jobs:
             exit 0
           fi
           payload="$(jq -n --arg c "[mirror-sync] ${GITHUB_REPOSITORY} failed: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" '{content: $c}')"
-          curl -fsS -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"
+          # --retry handles transient Discord 429/5xx (honors Retry-After).
+          curl -fsS --retry 3 -H 'Content-Type: application/json' -d "${payload}" "${WEBHOOK}"
