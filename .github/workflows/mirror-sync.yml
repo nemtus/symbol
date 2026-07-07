@@ -140,10 +140,14 @@ jobs:
           set -euo pipefail
           # "name<TAB>sha" per tag, peeled ^{} rows excluded (both sides store
           # the same tag *object* ids, so comparing un-peeled ids is exact).
+          # The peeled-row filter lives INSIDE awk: a separate `grep -v` exits 1
+          # on empty ls-remote output and, under pipefail, would abort the step
+          # before the explicit empty-input handling below (empty upstream ->
+          # ::error; empty archive -> "not yet archived" reporting).
           git ls-remote https://github.com/symbol/symbol.git 'refs/tags/*' \
-            | grep -v '\^{}$' | awk -F'\t' '{sub("^refs/tags/","",$2); print $2 "\t" $1}' | sort > upstream.txt
+            | awk -F'\t' '$2 !~ /\^[{][}]$/ {sub("^refs/tags/","",$2); print $2 "\t" $1}' | sort > upstream.txt
           git ls-remote "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" 'refs/upstream/tags/*' \
-            | grep -v '\^{}$' | awk -F'\t' '{sub("^refs/upstream/tags/","",$2); print $2 "\t" $1}' | sort > archive.txt
+            | awk -F'\t' '$2 !~ /\^[{][}]$/ {sub("^refs/upstream/tags/","",$2); print $2 "\t" $1}' | sort > archive.txt
           # Fail closed on an empty upstream listing (network anomaly, not "no tags").
           [ -s upstream.txt ] || { echo "::error::empty upstream tag list (network anomaly?)"; exit 1; }
 
