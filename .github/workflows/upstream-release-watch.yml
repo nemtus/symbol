@@ -41,18 +41,28 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Newest stable version for an upstream tag prefix, via anonymous
-          # ls-remote (no clone). Strict X.Y[.Z...] filter excludes rc/beta tags.
+          # Robustness notes (learned from the first run, which died in ~200ms
+          # with zero output):
+          # - Every helper ends in `|| true`: under `set -euo pipefail` a
+          #   pipeline whose grep matches nothing exits 1 and kills the whole
+          #   script through the command substitution, silently. Empty results
+          #   are legitimate and handled explicitly below.
+          # - The upstream ls-remote clears the checkout's inherited auth
+          #   header: sending this repo's token to another repository can make
+          #   the request fail instead of falling back to anonymous.
           latest_upstream() {
-            git ls-remote --tags https://github.com/symbol/symbol.git "refs/tags/${1}*" \
-              | awk '{print $2}' | sed -e 's|^refs/tags/||' -e 's|\^{}$||' | sort -u \
-              | sed -n "s|^${1}||p" | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1
+            { git -c http.https://github.com/.extraheader= \
+                ls-remote --tags https://github.com/symbol/symbol.git "refs/tags/${1}*" \
+                | awk '{print $2}' | sed -e 's|^refs/tags/||' -e 's|\^{}$||' | sort -u \
+                | sed -n "s|^${1}||p" | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1; } || true
           }
           latest_local() {
-            git tag --list "${1}*" | sed -n "s|^${1}||p" | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1
+            { git tag --list "${1}*" | sed -n "s|^${1}||p" \
+                | grep -E '^[0-9]+(\.[0-9]+)*$' | sort -V | tail -1; } || true
           }
           newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]; }
 
+          echo "collecting versions..."
           # Fail closed: an empty upstream tag list is a network/query anomaly,
           # not "no releases" (these tags exist today).
           up_cat="$(latest_upstream client/catapult/v)"
@@ -66,6 +76,9 @@ jobs:
           env_file="$(curl -fsS https://raw.githubusercontent.com/nemtus/symbol-networks/main/.github/network-config/versions.env)"
           pin_cat="$(printf '%s\n' "${env_file}" | sed -n 's/^CATAPULT_IMAGE_VERSION=v//p')"
           pin_rest="$(printf '%s\n' "${env_file}" | sed -n 's/^REST_IMAGE_VERSION=v//p')"
+          echo "upstream: catapult=v${up_cat} rest=v${up_rest}"
+          echo "images:   catapult=v${img_cat:-none} rest=v${img_rest:-none}"
+          echo "pins:     catapult=v${pin_cat:-none} rest=v${pin_rest:-none}"
 
           findings=()
           check_pair() { # label, upstream ver, image ver, pin ver, image tag prefix, env key, ghcr image
