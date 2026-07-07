@@ -101,19 +101,31 @@ cannot collide with upstream's `sdk/python/v*` / `catbuffer/parser/v*` tags.)
 
 ## Upstream tag archive
 
-`mirror-sync.yml`'s `upstream-tags` job mirrors every upstream `symbol/symbol` tag
-into this fork's `refs/upstream/tags/*` namespace (append-only: no force, no
-prune). Archived refs deliberately do NOT appear in `git tag` or the Releases UI —
-the visible tag namespace stays 100% NEMTUS release coordinates — but every
-upstream release point and its objects are preserved on the fork for disaster
-recovery / hard-fork readiness.
+Every upstream `symbol/symbol` tag is mirrored into this fork's
+`refs/upstream/tags/*` namespace (append-only). Archived refs deliberately do NOT
+appear in `git tag` or the Releases UI — the visible tag namespace stays 100%
+NEMTUS release coordinates — but every upstream release point and its objects are
+preserved on the fork for disaster recovery / hard-fork readiness.
 
-- List them: `git ls-remote origin 'refs/upstream/tags/*'`
+Division of labor (GitHub constraint: GITHUB_TOKEN cannot create refs whose trees
+contain workflow files — a `workflows` permission it can never be granted — and
+most upstream tags contain upstream's `.github/workflows/*`):
+
+- **Archiving (push)** happens from the **maintainer lane**, whose fine-grained
+  PAT carries Workflows RW: `nemtus-ops sync-local` pushes
+  `refs/remotes/upstream/tags/* -> refs/upstream/tags/*` (no force — a rejected
+  push means the archived value differs; investigate before overriding).
+- **Verification (tamper alarm)** is `mirror-sync.yml`'s `upstream-tags` job:
+  a credential-free ls-remote comparison of upstream vs the archive on every
+  scheduled run. A **moved** tag (archived value != upstream value) fails the run
+  and pages Discord — investigate upstream intent before re-archiving. New
+  not-yet-archived tags are reported in the run summary (not a failure).
+
+Reference:
+
+- List the archive: `git ls-remote origin 'refs/upstream/tags/*'`
 - Local clones with the standard fetch-only `upstream` remote already carry the
   same tags as `refs/remotes/upstream/tags/*`, fetched directly from upstream.
-- A rejected (non-fast-forward) push in that job means upstream **moved** a tag.
-  The failing run is the tamper alarm working as designed — investigate upstream
-  intent before resolving.
 - Hard-fork promotion: create a NEMTUS-named tag/branch pointing at the archived
   ref (e.g. `git tag catapult-fork-base <sha>`); never republish bare upstream
   tag names.

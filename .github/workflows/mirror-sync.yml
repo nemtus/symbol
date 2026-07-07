@@ -121,51 +121,65 @@ jobs:
             gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf}/enable"
           done
 
-  # Archive upstream release points on the fork WITHOUT touching refs/tags/*
-  # (RELEASE.md forbids pushing inherited upstream tags as tags): every upstream
-  # tag is mirrored append-only into the refs/upstream/tags/* namespace. Nothing
-  # in refs/tags/* changes, so image/publish tag triggers can never fire from
-  # upstream tag names. A rejected (non-fast-forward) push means upstream MOVED
-  # a tag — treated as a tamper alarm: the job fails and notify pages.
+  # Verify the upstream tag archive (refs/upstream/tags/* on this fork) against
+  # upstream — VERIFY-ONLY, no push. GITHUB_TOKEN cannot create refs whose trees
+  # contain workflow files (GitHub demands a `workflows` permission that is not
+  # grantable to GITHUB_TOKEN), and most upstream tags contain upstream's own
+  # .github/workflows/* — so the archive itself is pushed from the maintainer
+  # lane instead (`nemtus-ops sync-local`; see RELEASE.md "Upstream tag archive").
+  # This job keeps the tamper alarm: a MOVED tag (archived value != upstream
+  # value) fails the run, and notify pages Discord. Pure ls-remote comparison:
+  # no checkout, no object download, no credentials.
   upstream-tags:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          ref: dev
-          persist-credentials: true
-
-      - name: Mirror upstream tags into refs/upstream/tags/* (append-only)
+      - name: Verify archived upstream tags (tamper alarm)
         run: |
           set -euo pipefail
-          git remote add upstream https://github.com/symbol/symbol.git
-          git fetch --no-tags upstream '+refs/tags/*:refs/upstream/tags/*'
-          # No --force, no --prune:
-          #   new tag       -> pushed
-          #   unchanged tag -> up-to-date no-op
-          #   moved tag     -> push rejected => fail loudly (possible history rewrite)
-          #   deleted tag   -> retained on the fork (DR posture)
-          if ! git push origin 'refs/upstream/tags/*:refs/upstream/tags/*' 2>push.log; then
-            {
-              echo '## upstream-tags: push rejected (moved upstream tag?)'
-              echo '```'
-              grep -E 'rejected|error' push.log || cat push.log
-              echo '```'
-              echo 'Investigate upstream intent before resolving — this alarm fires on upstream tag moves/rewrites.'
-            } >> "$GITHUB_STEP_SUMMARY"
-            cat push.log
+          # "name<TAB>sha" per tag, peeled ^{} rows excluded (both sides store
+          # the same tag *object* ids, so comparing un-peeled ids is exact).
+          git ls-remote https://github.com/symbol/symbol.git 'refs/tags/*' \
+            | grep -v '\^{}$' | awk -F'\t' '{sub("^refs/tags/","",$2); print $2 "\t" $1}' | sort > upstream.txt
+          git ls-remote "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git" 'refs/upstream/tags/*' \
+            | grep -v '\^{}$' | awk -F'\t' '{sub("^refs/upstream/tags/","",$2); print $2 "\t" $1}' | sort > archive.txt
+          # Fail closed on an empty upstream listing (network anomaly, not "no tags").
+          [ -s upstream.txt ] || { echo "::error::empty upstream tag list (network anomaly?)"; exit 1; }
+
+          moved="$(join -t "$(printf '\t')" upstream.txt archive.txt | awk -F'\t' '$2 != $3')"
+          missing="$(join -t "$(printf '\t')" -v1 upstream.txt archive.txt | cut -f1)"
+          retained="$(join -t "$(printf '\t')" -v2 upstream.txt archive.txt | cut -f1)"
+
+          {
+            echo "## upstream tag archive check"
+            echo "- upstream tags: $(wc -l < upstream.txt) / archived on fork: $(wc -l < archive.txt)"
+            if [ -n "${missing}" ]; then
+              echo "- NOT YET ARCHIVED ($(printf '%s\n' "${missing}" | wc -l)) — run \`nemtus-ops sync-local\` on the maintainer machine:"
+              printf '%s\n' "${missing}" | sed 's/^/    - /'
+            fi
+            if [ -n "${retained}" ]; then
+              echo "- retained after upstream deletion (DR posture): $(printf '%s\n' "${retained}" | wc -l)"
+            fi
+            if [ -n "${moved}" ]; then
+              echo "- MOVED (TAMPER ALARM):"
+              printf '%s\n' "${moved}" | sed 's/^/    - /'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "${moved}" ]; then
+            echo "::error::upstream tag(s) moved vs the archived values — possible history rewrite. Investigate upstream intent before re-archiving (see RELEASE.md)."
+            printf '%s\n' "${moved}"
             exit 1
           fi
-          cat push.log
-          echo "archived upstream tags: $(git for-each-ref 'refs/upstream/tags' | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+          [ -n "${missing}" ] && echo "note: new upstream tag(s) await archiving from the maintainer lane." || echo "archive complete and value-exact."
 
   # Push-notification on failure — a red scheduled run used to be the only signal.
-  # No third-party action: plain curl to a Discord webhook. Details stay in the
-  # run's step summary/logs; this is just the pager.
+  # Covers BOTH the sync job and the upstream-tags tamper alarm. No third-party
+  # action: plain curl to a Discord webhook. Details stay in the run's step
+  # summary/logs; this is just the pager.
   notify:
-    needs: [sync]
+    needs: [sync, upstream-tags]
     if: failure()
     runs-on: ubuntu-latest
     permissions: {}
