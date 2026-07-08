@@ -179,10 +179,23 @@ jobs:
             echo "release ${tag} already exists; nothing to do."
             exit 0
           fi
+          # Previous release of THIS package (same coordinate), newest first, minus current.
+          prev="$(gh release list --repo "${GITHUB_REPOSITORY}" -L 200 --json tagName -q '.[].tagName' \
+            | grep -F "${PYPI_NAME}@" | grep -vxF "${tag}" | head -n1 || true)"
+          # GitHub auto-generated notes (merged PRs + contributors + changelog) — same as the
+          # web "Generate release notes" button — prepended with the mirror provenance line.
+          provenance="Mirror of upstream symbol/symbol. Published \`${PYPI_NAME}\` ${VERSION} to PyPI (import module: symbolchain)."
+          if notes="$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="${tag}" -f target_commitish="${GITHUB_SHA}" \
+              ${prev:+-f previous_tag_name="${prev}"} -q '.body' 2>/dev/null)" && [ -n "${notes}" ]; then
+            body="$(printf '%s\n\n%s\n' "${provenance}" "${notes}")"
+          else
+            body="${provenance}"
+          fi
           # Tag the exact commit this run published from (the dev commit carrying the
           # published pyproject for a push; the dispatched dev tip otherwise).
           gh release create "${tag}" \
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
-            --title "${PYPI_NAME} v${VERSION}" \
-            --notes "Mirror of upstream symbol/symbol. Published \`${PYPI_NAME}\` ${VERSION} to PyPI (import module: symbolchain)."
+            --title "${PYPI_NAME} v${VERSION} · PyPI" \
+            --notes "${body}"
