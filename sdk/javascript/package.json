@@ -82,7 +82,7 @@
     "ts/src/*"
   ],
   "optionalDependencies": {
-    "symbol-crypto-wasm-node": "^0.1.1"
+    "symbol-crypto-wasm-node": "npm:@nemtus/symbol-crypto-wasm-node@^0.1.1"
   },
   "publishConfig": {
     "access": "public"

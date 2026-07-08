@@ -50,6 +50,21 @@ npm pkg set repository.type='git'
 npm pkg set repository.url='git+https://github.com/nemtus/symbol.git'
 npm pkg set bugs='https://github.com/nemtus/symbol/issues'
 npm pkg set homepage='https://github.com/nemtus/symbol/tree/dev/sdk/javascript#readme'
+# Repoint the optional crypto-wasm dependency at the nemtus mirror via an npm alias.
+# The dependency KEY stays 'symbol-crypto-wasm-node' (so src/impl/ed25519_wasm.js's
+# import and webpack.config.js's NormalModuleReplacementPlugin regex need no change),
+# but it resolves to @nemtus/symbol-crypto-wasm-node instead of upstream's package —
+# closing the last runtime dependency on an upstream-published npm package. Only the
+# package NAME changes; upstream's version RANGE is preserved (read from whatever is
+# declared now), so the SDK keeps tracking upstream. Idempotent: extracting the range
+# from an already-aliased value yields the same alias. The SDK lockfile must match this
+# alias; mirror-sync.yml regenerates it (npm install --package-lock-only) right after
+# this script runs, and the committed lockfile on dev already reflects it.
+wasm_dep="$(npm pkg get 'optionalDependencies.symbol-crypto-wasm-node' | tr -d '"')"
+if [ -n "${wasm_dep}" ] && [ "${wasm_dep}" != '{}' ]; then
+	wasm_range="${wasm_dep##*@}"
+	npm pkg set "optionalDependencies.symbol-crypto-wasm-node=npm:@nemtus/symbol-crypto-wasm-node@${wasm_range}"
+fi
 # NOTE: "version" is intentionally NOT modified — it always tracks upstream.
 
 echo "==> patching ${openapi_dir}/package.json"
