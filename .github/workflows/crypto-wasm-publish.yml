@@ -1,0 +1,189 @@
+name: publish @nemtus/symbol-crypto-wasm-*
+
+# Trusted publish path for the three scoped Symbol crypto-WASM mirror packages:
+#   @nemtus/symbol-crypto-wasm-web      (browser / webpack SPA)
+#   @nemtus/symbol-crypto-wasm-bundler  (Vite / Rollup / modern SPA bundlers)
+#   @nemtus/symbol-crypto-wasm-node     (Node / SSR; also @nemtus/symbol-sdk's dep)
+#
+# All three are compiled from the single upstream Rust crate at sdk/javascript/wasm
+# via wasm-pack (targets web / bundler / nodejs) — see .github/scripts/build-crypto-wasm.sh.
+# Only the npm package name changes vs upstream; the compiled artifact is unmodified.
+#
+# Versioning: the crypto-wasm packages are versioned INDEPENDENTLY of the Rust crate
+# (Cargo.toml 0.1.0) and the JS SDK, and that version lives nowhere in the tree. So we
+# mirror upstream's npm version directly: read `npm view symbol-crypto-wasm-web version`
+# and publish each @nemtus variant that is not already at that version. This makes the
+# mirror self-updating with no in-tree version file to maintain. Because there is no
+# in-tree trigger file, this runs on a daily schedule (cheap: the check is just `npm
+# view`; the expensive wasm build only runs when a publish is actually due) plus manual
+# dispatch (with an optional version override for the initial bootstrap / re-publish).
+#
+# Publishing uses npm Trusted Publishing (OIDC) — NO long-lived NPM_TOKEN. The
+# `npm-production` environment carries a required-reviewers rule, so publishing pauses
+# for manual approval.
+#
+# npmjs.com Trusted Publisher config must match, for EACH of the three packages:
+#   repository:  nemtus/symbol
+#   workflow:    crypto-wasm-publish.yml
+#   environment: npm-production
+
+on:
+  schedule:
+    # Daily, after mirror-sync (17 3) so we build a freshly-synced crate.
+    - cron: '47 3 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override version to publish (default: mirror upstream symbol-crypto-wasm-web).'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crypto-wasm-publish
+  cancel-in-progress: false
+
+jobs:
+  # Decide the target version (upstream npm, or the dispatch override) and which of the
+  # three @nemtus variants are behind it. Kept separate so the npm-production approval
+  # prompt only appears when we actually intend to publish, and so the expensive wasm
+  # build is skipped entirely on the (usual) no-op day.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+      variants: ${{ steps.decide.outputs.variants }}
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      - name: Decide target version and lagging variants
+        id: decide
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          # Target version: the dispatch override, else upstream's npm version.
+          # The three upstream variants are published in lockstep, so symbol-crypto-wasm-web
+          # is the canonical source. Fail closed if upstream can't be read (it exists, so an
+          # empty read is a transient registry/network error, not a real 0.0.0).
+          if [ -n "${INPUT_VERSION}" ]; then
+            version="${INPUT_VERSION}"
+            echo "using dispatch override version ${version}"
+          elif upstream="$(npm view symbol-crypto-wasm-web version 2>/dev/null)" && [ -n "${upstream}" ]; then
+            version="${upstream}"
+            echo "mirroring upstream symbol-crypto-wasm-web version ${version}"
+          else
+            echo "::error::could not read symbol-crypto-wasm-web version from npm; aborting to avoid a bad publish." >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          # A @nemtus variant needs publishing when it is not already at `version`. An
+          # empty read here is legitimate (the package may not exist yet on first run) and
+          # means "publish", so we do NOT fail closed on the @nemtus side.
+          variants=''
+          for v in web bundler node; do
+            ours="$(npm view "@nemtus/symbol-crypto-wasm-${v}" version 2>/dev/null || true)"
+            if [ "${ours}" != "${version}" ]; then
+              echo "@nemtus/symbol-crypto-wasm-${v}: ${ours:-<none>} -> ${version}: will publish."
+              variants="${variants} ${v}"
+            else
+              echo "@nemtus/symbol-crypto-wasm-${v}: already at ${version}: skip."
+            fi
+          done
+          variants="$(echo ${variants} | xargs || true)"   # trim
+          echo "variants=${variants}" >> "$GITHUB_OUTPUT"
+          if [ -n "${variants}" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Build + publish each lagging variant. A single job (not a matrix) so the whole
+  # release passes ONE npm-production approval and installs the Rust toolchain once.
+  publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: npm-production
+    permissions:
+      id-token: write   # required for npm Trusted Publishing (OIDC)
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Pin the run to one commit so check/publish/tag share a tree even if dev
+          # advances mid-run. This workflow never pushes to git (publish is via OIDC),
+          # so don't persist GITHUB_TOKEN into git config (zizmor: artipacked).
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          registry-url: 'https://registry.npmjs.org'
+
+      # OIDC trusted publishing requires npm CLI >= 11.5.1.
+      - name: Upgrade npm to OIDC-capable version
+        run: npm install -g npm@11.5.1
+
+      # rustup is preinstalled on ubuntu-latest. Pin rustc 1.86.0 to match
+      # sdk/javascript/scripts/ci/build.sh (stays there until the wasm-opt issue is fixed).
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.86.0 --profile minimal
+          rustup default 1.86.0
+          rustup target add wasm32-unknown-unknown
+          rustc --version
+
+      # Install wasm-pack from source (no third-party action, no curl-pipe installer).
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked --version 0.13.1
+
+      - name: Build and publish lagging variants
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+          VARIANTS: ${{ needs.check.outputs.variants }}
+        run: |
+          for v in ${VARIANTS}; do
+            out="./_build/wasm/${v}_pkg"
+            bash .github/scripts/build-crypto-wasm.sh "${v}" "${VERSION}" "${out}"
+            ( cd "${out}" && npm publish --access public )
+          done
+
+  # Record-keeping tags + GitHub Releases for the versions just published.
+  #
+  # SECURITY: contents: write is isolated to THIS job, which runs NO build and NO
+  # third-party code — only the `gh` CLI against the GitHub API. The build/publish job
+  # stays at contents: read + id-token: write, so a supply-chain compromise in the build
+  # can never reach this write token. No checkout step, so nothing from the repo executes.
+  tag:
+    needs: [check, publish]   # runs only if publish succeeded
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create tags and GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+          VARIANTS: ${{ needs.check.outputs.variants }}
+        run: |
+          for v in ${VARIANTS}; do
+            pkg="@nemtus/symbol-crypto-wasm-${v}"
+            tag="${pkg}@${VERSION}"
+            # Idempotent: a re-run (or a dispatch after a tag exists) must not fail.
+            if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              echo "release ${tag} already exists; skipping."
+              continue
+            fi
+            gh release create "${tag}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --title "${pkg} v${VERSION}" \
+              --notes "Mirror of upstream symbol/symbol. Published \`${pkg}\` ${VERSION} to npm."
+          done

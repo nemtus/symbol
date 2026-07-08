@@ -37,7 +37,7 @@ py_parser_dir="${repo_root}/catbuffer/parser"
 readme="${repo_root}/README.md"
 
 # nemtus-owned GitHub workflows that must survive the strip below.
-nemtus_workflows=('publish.yml' 'openapi-publish.yml' 'mirror-sync.yml' 'pinact.yml' 'mirror-ci.yml' 'catapult-image.yml' 'rest-image.yml' 'pypi-sdk-publish.yml' 'pypi-catparser-publish.yml' 'upstream-release-watch.yml')
+nemtus_workflows=('publish.yml' 'openapi-publish.yml' 'crypto-wasm-publish.yml' 'mirror-sync.yml' 'pinact.yml' 'mirror-ci.yml' 'catapult-image.yml' 'rest-image.yml' 'pypi-sdk-publish.yml' 'pypi-catparser-publish.yml' 'upstream-release-watch.yml')
 
 echo "==> patching ${pkg_dir}/package.json"
 cd "${pkg_dir}"
