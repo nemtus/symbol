@@ -147,16 +147,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |
-          tag="@nemtus/symbol-sdk@${VERSION}"
+          pkg="@nemtus/symbol-sdk"
+          tag="${pkg}@${VERSION}"
           # Idempotent: a re-run (or a manual dispatch after a tag already exists)
           # must not fail.
           if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             echo "release ${tag} already exists; nothing to do."
             exit 0
           fi
+          # Previous release of THIS package (same coordinate), newest first, minus current.
+          prev="$(gh release list --repo "${GITHUB_REPOSITORY}" -L 200 --json tagName -q '.[].tagName' \
+            | grep -F "${pkg}@" | grep -vxF "${tag}" | head -n1 || true)"
+          # GitHub auto-generated notes (merged PRs + contributors + changelog) — same as the
+          # web "Generate release notes" button — prepended with the mirror provenance line.
+          provenance="Mirror of upstream symbol/symbol. Published \`${pkg}\` ${VERSION} to npm."
+          if notes="$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="${tag}" -f target_commitish="${GITHUB_SHA}" \
+              ${prev:+-f previous_tag_name="${prev}"} -q '.body' 2>/dev/null)" && [ -n "${notes}" ]; then
+            body="$(printf '%s\n\n%s\n' "${provenance}" "${notes}")"
+          else
+            body="${provenance}"
+          fi
           # Tag the exact commit this run published from.
           gh release create "${tag}" \
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
-            --title "@nemtus/symbol-sdk v${VERSION}" \
-            --notes "Mirror of upstream symbol/symbol. Published \`@nemtus/symbol-sdk\` ${VERSION} to npm."
+            --title "${pkg} v${VERSION} · npm" \
+            --notes "${body}"
