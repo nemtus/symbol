@@ -122,6 +122,34 @@ jobs:
       - run: npm run bundle                              # dist/* (webpack + wasm-pack)
       - run: npx tsc -p ./tsconfig/build-bindings.json   # ts/src/* declarations
 
+  # Build-parity for the crypto-wasm publish path (crypto-wasm-publish.yml): a synced
+  # crate that fails to wasm-pack-build for any of the three targets must fail HERE, at
+  # PR time, before the publish workflow tries to build and publish it. Build-only — no
+  # publish, so the version is a throwaway placeholder. rustup is preinstalled on the
+  # runner; pin rustc 1.86.0 to match sdk/javascript/scripts/ci/build.sh.
+  crypto-wasm-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.86.0 --profile minimal
+          rustup default 1.86.0
+          rustup target add wasm32-unknown-unknown
+          rustc --version
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked --version 0.13.1
+      - name: Build all three variants (web / bundler / node)
+        run: |
+          for v in web bundler node; do
+            bash .github/scripts/build-crypto-wasm.sh "$v" 0.0.0-ci "./_build/wasm/${v}_pkg"
+          done
+
   vectors:
     runs-on: ubuntu-latest
     strategy:
