@@ -72,6 +72,10 @@ jobs:
           # Prefer upstream on any conflict; the rename layer is restored next.
           git merge -X theirs --no-edit --no-commit upstream/dev || true
           bash .github/scripts/apply-nemtus-patch.sh
+          # The rename layer repoints @nemtus/symbol-sdk's optional crypto-wasm dep at the
+          # @nemtus mirror via an npm alias; regenerate the SDK lockfile so it stays in sync
+          # with the aliased package.json (mirror-ci/publish.yml `npm ci` need them consistent).
+          bash .github/scripts/relock-sdk.sh
           git add -A
 
           # Content guard: if the merged + re-renamed tree is identical to dev,
