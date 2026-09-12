@@ -49,12 +49,16 @@ class BuildEnvironment:
 		self.dispatch_subprocess(['conan', 'profile', 'show', '--profile', 'default'])
 		self.dispatch_subprocess(['conan', 'remote', 'add', '--force', 'nemtech', CONAN_NEMTECH_REMOTE])
 
-	def run_conan_install(self, source_path, settings, build_path, build_type):
+	def run_conan_install(self, source_path, settings, build_path, build_type, cxxflags=None):
 		# assuming working directory == build directory
 		setting_overrides = []
 		for key, value in settings.items():
 			setting_overrides += ['-s', f'compiler.{key}={value}']
 		self.dispatch_subprocess(['conan', 'profile', 'show', '--profile', 'default'])
+
+		if cxxflags:
+			setting_overrides += ['-c', f'tools.build:cxxflags={cxxflags}']
+
 		conan_install_rc = self.dispatch_subprocess([
 			'conan', 'install', source_path,
 			'--build', 'missing',
@@ -197,7 +201,7 @@ class BuildManager(BasicBuildManager):
 		for dependency_pattern in self.compiler.deps:
 			directory_path = os.path.dirname(dependency_pattern)
 			pattern = os.path.basename(dependency_pattern)
-			self.environment_manager.copy_glob_with_symlinks(directory_path, pattern, destination)
+			self.environment_manager.copy_glob_with_symlinks(directory_path, pattern, destination, self.is_clang)
 
 	def copy_files(self, output_path):
 		deps_output_path = Path(f'{output_path}/deps').resolve()
@@ -248,7 +252,8 @@ def main():
 	cmake_preset = []
 	if builder.use_conan:
 		env.prepare_conan()
-		env.run_conan_install(args.source_path, conan_options, build_path, args.build_type)
+		cxxflags = '["-include", "iterator", "-include", "new"]' if builder.is_clang and builder.compiler.version >= 23 else None
+		env.run_conan_install(args.source_path, conan_options, build_path, args.build_type, cxxflags)
 		environment_manager.chdir(f'{build_path}/build' if environment_manager.is_windows_platform() else f'{build_path}/build/{args.build_type}')
 		conan_preset_name = 'conan-default' if environment_manager.is_windows_platform() else f'conan-{args.build_type.lower()}'
 		cmake_preset = [f'--preset={conan_preset_name}']
