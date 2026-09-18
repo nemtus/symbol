@@ -1,7 +1,7 @@
 version: '2.4'
 services:
   db:
-    image: mongo:8.0
+    image: mongo:8.0.4  # pin to this build due to https://www.mongodb.com/community/forums/t/mongodb-8-x-and-linux-kernel-6-19/337547/3
     user: {{USER}}
     networks:
       test_net:
@@ -16,6 +16,10 @@ services:
       start_period: 5s
     volumes:
       - ./mongo/{{BUILD_NUMBER}}:/mongo:rw
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   test:
     image: {{IMAGE_NAME}}
@@ -32,6 +36,9 @@ services:
       - SYS_PTRACE
     ulimits:
       core: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     command: >-
       python3 /scripts/runDockerTestsInnerTest.py
         --compiler-configuration /{{COMPILER_CONFIGURATION}}
