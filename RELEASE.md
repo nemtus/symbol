@@ -58,6 +58,66 @@ publish workflows**; the manual procedure below remains as a recovery fallback.
   is idempotent (skips if the release exists).
 - Therefore **tags / Releases are not the publish trigger; they are record-keeping
   markers** that pin "which commit corresponds to which version of which artifact."
+- **A republished version ships the UPSTREAM tree tagged with that version, not the
+  dev tree.** See "Publishing from the upstream release tag" below.
+
+## Publishing from the upstream release tag
+
+The publish workflows are triggered by a push to `dev` and check out
+`${{ github.sha }}` — the merged dev commit. `dev` is a running merge of
+`upstream/dev`, so whenever a mirror-sync PR sits unmerged for a while, that tree is
+already **past** the upstream tag that introduced the version bump. Publishing
+straight from it would ship a version number whose content upstream never released
+under that number, breaking the mirror's only contract: *same content, different
+package name*.
+
+`.github/scripts/pin-upstream-tag.sh` closes that gap. In the `publish` job, before
+`apply-nemtus-patch.sh` runs, it replaces the package directory with the upstream
+tree at `<pkg_dir>/v<version>` (e.g. `sdk/javascript/v3.3.3`) — so the rename layer
+is re-applied on top of exactly the tree upstream released. The `check` job runs the
+same resolution with `--verify-only`, so an unpinnable version fails **before** the
+`npm-production` / `pypi-production` approval prompt is raised, and the `tag` job
+records the upstream tag in the GitHub Release notes.
+
+It never pins a tree it could not verify. A missing tag, an unreadable manifest at
+the tag, and a manifest declaring a different version all take the same path; only
+`PIN_MODE` decides what that path does:
+
+| Package | `PIN_MODE` | Why |
+| --- | --- | --- |
+| `sdk/javascript` | `strict` | Upstream tags `sdk/javascript/v*` at the bump commit; real dependents install this. Unverifiable tag → **publish fails.** |
+| `sdk/python` | `strict` | Same, for `sdk/python/v*`. |
+| `openapi` | `warn` | Upstream's tagging cannot support pinning (below). Unverifiable tag → publishes the dev tree, with the divergence in the run summary and release notes. |
+| `catbuffer/parser` | `warn` | Same. |
+
+The two `warn` packages are not an oversight — upstream's tags for them are
+unusable as release markers:
+
+- `openapi` 1.0.5 and `catparser` 3.2.0 were released with **no upstream tag at
+  all** (both were published from dev HEAD for exactly that reason);
+- `openapi/v1.0.4` points at a commit whose `openapi/package.json` already says
+  **1.0.5** — the tag was pushed after the next bump;
+- `catbuffer/parser/v3.1.0` predates `catbuffer/parser/pyproject.toml`, so there is
+  no manifest at the tag to verify against.
+
+`strict` on those would freeze both packages permanently. If upstream's tagging for
+them ever becomes reliable, flip `PIN_MODE` to `strict` in the two workflows —
+nothing else needs to change.
+
+Two consequences worth knowing:
+
+- **`sdk/javascript` re-locks after the pin.** The pin restores upstream's
+  lockfile, which resolves the real `symbol-crypto-wasm-node`, while the rename
+  layer repoints `package.json` at the `@nemtus` alias. `relock-sdk.sh` runs right
+  after to reconcile them, or `npm ci` would fail (or silently install upstream's
+  package).
+- **A nemtus `.postN` version still pins.** The suffix is a nemtus-only repackage of
+  the same upstream source, so it is stripped for the tag lookup
+  (`3.3.2.post1` → `sdk/python/v3.3.2`) and restored in the manifest afterwards.
+
+When a `strict` publish fails because upstream has not tagged yet, nothing is
+broken — the merge to `dev` stands, and the package simply is not published. Once
+upstream pushes the tag, re-run the workflow via `workflow_dispatch`.
 
 ## Tag naming convention
 

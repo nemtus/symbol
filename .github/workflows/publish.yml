@@ -28,6 +28,13 @@ on:
 permissions:
   contents: read
 
+env:
+  PKG_DIR: sdk/javascript
+  # strict: a published @nemtus/symbol-sdk version must be the upstream tree tagged with
+  # that version, never dev HEAD. Upstream tags sdk/javascript/v* at the bump commit, and
+  # this is the package real dependents install. See pin-upstream-tag.sh.
+  PIN_MODE: strict
+
 jobs:
   # Decide whether the version on dev differs from what is already on npm.
   # Kept separate so the npm-production approval prompt only appears when we
@@ -37,6 +44,7 @@ jobs:
     outputs:
       should_publish: ${{ steps.decide.outputs.should_publish }}
       version: ${{ steps.decide.outputs.version }}
+      upstream_tag: ${{ steps.pin.outputs.upstream_tag }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -75,6 +83,14 @@ jobs:
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Resolve the upstream release tag for this version BEFORE the publish job raises
+      # the npm-production approval prompt, so an unpinnable version fails here instead
+      # of after a human has already clicked approve. Verify-only: the tree is untouched.
+      - name: Verify upstream release tag
+        id: pin
+        if: steps.decide.outputs.should_publish == 'true'
+        run: bash .github/scripts/pin-upstream-tag.sh --verify-only "${PKG_DIR}" "${{ steps.decide.outputs.version }}" "${PIN_MODE}"
+
   publish:
     needs: check
     if: needs.check.outputs.should_publish == 'true'
@@ -104,10 +120,28 @@ jobs:
       - name: Upgrade npm to OIDC-capable version
         run: npm install -g npm@11.5.1
 
+      # Roll sdk/javascript back to the upstream tree tagged with this version, so the
+      # published 3.x.y is upstream's 3.x.y and not "3.x.y plus whatever landed on dev
+      # afterwards". Must run BEFORE the rename layer: it replaces the directory
+      # wholesale, which necessarily reverts the layer.
+      - name: Pin package tree to the upstream release tag
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/pin-upstream-tag.sh "${PKG_DIR}" "${{ needs.check.outputs.version }}" "${PIN_MODE}"
+
       # Idempotent safety net: ensures the @nemtus/symbol-sdk name is set even on
       # a manual dispatch from a not-yet-patched tree.
       - name: Apply nemtus rename layer (@nemtus/symbol-sdk)
         run: bash ../../.github/scripts/apply-nemtus-patch.sh
+
+      # The pin restored upstream's lockfile, which resolves the REAL
+      # symbol-crypto-wasm-node; the rename layer just repointed package.json at the
+      # @nemtus alias. Without this regen the two disagree and `npm ci` below either
+      # fails or silently installs upstream's package. Metadata-only (no tarballs, no
+      # install scripts), so it stays outside the Socket Firewall gate below — same
+      # placement as mirror-sync.yml.
+      - name: Re-resolve SDK lockfile against the @nemtus crypto-wasm alias
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/relock-sdk.sh
 
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
       # action (pinact-enforced, Dependabot-updatable) — a hard supply-chain gate on the
@@ -146,6 +180,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
+          UPSTREAM_TAG: ${{ needs.check.outputs.upstream_tag }}
         run: |
           pkg="@nemtus/symbol-sdk"
           tag="${pkg}@${VERSION}"
@@ -160,7 +195,13 @@ jobs:
             | grep -F "${pkg}@" | grep -vxF "${tag}" | head -n1 || true)"
           # GitHub auto-generated notes (merged PRs + contributors + changelog) — same as the
           # web "Generate release notes" button — prepended with the mirror provenance line.
-          provenance="Mirror of upstream symbol/symbol. Published \`${pkg}\` ${VERSION} to npm."
+          # Record WHICH upstream tree the tarball was built from. Empty only in warn
+          # mode (not used by this workflow), where the build fell back to dev HEAD.
+          if [ -n "${UPSTREAM_TAG:-}" ]; then
+            provenance="Mirror of upstream symbol/symbol. Published \`${pkg}\` ${VERSION} to npm, built from upstream tag \`${UPSTREAM_TAG}\`."
+          else
+            provenance="Mirror of upstream symbol/symbol. Published \`${pkg}\` ${VERSION} to npm, built from the dev tree (no matching upstream tag)."
+          fi
           if notes="$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
               -f tag_name="${tag}" -f target_commitish="${GITHUB_SHA}" \
               ${prev:+-f previous_tag_name="${prev}"} -q '.body' 2>/dev/null)" && [ -n "${notes}" ]; then

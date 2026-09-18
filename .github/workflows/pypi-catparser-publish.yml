@@ -37,6 +37,13 @@ permissions:
 env:
   PYPI_NAME: nemtus-catparser
   PKG_DIR: catbuffer/parser
+  # warn, not strict: upstream's catbuffer/parser/v* tags cannot be used to pin. 3.2.0
+  # was released with no tag at all, and the only tag that exists (v3.1.0) predates
+  # catbuffer/parser/pyproject.toml, so there is no manifest to verify against. strict
+  # here would freeze this package permanently, so an unresolvable tag degrades to
+  # publishing the dev tree with the divergence spelled out in the run summary.
+  # See pin-upstream-tag.sh.
+  PIN_MODE: warn
 
 jobs:
   # Decide whether the version on dev differs from what is already on PyPI.
@@ -47,6 +54,7 @@ jobs:
     outputs:
       should_publish: ${{ steps.decide.outputs.should_publish }}
       version: ${{ steps.decide.outputs.version }}
+      upstream_tag: ${{ steps.pin.outputs.upstream_tag }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -95,6 +103,14 @@ jobs:
             exit 1
           fi
 
+      # Resolve the upstream release tag for this version. In warn mode this never
+      # blocks; it records up front whether the publish job will build from the tag or
+      # fall back to dev HEAD, so the tag job can state it in the release notes.
+      - name: Verify upstream release tag
+        id: pin
+        if: steps.decide.outputs.should_publish == 'true'
+        run: bash .github/scripts/pin-upstream-tag.sh --verify-only "${PKG_DIR}" "${{ steps.decide.outputs.version }}" "${PIN_MODE}"
+
   publish:
     needs: check
     if: needs.check.outputs.should_publish == 'true'
@@ -118,6 +134,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.x
+
+      # Roll catbuffer/parser back to the upstream tree tagged with this version when
+      # such a tag exists. Must run BEFORE the rename layer: it replaces the directory
+      # wholesale, which necessarily reverts the layer. In warn mode an unresolvable tag
+      # leaves the dev tree in place, so this step is a no-op whenever upstream did not
+      # tag usably — which, for this package, is so far always.
+      - name: Pin package tree to the upstream release tag
+        run: bash .github/scripts/pin-upstream-tag.sh "${PKG_DIR}" "${{ needs.check.outputs.version }}" "${PIN_MODE}"
 
       # Idempotent safety net: ensures the nemtus-catparser distribution name is set
       # even on a manual dispatch from a not-yet-patched tree.
@@ -158,6 +182,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
+          UPSTREAM_TAG: ${{ needs.check.outputs.upstream_tag }}
         run: |
           tag="${PYPI_NAME}@${VERSION}"
           # Idempotent: a re-run (or a manual dispatch after a tag already exists)
@@ -171,7 +196,14 @@ jobs:
             | grep -F "${PYPI_NAME}@" | grep -vxF "${tag}" | head -n1 || true)"
           # GitHub auto-generated notes (merged PRs + contributors + changelog) — same as the
           # web "Generate release notes" button — prepended with the mirror provenance line.
-          provenance="Mirror of upstream symbol/symbol. Published \`${PYPI_NAME}\` ${VERSION} to PyPI (import module: catparser)."
+          # Record WHICH upstream tree the sdist/wheel was built from. Empty whenever
+          # upstream's catbuffer/parser/v* tagging could not identify one (so far always).
+          provenance="Mirror of upstream symbol/symbol. Published \`${PYPI_NAME}\` ${VERSION} to PyPI (import module: catparser)"
+          if [ -n "${UPSTREAM_TAG:-}" ]; then
+            provenance="${provenance}, built from upstream tag \`${UPSTREAM_TAG}\`."
+          else
+            provenance="${provenance}, built from the dev tree (no matching upstream tag)."
+          fi
           if notes="$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
               -f tag_name="${tag}" -f target_commitish="${GITHUB_SHA}" \
               ${prev:+-f previous_tag_name="${prev}"} -q '.body' 2>/dev/null)" && [ -n "${notes}" ]; then
