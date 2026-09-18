@@ -181,10 +181,19 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 		-Wno-switch-default \
 		-Wno-thread-safety-negative")
 
-	if("${CMAKE_CXX_COMPILER_VERSION}" MATCHES "^21.")
+	if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER_EQUAL "21")
 		# - Wno-nrvo: error: not eliding copy on return
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
 			-Wno-nrvo")
+	endif()
+
+	if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_GREATER_EQUAL "23")
+		# - Wno-lifetime-safety-suggestions: asks for [[clang::lifetimebound]] on nearly every pointer/reference returning function and constructor
+		# - Wno-lifetime-safety-strict: the strict analysis reports false positives on valid code
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+			-Wno-lifetime-safety-suggestions \
+			-Wno-lifetime-safety-strict \
+			-Wlifetime-safety-permissive")
 	endif()
 
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g1")
@@ -346,7 +355,10 @@ endif()
 
 # sets cxx std version
 function(catapult_set_cxx_std_version TARGET_NAME)
-	set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 17)
+	set_target_properties(${TARGET_NAME} PROPERTIES
+		CXX_STANDARD 20
+		CXX_STANDARD_REQUIRED ON
+	)
 	if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" AND "${CMAKE_CXX_COMPILER_VERSION}" MATCHES "^8.")
 		target_link_libraries(${TARGET_NAME} "stdc++fs")
 	endif()
@@ -520,6 +532,8 @@ function(catapult_define_tool TOOL_NAME)
 	target_link_libraries(${TARGET_NAME} catapult.tools)
 	catapult_target(${TARGET_NAME})
 
+	# tools build against the published sdk headers (never src)
+	target_include_directories(${TARGET_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/tools ${CMAKE_BINARY_DIR}/inc)
 	add_dependencies(${TARGET_NAME} catapult_sdk_publish)
 	add_dependencies(tools ${TARGET_NAME})
 
