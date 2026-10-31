@@ -105,15 +105,19 @@ if [ ! -d "${pkg_dir}" ]; then
 fi
 
 # Locate the manifest that carries the version. Exactly one of these exists per
-# package directory in this repo (npm: package.json, poetry: pyproject.toml).
+# package directory in this repo (npm: package.json, poetry: pyproject.toml,
+# gradle: build.gradle.kts).
 if [ -f "${pkg_dir}/package.json" ]; then
 	manifest="${pkg_dir}/package.json"
 	manifest_kind=npm
 elif [ -f "${pkg_dir}/pyproject.toml" ]; then
 	manifest="${pkg_dir}/pyproject.toml"
 	manifest_kind=poetry
+elif [ -f "${pkg_dir}/build.gradle.kts" ]; then
+	manifest="${pkg_dir}/build.gradle.kts"
+	manifest_kind=gradle
 else
-	echo "::error::no package.json or pyproject.toml under '${pkg_dir}'" >&2
+	echo "::error::no package.json, pyproject.toml or build.gradle.kts under '${pkg_dir}'" >&2
 	exit 1
 fi
 
@@ -125,6 +129,11 @@ read_manifest_version() {
 		# stderr is discarded on both: an unparsable/absent manifest is an expected
 		# outcome here (see `unresolvable`), not a crash worth printing a traceback for.
 		poetry) python3 -c 'import sys,tomllib;d=tomllib.loads(sys.stdin.read());print(d["tool"]["poetry"]["version"])' 2>/dev/null ;;
+		# Kotlin DSL has no parser here, so match the top-level assignment textually.
+		# Anchoring at line start is what makes this safe: build.gradle.kts also carries
+		# `id("...") version "0.37.0"` plugin pins and dependency coordinates, none of
+		# which start a line with `version = `. `grep .` turns "no match" into exit 1.
+		gradle) sed -n 's/^version = "\([^"]*\)"[[:space:]]*$/\1/p' | head -n1 | grep . ;;
 	esac
 }
 
@@ -227,7 +236,11 @@ if [ -n "${post_suffix}" ]; then
 	echo "==> restoring post-release version ${version}"
 	case "${manifest_kind}" in
 		npm) (cd "${pkg_dir}" && npm pkg set "version=${version}") ;;
-		poetry)
+		# poetry (pyproject.toml) and gradle (build.gradle.kts) both spell it
+		# `version = <quote>X<quote>` as a top-level line, so one anchored rewrite covers
+		# both. The captured quote is reused verbatim, keeping each file idiomatic for its
+		# own tooling (poetry uses ', Kotlin DSL uses ").
+		poetry | gradle)
 			python3 - "${repo_root}/${manifest}" "${base_version}" "${version}" <<'PY'
 import pathlib
 import re
@@ -235,17 +248,24 @@ import sys
 
 path, base, full = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 text = path.read_text()
-# Anchored at line start so only the [tool.poetry] `version = ` key is touched,
-# never a dependency constraint that happens to contain the same string.
+# Anchored at line start so only the top-level `version = ` assignment is touched,
+# never a dependency constraint or plugin pin containing the same string.
 patched, n = re.subn(
-    rf"(?m)^version = (['\"]){re.escape(base)}\1$",
-    f"version = '{full}'",
+    rf"(?m)^version = (['\"]){re.escape(base)}\1[ \t]*$",
+    lambda m: f"version = {m.group(1)}{full}{m.group(1)}",
     text,
 )
 if n != 1:
     sys.exit(f"expected exactly one `version = {base}` line in {path}, found {n}")
 path.write_text(patched)
 PY
+			;;
+		# Fail loudly rather than silently publishing the base version: a new manifest
+		# kind added above without a restore branch here would otherwise ship a version
+		# the check job never compared against the registry.
+		*)
+			echo "::error::no post-release version restore implemented for manifest kind '${manifest_kind}'" >&2
+			exit 1
 			;;
 	esac
 fi

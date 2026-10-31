@@ -1,3 +1,14 @@
+<!-- nemtus-mirror-notice -->
+> **Note (nemtus mirror):** This package is a content mirror of the **Java** SDK from
+> [`symbol/symbol`](https://github.com/symbol/symbol) (`sdk/java`). nemtus republishes
+> it to Maven Central as `com.nemtus:symbol-sdk`; the only change from upstream is the
+> Maven **groupId** (`org.symbol` -> `com.nemtus`). The artifactId (`symbol-sdk`) and
+> the Java package namespace are unchanged — you still `import org.symbol.sdk.*`. This
+> is distinct from `@nemtus/symbol-sdk` on npm (JavaScript) and `nemtus-symbol-sdk` on
+> PyPI (Python). For the canonical project, see
+> [symbol/symbol](https://github.com/symbol/symbol).
+<!-- /nemtus-mirror-notice -->
+
 # Symbol Java SDK
 
 Java SDK for the Symbol and NEM blockchains: transaction building, signing, verification,

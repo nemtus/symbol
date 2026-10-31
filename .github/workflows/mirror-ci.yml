@@ -226,3 +226,39 @@ jobs:
       - run: npm run lint                  # redocly lint of the source spec
       - run: npm run build                 # bundle -> _build/openapi3.yml/json + postman.json
       - run: npm run lint:openapi:build    # redocly lint of the bundled output
+
+  # sdk/java is published as com.nemtus:symbol-sdk (maven-sdk-publish.yml), so it needs
+  # the same pre-publish gate as the other SDKs: it must compile, pass its tests, satisfy
+  # Spotless, and agree with the shared cross-SDK vectors. Before this job the Java tree
+  # was built by nothing here.
+  #
+  # `./gradlew build` already runs `test` + `spotlessCheck` (and `check`, whose JaCoCo
+  # verification self-skips without -Pcoverage), so the three steps below are: compile and
+  # package, then the two vector suites that `build` does not wire in. `assemble` inside
+  # `build` also produces the sources/javadoc jars the publish flow ships, so a javadoc
+  # break surfaces here rather than at publish time.
+  #
+  # Supply-chain note: there is no Socket Firewall equivalent for Gradle's dependency
+  # resolution, so unlike the npm jobs this one has no malware gate on its deps. The Java
+  # deps come from upstream's build.gradle.kts and are the same ones upstream builds
+  # against; the publish path's defence is the maven-production approval gate.
+  java:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sdk/java
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      # build.gradle.kts pins a Java 21 toolchain.
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: ./gradlew --no-daemon build        # compile + test + spotlessCheck + jars
+      - run: ./gradlew --no-daemon catVectors   # catbuffer model vectors
+      - run: ./gradlew --no-daemon vectors      # cross-SDK crypto vectors (symbol)
+      - run: ./gradlew --no-daemon vectors      # ... and nem
+        env:
+          BLOCKCHAIN: nem

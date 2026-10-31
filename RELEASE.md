@@ -13,6 +13,7 @@ publish workflows**; the manual procedure below remains as a recovery fallback.
 | `openapi` | `@nemtus/symbol-openapi` | Apache-2.0 | npm |
 | `sdk/python` | `nemtus-symbol-sdk` (import module `symbolchain`) | MIT | PyPI |
 | `catbuffer/parser` | `nemtus-catparser` (import module `catparser`) | MIT | PyPI |
+| `sdk/java` | `com.nemtus:symbol-sdk` (Java package `org.symbol.sdk`) | MIT | Maven Central — **wired, not yet live** (see below) |
 | `client/rest` | `symbol-api-rest` | LGPL family | **Not published** (no tag) |
 
 > PyPI has no scopes, so the distribution names are flat. Upstream is
@@ -37,11 +38,18 @@ publish workflows**; the manual procedure below remains as a recovery fallback.
   - `.github/workflows/openapi-publish.yml` — `@nemtus/symbol-openapi`
   - `.github/workflows/pypi-sdk-publish.yml` — `nemtus-symbol-sdk` (PyPI)
   - `.github/workflows/pypi-catparser-publish.yml` — `nemtus-catparser` (PyPI)
+  - `.github/workflows/maven-sdk-publish.yml` — `com.nemtus:symbol-sdk` (Maven
+    Central) — **`workflow_dispatch` only, not version-diff driven yet**; see
+    "Java SDK (Maven Central)" below
 
   The npm workflows publish through the `npm-production` environment; the PyPI
-  workflows publish through `pypi-production`. Both environments require reviewer
-  approval. npm uses npm Trusted Publishing (OIDC); PyPI uses PyPI Trusted
-  Publishing (OIDC). Neither uses a long-lived token.
+  workflows publish through `pypi-production`; the Maven workflow through
+  `maven-production`. All three environments require reviewer approval and accept
+  deployments only from `dev`. npm uses npm Trusted Publishing (OIDC); PyPI uses PyPI
+  Trusted Publishing (OIDC) — neither uses a long-lived token. **Maven Central has no
+  OIDC equivalent and is the one exception**: it needs a Sonatype user token plus a PGP
+  signing key, held as `maven-production` environment secrets. See
+  `.github/SUPPLY-CHAIN-SECURITY.md`.
 
   > First-time PyPI setup (one-off, manual): register each package as a PyPI
   > **pending publisher** (repository `nemtus/symbol`, the workflow filename above,
@@ -87,8 +95,15 @@ the tag, and a manifest declaring a different version all take the same path; on
 | --- | --- | --- |
 | `sdk/javascript` | `strict` | Upstream tags `sdk/javascript/v*` at the bump commit; real dependents install this. Unverifiable tag → **publish fails.** |
 | `sdk/python` | `strict` | Same, for `sdk/python/v*`. |
+| `sdk/java` | `strict` | Upstream tags no `sdk/java/v*` **at all** yet, so strict is what keeps `maven-sdk-publish.yml` inert until it does. |
 | `openapi` | `warn` | Upstream's tagging cannot support pinning (below). Unverifiable tag → publishes the dev tree, with the divergence in the run summary and release notes. |
 | `catbuffer/parser` | `warn` | Same. |
+
+The script reads the version from `package.json` (npm), `pyproject.toml` (poetry) or
+`build.gradle.kts` (gradle). For the Kotlin DSL there is no parser, so it matches a
+top-level `version = "..."` line anchored at line start — `build.gradle.kts` also
+carries `id("...") version "0.37.0"` plugin pins and `group:artifact:version`
+dependency coordinates, and none of those begin a line with `version = `.
 
 The two `warn` packages are not an oversight — upstream's tags for them are
 unusable as release markers:
@@ -119,14 +134,133 @@ When a `strict` publish fails because upstream has not tagged yet, nothing is
 broken — the merge to `dev` stands, and the package simply is not published. Once
 upstream pushes the tag, re-run the workflow via `workflow_dispatch`.
 
+## Java SDK (Maven Central)
+
+`sdk/java` is **wired but deliberately not live.** Upstream added the Java SDK but has
+not published it to Maven Central (`org.symbol` does not exist on repo1) and has never
+pushed an `sdk/java/v*` tag. Republishing a version number upstream never released
+would invent a release rather than mirror one, so the publish path exists and is tested
+while being held shut by two independent gates:
+
+1. **No `push: dev` trigger.** `maven-sdk-publish.yml` is `workflow_dispatch` only, so a
+   mirror sync that bumps `sdk/java/build.gradle.kts` does nothing. Every other publish
+   workflow here is version-diff driven on push.
+2. **`PIN_MODE=strict` with no upstream tag in existence.** Even a manual dispatch fails
+   in the `check` job — before the `maven-production` approval prompt is raised — because
+   `pin-upstream-tag.sh` cannot identify the tree upstream released as this version.
+
+### Going live
+
+When upstream starts tagging and publishing `sdk/java`, add the trigger and nothing
+else — gate 2 then becomes the real guard, exactly as for the other two SDKs:
+
+```yaml
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'sdk/java/build.gradle.kts'
+  workflow_dispatch:
+```
+
+### Coordinate
+
+Only the **groupId** changes; `artifactId` and the Java package namespace do not:
+
+| | upstream | nemtus mirror |
+| --- | --- | --- |
+| groupId | `org.symbol` | **`com.nemtus`** (DNS-verified on the Central Portal via a `nemtus.com` TXT record) |
+| artifactId | `symbol-sdk` | `symbol-sdk` (unchanged — from `settings.gradle.kts` `rootProject.name`) |
+| Java package | `org.symbol.sdk` | `org.symbol.sdk` (unchanged — `import org.symbol.sdk.*` keeps working) |
+
+`developers` in the POM stays "Symbol Contributors": they wrote the code, and a POM has
+no maintainer field to move nemtus into, so the republishing party is stated in
+`description` and the `sdk/java/README.md` mirror notice instead of overwriting
+authorship. This matches leaving `authors` alone in the PyPI packages.
+
+The `publish` job asserts the resolved `groupId:artifactId:version` before contacting
+the Central Portal, so a tree that somehow still said `org.symbol` fails locally rather
+than attempting a publish into a namespace that is not ours.
+
+### Credentials (the one non-OIDC path)
+
+Maven Central has no Trusted Publishing, so this is the only publish path in the repo
+that holds long-lived credentials. All five live as **`maven-production` environment
+secrets** — never repository secrets — so they are decrypted only for a job that cleared
+that environment's required-reviewer approval, and only from `dev`:
+
+| Secret | What it is |
+| --- | --- |
+| `MAVEN_CENTRAL_USERNAME` / `MAVEN_CENTRAL_PASSWORD` | Sonatype Central Portal **user token** (not the login password) |
+| `MAVEN_GPG_PRIVATE_KEY` | ASCII-armored private key, `-----BEGIN PGP PRIVATE KEY BLOCK-----` and all |
+| `MAVEN_GPG_KEY_ID` | **8-character short key id.** Gradle's `PgpKeyId` accepts only 8 chars (or `0x` + 8) — a 16-character long id or a full fingerprint throws |
+| `MAVEN_GPG_PASSPHRASE` | passphrase for that key |
+
+The signing key is RSA-4096, **OpenPGP v4** format. Verify any replacement key with
+`gpg --export <id> | gpg --list-packets | grep -m1 -A1 'public key packet'` and require
+`version 4, algo 1`: GnuPG 2.5+ can emit LibrePGP v5 keys, which Bouncy Castle (and
+therefore Gradle's signing plugin) does not reliably handle. The public key must be
+distributed to `keyserver.ubuntu.com` and/or `keys.openpgp.org` or Sonatype cannot
+validate the signature.
+
+> A leaked token cannot rewrite an existing version — Maven Central is immutable — but it
+> could publish a **new** `com.nemtus:*` version signed with an attacker's own key, since
+> Central only checks that a signature is valid, not that it is *ours*. The
+> `maven-production` approval gate is the only control preventing that. Do not remove it,
+> and do not move these secrets to the repository scope.
+
+### Verifying the signing chain without touching Maven Central
+
+Because this path is dormant, a broken secret would otherwise surface only at go-live.
+Run the **dry-run** instead — `maven-sdk-publish.yml` with `dry_run: true`:
+
+```sh
+gh workflow run maven-sdk-publish.yml --ref dev -f dry_run=true
+```
+
+It uses the same five `maven-production` secrets, the same `ORG_GRADLE_PROJECT_*` env
+var form and the same Gradle plugin as a real publish, but points the Maven repository
+at a local `file:` URL, so **nothing is uploaded**. It asserts:
+
+1. **Gradle actually picks the signing key up.** `build.gradle.kts` gates signing on
+   `providers.gradleProperty("signingInMemoryKey").isPresent`, so an env-var typo would
+   otherwise silently produce *unsigned* artifacts; here it fails.
+2. **The artifact set Maven Central requires is complete** — jar + sources jar + javadoc
+   jar + pom, each with a `.asc`.
+3. **Every signature verifies against the public key fetched from a keyserver**, not
+   from the private key we hold. That is the same lookup Sonatype performs, so a key
+   that was never propagated fails here rather than at publish time.
+
+It still needs one `maven-production` approval click — that is the point: it exercises
+the real credential path. Re-run it after any key or token rotation.
+
+Fully local alternative (needs a JDK 21 and does *not* exercise the GitHub secrets):
+
+```sh
+cd sdk/java
+./gradlew publishInternal \
+  -PmavenRepoUrl=file:///tmp/maven-verify \
+  -PsigningInMemoryKey="$(gpg --armor --export-secret-keys <KEY_ID>)" \
+  -PsigningInMemoryKeyId=<8-CHAR-ID> \
+  -PsigningInMemoryKeyPassword='<passphrase>'
+
+find /tmp/maven-verify -type f | sort
+gpg --verify /tmp/maven-verify/**/symbol-sdk-*.jar.asc
+```
+
+`.jar`, `-sources.jar`, `-javadoc.jar` and `.pom`, each with `.asc`/`.md5`/`.sha1`, is
+exactly what Maven Central requires.
+
 ## Tag naming convention
 
 Use the **published package coordinate** as the tag name — the npm package name
-for npm artifacts, the PyPI distribution name for PyPI artifacts:
+for npm artifacts, the PyPI distribution name for PyPI artifacts, the Maven
+`groupId:artifactId` for Maven artifacts:
 
 ```text
-@nemtus/<package>@<version>   # npm artifacts
-<dist-name>@<version>         # PyPI artifacts
+@nemtus/<package>@<version>        # npm artifacts
+<dist-name>@<version>              # PyPI artifacts
+<groupId>:<artifactId>@<version>   # Maven artifacts
 ```
 
 Examples:
@@ -136,11 +270,14 @@ Examples:
 @nemtus/symbol-openapi@1.0.6   → @nemtus/symbol-openapi@1.0.6 on npm
 nemtus-symbol-sdk@3.3.2        → nemtus-symbol-sdk 3.3.2 on PyPI
 nemtus-catparser@3.2.0         → nemtus-catparser 3.2.0 on PyPI
+com.nemtus:symbol-sdk@3.3.1    → com.nemtus:symbol-sdk 3.3.1 on Maven Central
 ```
 
 (PyPI distribution names have no `@scope`, so the tag is just
 `<dist-name>@<version>`. It still lives in a namespace upstream never uses, so it
-cannot collide with upstream's `sdk/python/v*` / `catbuffer/parser/v*` tags.)
+cannot collide with upstream's `sdk/python/v*` / `catbuffer/parser/v*` tags. The Maven
+form keeps the `com.nemtus:` groupId precisely so it cannot be confused with a future
+upstream `org.symbol:symbol-sdk`, which would carry the same version numbers.)
 
 - **Do NOT use a `<package path>/v<semver>` scheme** (e.g. `sdk/javascript/v3.3.2`,
   `openapi/v1.0.6`). This repository is a mirror, so it inherits upstream

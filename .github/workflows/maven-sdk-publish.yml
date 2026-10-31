@@ -1,0 +1,414 @@
+name: publish com.nemtus:symbol-sdk (Maven Central)
+
+# Single, trusted publish path for the scoped mirror of the Java SDK.
+#
+# Mirror identity:
+#   upstream Maven coordinate:  org.symbol:symbol-sdk   (NOT published by upstream yet)
+#   nemtus Maven coordinate:    com.nemtus:symbol-sdk
+# Only the groupId changes. The artifactId (`symbol-sdk`) and the Java package
+# namespace (`org.symbol.sdk`) are untouched, so `import org.symbol.sdk.*` keeps
+# working; the version always tracks upstream.
+#
+# ============================================================================
+# PREPARE-ONLY: this workflow CANNOT publish today, by two independent gates.
+# ============================================================================
+# Upstream has not published sdk/java to Maven Central and has never pushed an
+# `sdk/java/v*` tag. So the wiring is complete but deliberately inert:
+#
+#   1. NO `push: dev` trigger. Every other publish workflow here fires on a push
+#      that changed its manifest; this one is workflow_dispatch only, so a mirror
+#      sync that bumps sdk/java/build.gradle.kts does nothing.
+#   2. PIN_MODE=strict with no upstream tag in existence. Even a manual dispatch
+#      fails in `check`, before the maven-production approval prompt is raised,
+#      because pin-upstream-tag.sh cannot identify the tree upstream released as
+#      this version.
+#
+# To go live once upstream starts tagging + publishing sdk/java, add:
+#
+#   push:
+#     branches: [dev]
+#     paths:
+#       - 'sdk/java/build.gradle.kts'
+#
+# and nothing else — gate 2 then becomes the real guard, exactly like the SDKs.
+# See RELEASE.md "Java SDK (Maven Central)".
+#
+# ============================================================================
+# SECURITY: this is the ONLY publish path here that uses long-lived credentials.
+# ============================================================================
+# npm and PyPI both support OIDC Trusted Publishing, so publish.yml /
+# openapi-publish.yml / pypi-*.yml hold no secrets at all. Maven Central has no
+# equivalent: the Sonatype Central Portal authenticates with a user token, and
+# artifacts must carry a PGP signature, so a token and a private key have to live
+# in GitHub. Both are `maven-production` ENVIRONMENT secrets (not repository
+# secrets), so they are only decrypted for a job that passed that environment's
+# required-reviewer approval, and that environment only accepts deployments from
+# `dev`. A leaked token cannot rewrite an existing version (Maven Central is
+# immutable) but could publish a NEW com.nemtus:* version signed with another key —
+# the human approval gate is the only thing preventing that, so it must stay.
+# See .github/SUPPLY-CHAIN-SECURITY.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Verify the signing chain only — build and sign into a local file: repository, then verify. Publishes NOTHING to Maven Central.'
+        type: boolean
+        default: false
+
+# Minimal default for every job; the tag job re-grants contents: write below.
+permissions:
+  contents: read
+
+env:
+  PKG_DIR: sdk/java
+  MAVEN_GROUP: com.nemtus
+  MAVEN_ARTIFACT: symbol-sdk
+  # strict: a published com.nemtus:symbol-sdk version must be the upstream tree tagged
+  # with that version, never dev HEAD. Today no sdk/java/v* tag exists at all, which is
+  # what keeps this workflow inert. See pin-upstream-tag.sh and the header above.
+  PIN_MODE: strict
+
+jobs:
+  # Pre-flight for the credentials + signing chain, WITHOUT touching Maven Central.
+  #
+  # This path is dormant (see the header): it may be years before a real publish runs,
+  # and by then a broken secret would surface at the worst possible moment. So this job
+  # exercises the exact same mechanism the publish job uses — the same five
+  # maven-production secrets, the same ORG_GRADLE_PROJECT_* env var form, the same
+  # Gradle plugin — but points the Maven repository at a local `file:` URL. Upstream's
+  # build.gradle.kts already supports that: its `internal` repository skips credentials
+  # when the URL scheme is not http(s).
+  #
+  # It verifies, in order:
+  #   1. Gradle picks the signing key up at all — build.gradle.kts gates signing on
+  #      `providers.gradleProperty("signingInMemoryKey").isPresent`, which is what makes
+  #      an ORG_GRADLE_PROJECT_* env var typo fail loudly here instead of silently
+  #      producing unsigned artifacts.
+  #   2. The full artifact set Maven Central requires is produced: jar + sources jar +
+  #      javadoc jar + pom, each with a .asc.
+  #   3. Every signature verifies against the PUBLIC key fetched from a keyserver —
+  #      not from the private key in the secret. That also proves the key is actually
+  #      distributed, which Sonatype needs in order to validate a real publish.
+  #
+  # Deliberately does NOT run pin-upstream-tag.sh: with no sdk/java/v* tag in existence
+  # PIN_MODE=strict would (correctly) abort, and pinning is not what this job tests.
+  verify-signing:
+    if: ${{ inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: maven-production
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ./sdk/java
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # apply-nemtus-patch.sh also rewrites sdk/javascript/package.json via `npm pkg set`.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      - name: Apply nemtus rename layer (com.nemtus:symbol-sdk)
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/apply-nemtus-patch.sh
+
+      - name: Resolve coordinate
+        id: coord
+        run: |
+          set -euo pipefail
+          group="$(sed -n 's/^group = "\([^"]*\)"[[:space:]]*$/\1/p' build.gradle.kts | head -n1)"
+          artifact="$(sed -n 's/^rootProject\.name = "\([^"]*\)"[[:space:]]*$/\1/p' settings.gradle.kts | head -n1)"
+          version="$(sed -n 's/^version = "\([^"]*\)"[[:space:]]*$/\1/p' build.gradle.kts | head -n1)"
+          echo "coordinate: ${group}:${artifact}:${version}"
+          [ "${group}" = "${MAVEN_GROUP}" ] || { echo "::error::groupId is '${group}', expected '${MAVEN_GROUP}'." >&2; exit 1; }
+          [ "${artifact}" = "${MAVEN_ARTIFACT}" ] || { echo "::error::artifactId is '${artifact}', expected '${MAVEN_ARTIFACT}'." >&2; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      # Same env var form the real publish uses, so a typo there fails here too.
+      - name: Build and sign into a local file repository
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MAVEN_GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          ./gradlew --no-daemon publishInternal \
+            -PmavenRepoUrl=file://${{ runner.temp }}/maven-verify
+
+      - name: Verify the artifact set and every signature
+        env:
+          KEY_ID: ${{ secrets.MAVEN_GPG_KEY_ID }}
+        run: |
+          set -euo pipefail
+          repo="${{ runner.temp }}/maven-verify"
+          group_path="${MAVEN_GROUP//./\/}"
+          dir="${repo}/${group_path}/${MAVEN_ARTIFACT}/${{ steps.coord.outputs.version }}"
+          base="${MAVEN_ARTIFACT}-${{ steps.coord.outputs.version }}"
+
+          echo "### signing chain verification" >> "$GITHUB_STEP_SUMMARY"
+          [ -d "${dir}" ] || { echo "::error::nothing published under ${dir}" >&2; exit 1; }
+          find "${repo}" -type f -printf '%P\n' | sort
+
+          # Maven Central rejects a deployment missing any of these.
+          missing=0
+          for f in "${base}.jar" "${base}-sources.jar" "${base}-javadoc.jar" "${base}.pom"; do
+            for suffix in '' '.asc'; do
+              if [ ! -f "${dir}/${f}${suffix}" ]; then
+                echo "::error::missing ${f}${suffix}" >&2
+                missing=1
+              fi
+            done
+          done
+          [ "${missing}" = 0 ] || exit 1
+
+          # Verify against the PUBLIC key as distributed, not the private key we hold:
+          # this is the same lookup Sonatype performs, so an unpropagated key fails here.
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "${GNUPGHOME}"
+          fetched=0
+          for ks in keyserver.ubuntu.com keys.openpgp.org; do
+            if gpg --batch --keyserver "${ks}" --recv-keys "${KEY_ID}" 2>/dev/null; then
+              echo "public key ${KEY_ID} fetched from ${ks}"
+              fetched=1
+              break
+            fi
+            echo "could not fetch ${KEY_ID} from ${ks}; trying next"
+          done
+          if [ "${fetched}" = 0 ]; then
+            echo "::error::public key ${KEY_ID} is not retrievable from any supported keyserver — Sonatype could not validate a real publish either." >&2
+            exit 1
+          fi
+
+          for asc in "${dir}"/*.asc; do
+            gpg --batch --verify "${asc}" "${asc%.asc}"
+          done
+
+          {
+            echo "- coordinate: \`${MAVEN_GROUP}:${MAVEN_ARTIFACT}:${{ steps.coord.outputs.version }}\`"
+            echo "- artifact set complete (jar / sources / javadoc / pom, each signed)"
+            echo "- every \`.asc\` verified against the public key fetched from a keyserver"
+            echo "- **nothing was uploaded to Maven Central**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Decide whether the version on dev differs from what is already on Maven Central.
+  # Kept separate so the maven-production approval prompt only appears when we
+  # actually intend to publish.
+  check:
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.decide.outputs.should_publish }}
+      version: ${{ steps.decide.outputs.version }}
+      upstream_tag: ${{ steps.pin.outputs.upstream_tag }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Pin the run to one commit: the dispatched ref tip. Keeps check/publish/tag
+          # all on the same tree even if dev advances mid-run, matching the other
+          # publish workflows.
+          ref: ${{ github.sha }}
+          # This workflow never pushes to git, so don't persist GITHUB_TOKEN into the
+          # local git config (zizmor: artipacked).
+          persist-credentials: false
+
+      - name: Compare dev version with Maven Central
+        id: decide
+        run: |
+          set -euo pipefail
+          # build.gradle.kts is Kotlin DSL, not a parseable manifest. Anchor at line
+          # start: the file also carries `id("...") version "0.37.0"` plugin pins and
+          # `group:artifact:version` dependency coordinates, none of which begin a line
+          # with `version = `. Same expression pin-upstream-tag.sh uses.
+          version="$(sed -n 's/^version = "\([^"]*\)"[[:space:]]*$/\1/p' "${PKG_DIR}/build.gradle.kts" | head -n1)"
+          if [ -z "${version}" ]; then
+            echo "::error::could not read a top-level \`version = \"...\"\` from ${PKG_DIR}/build.gradle.kts." >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          # Maven Central has no "latest version" API; read the repository metadata
+          # directly.
+          #   200 -> compare versions
+          #   404 -> artifact does not exist yet (first/bootstrap publish)
+          #   else -> fail closed (transient error); guessing would either skip a real
+          #           publish or trigger a doomed one plus a needless approval.
+          group_path="${MAVEN_GROUP//./\/}"
+          url="https://repo1.maven.org/maven2/${group_path}/${MAVEN_ARTIFACT}/maven-metadata.xml"
+          code="$(curl -sS -o /tmp/maven-metadata.xml -w '%{http_code}' "${url}" || echo 000)"
+
+          if [ "${code}" = "404" ]; then
+            echo "Maven Central has no ${MAVEN_GROUP}:${MAVEN_ARTIFACT} yet: bootstrap publish of ${version}."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "${code}" = "200" ]; then
+            # <release> is the newest non-SNAPSHOT; fall back to <latest> for metadata
+            # that omits it.
+            central_version="$(sed -n 's:.*<release>\(.*\)</release>.*:\1:p' /tmp/maven-metadata.xml | head -n1)"
+            [ -n "${central_version}" ] || central_version="$(sed -n 's:.*<latest>\(.*\)</latest>.*:\1:p' /tmp/maven-metadata.xml | head -n1)"
+            if [ -z "${central_version}" ]; then
+              echo "::error::could not read a version from ${url}; aborting to avoid a false publish." >&2
+              exit 1
+            fi
+            # Publish only on a FORWARD version move. `sort -V` puts the higher version
+            # last; require that to equal ours. Blocks a downgrade / backfill (dev
+            # reverted, or an old dispatch approved after a newer release exists) from
+            # publishing an old version over a newer one. Mirrors pypi-sdk-publish.yml.
+            newest="$(printf '%s\n%s\n' "${version}" "${central_version}" | sort -V | tail -n1)"
+            if [ "${version}" != "${central_version}" ] && [ "${newest}" = "${version}" ]; then
+              echo "Maven Central ${central_version} -> ${version}: forward move, will publish."
+              echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Maven Central at ${central_version}, dev at ${version}: not a forward move, nothing to publish."
+              echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "::error::unexpected HTTP ${code} from ${url}; aborting to avoid a false publish." >&2
+            exit 1
+          fi
+
+      # Resolve the upstream release tag for this version BEFORE the publish job raises
+      # the maven-production approval prompt, so an unpinnable version fails here
+      # instead of after a human has already clicked approve. Verify-only: the tree is
+      # untouched. Under PIN_MODE=strict this is the gate that keeps the workflow inert
+      # until upstream starts pushing sdk/java/v* tags.
+      - name: Verify upstream release tag
+        id: pin
+        if: steps.decide.outputs.should_publish == 'true'
+        run: bash .github/scripts/pin-upstream-tag.sh --verify-only "${PKG_DIR}" "${{ steps.decide.outputs.version }}" "${PIN_MODE}"
+
+  publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment: maven-production
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ./sdk/java
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Same commit the check job evaluated (and the tag job will target).
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # The SDK pins a Java 21 toolchain in build.gradle.kts.
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Roll sdk/java back to the upstream tree tagged with this version, so the
+      # published 3.x.y is upstream's 3.x.y and not "3.x.y plus whatever landed on dev
+      # afterwards". Must run BEFORE the rename layer: it replaces the directory
+      # wholesale, which necessarily reverts the layer.
+      - name: Pin package tree to the upstream release tag
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/pin-upstream-tag.sh "${PKG_DIR}" "${{ needs.check.outputs.version }}" "${PIN_MODE}"
+
+      # Idempotent safety net: ensures groupId=com.nemtus and the POM provenance are set
+      # even on a dispatch from a not-yet-patched tree (and re-applies what the pin above
+      # just reverted). Node is needed because the same script also rewrites
+      # sdk/javascript/package.json via `npm pkg set` (matches pypi-*-publish.yml).
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      - name: Apply nemtus rename layer (com.nemtus:symbol-sdk)
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/apply-nemtus-patch.sh
+
+      # Fail before touching the Central Portal if the tree we are about to publish
+      # does not actually carry the nemtus groupId — a silent org.symbol publish would
+      # be rejected (namespace not ours) or, worse, land somewhere unintended.
+      - name: Assert published coordinate
+        run: |
+          set -euo pipefail
+          group="$(sed -n 's/^group = "\([^"]*\)"[[:space:]]*$/\1/p' build.gradle.kts | head -n1)"
+          artifact="$(sed -n 's/^rootProject\.name = "\([^"]*\)"[[:space:]]*$/\1/p' settings.gradle.kts | head -n1)"
+          version="$(sed -n 's/^version = "\([^"]*\)"[[:space:]]*$/\1/p' build.gradle.kts | head -n1)"
+          echo "coordinate: ${group}:${artifact}:${version}"
+          [ "${group}" = "${MAVEN_GROUP}" ] || { echo "::error::groupId is '${group}', expected '${MAVEN_GROUP}'." >&2; exit 1; }
+          [ "${artifact}" = "${MAVEN_ARTIFACT}" ] || { echo "::error::artifactId is '${artifact}', expected '${MAVEN_ARTIFACT}'." >&2; exit 1; }
+          [ "${version}" = "${{ needs.check.outputs.version }}" ] || { echo "::error::version is '${version}', expected '${{ needs.check.outputs.version }}'." >&2; exit 1; }
+
+      # `publishAndReleaseToMavenCentral` (upstream's `publishCentral` task) uploads the
+      # signed bundle to the Central Portal and releases it in one step. The
+      # com.vanniktech.maven.publish plugin reads the credentials and the in-memory PGP
+      # key from ORG_GRADLE_PROJECT_* env vars, so nothing is written to disk or to
+      # gradle.properties.
+      #
+      # NOTE on signingInMemoryKeyId: Gradle's PgpKeyId accepts ONLY the 8-character
+      # short id (or `0x` + 8). A 16-character long id or a full fingerprint throws.
+      - name: Publish to Maven Central (signed)
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MAVEN_GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: ./gradlew --no-daemon publishAndReleaseToMavenCentral
+
+  # Record-keeping tag + GitHub Release for the version just published.
+  #
+  # SECURITY: contents: write is isolated to THIS job, which runs NO build and NO
+  # third-party code — only the `gh` CLI against the GitHub API. The build/publish job
+  # above stays at contents: read, so a supply-chain compromise in the Gradle build can
+  # never reach this write token. There is no checkout step (gh needs none), so nothing
+  # from the repo tree executes here either.
+  tag:
+    needs: [check, publish]   # runs only if publish succeeded
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check.outputs.version }}
+          UPSTREAM_TAG: ${{ needs.check.outputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          pkg="${MAVEN_GROUP}:${MAVEN_ARTIFACT}"
+          tag="${pkg}@${VERSION}"
+          # Idempotent: a re-run (or a dispatch after a tag already exists) must not fail.
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists; nothing to do."
+            exit 0
+          fi
+          # Previous release of THIS package (same coordinate), newest first, minus current.
+          prev="$(gh release list --repo "${GITHUB_REPOSITORY}" -L 200 --json tagName -q '.[].tagName' \
+            | grep -F "${pkg}@" | grep -vxF "${tag}" | head -n1 || true)"
+          # Record WHICH upstream tree the artifact was built from. Empty only in warn
+          # mode (not used by this workflow), where the build fell back to dev HEAD.
+          provenance="Mirror of upstream symbol/symbol. Published \`${pkg}\` ${VERSION} to Maven Central (Java package: org.symbol.sdk)"
+          if [ -n "${UPSTREAM_TAG:-}" ]; then
+            provenance="${provenance}, built from upstream tag \`${UPSTREAM_TAG}\`."
+          else
+            provenance="${provenance}, built from the dev tree (no matching upstream tag)."
+          fi
+          # GitHub auto-generated notes (merged PRs + contributors + changelog) — same as
+          # the web "Generate release notes" button — prepended with the provenance line.
+          if notes="$(gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="${tag}" -f target_commitish="${GITHUB_SHA}" \
+              ${prev:+-f previous_tag_name="${prev}"} -q '.body' 2>/dev/null)" && [ -n "${notes}" ]; then
+            body="$(printf '%s\n\n%s\n' "${provenance}" "${notes}")"
+          else
+            body="${provenance}"
+          fi
+          # Tag the exact commit this run published from.
+          gh release create "${tag}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${pkg} v${VERSION} · Maven Central" \
+            --notes "${body}"

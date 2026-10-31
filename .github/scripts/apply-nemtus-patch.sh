@@ -14,6 +14,10 @@
 #     left as-is so it always matches upstream)
 #   - catbuffer/parser PyPI distribution name -> nemtus-catparser (import module
 #     name `catparser` left untouched; version left as-is)
+#   - sdk/java Maven groupId -> com.nemtus (artifactId `symbol-sdk` and the Java
+#     package namespace `org.symbol.sdk` are left untouched, so the coordinate reads
+#     com.nemtus:symbol-sdk while `import org.symbol.sdk.*` keeps working; version
+#     left as-is)
 #   - publishConfig.access=public (scoped packages)
 #   - repository / bugs / homepage point at nemtus/symbol
 #   - a "mirror" notice is prepended to the root README.md
@@ -34,10 +38,11 @@ pkg_dir="${repo_root}/sdk/javascript"
 openapi_dir="${repo_root}/openapi"
 py_sdk_dir="${repo_root}/sdk/python"
 py_parser_dir="${repo_root}/catbuffer/parser"
+java_sdk_dir="${repo_root}/sdk/java"
 readme="${repo_root}/README.md"
 
 # nemtus-owned GitHub workflows that must survive the strip below.
-nemtus_workflows=('publish.yml' 'openapi-publish.yml' 'crypto-wasm-publish.yml' 'mirror-sync.yml' 'pinact.yml' 'mirror-ci.yml' 'catapult-image.yml' 'rest-image.yml' 'pypi-sdk-publish.yml' 'pypi-catparser-publish.yml' 'upstream-release-watch.yml')
+nemtus_workflows=('publish.yml' 'openapi-publish.yml' 'crypto-wasm-publish.yml' 'mirror-sync.yml' 'pinact.yml' 'mirror-ci.yml' 'catapult-image.yml' 'rest-image.yml' 'pypi-sdk-publish.yml' 'pypi-catparser-publish.yml' 'maven-sdk-publish.yml' 'upstream-release-watch.yml')
 
 echo "==> patching ${pkg_dir}/package.json"
 cd "${pkg_dir}"
@@ -290,6 +295,116 @@ else
 	echo "    notice already present or no README"
 fi
 # --- end PyPI mirror layer -------------------------------------------------------
+
+# --- Maven Central mirror layer (sdk/java) --------------------------------------
+#
+# Maven coordinates are groupId:artifactId. We rewrite ONLY the groupId
+# (org.symbol -> com.nemtus, the DNS-verified nemtus namespace on the Sonatype
+# Central Portal) and the POM's provenance metadata (project url + scm). Everything
+# else is deliberately left alone:
+#
+#   - artifactId stays `symbol-sdk` (it comes from settings.gradle.kts
+#     `rootProject.name`), so the coordinate reads com.nemtus:symbol-sdk, matching how
+#     @nemtus/symbol-sdk reads on npm;
+#   - the JAVA PACKAGE namespace `org.symbol.sdk` is NOT touched — same principle as
+#     leaving `symbolchain` / `catparser` importable unchanged. `import
+#     org.symbol.sdk.*` keeps working against the mirror;
+#   - `developers` stays "Symbol Contributors": they wrote the code, and a POM has no
+#     maintainer field to move nemtus into, so the republishing party is stated in
+#     `description` and the README notice instead of overwriting authorship;
+#   - `version` is NOT modified — it always tracks upstream.
+#
+# build.gradle.kts is Kotlin DSL, not a parseable manifest, so this uses anchored sed
+# against the EXACT upstream lines (tab-indented). A second run finds the already
+# rewritten text and matches nothing -> idempotent, so mirror-ci's verify-rename-layer
+# no-drift check stays green.
+java_build="${java_sdk_dir}/build.gradle.kts"
+echo "==> patching ${java_build}"
+# groupId: the namespace we are allowed to publish under.
+sed -i 's|^group = "org\.symbol"$|group = "com.nemtus"|' "${java_build}"
+# POM description: disambiguate from @nemtus/symbol-sdk (npm) and nemtus-symbol-sdk
+# (PyPI), and state the mirror relationship where a Maven consumer actually sees it.
+sed -i 's|^\t\tdescription\.set("Java SDK for the Symbol and NEM blockchains")$|\t\tdescription.set("Java SDK for the Symbol and NEM blockchains (nemtus mirror of upstream symbol/symbol sdk/java; Java package: org.symbol.sdk)")|' "${java_build}"
+# POM project url -> this fork. The `licenses` url (opensource.org) and the
+# `developers` url (upstream contributor graph) are different lines and stay as-is.
+sed -i 's|^\t\turl\.set("https://github\.com/symbol/symbol/tree/main/sdk/java")$|\t\turl.set("https://github.com/nemtus/symbol/tree/dev/sdk/java")|' "${java_build}"
+# POM scm -> this fork (all three lines are inside the scm block; the project-level
+# url above is less indented, so these patterns cannot collide with it).
+sed -i 's|^\t\t\tconnection\.set("scm:git:https://github\.com/symbol/symbol\.git")$|\t\t\tconnection.set("scm:git:https://github.com/nemtus/symbol.git")|' "${java_build}"
+sed -i 's|^\t\t\tdeveloperConnection\.set("scm:git:ssh://github\.com/symbol/symbol\.git")$|\t\t\tdeveloperConnection.set("scm:git:ssh://github.com/nemtus/symbol.git")|' "${java_build}"
+sed -i 's|^\t\t\turl\.set("https://github\.com/symbol/symbol")$|\t\t\turl.set("https://github.com/nemtus/symbol")|' "${java_build}"
+
+# sdk/java ships NO LICENSE upstream (like sdk/javascript and sdk/python). Mirror
+# their approach: create an MIT LICENSE with a truthful provenance note and a
+# no-copyright disclaimer, only when absent — never clobber a license upstream might
+# add later.
+#
+# NOTE: unlike npm/poetry, Gradle does NOT auto-include a top-level LICENSE in the
+# jar. We deliberately do not change the jar packaging here — matching upstream's
+# build output is the mirror principle, and Maven Central's own requirement is the
+# POM `licenses` block, which upstream already declares as MIT. This file documents
+# the license at the repo level.
+java_license="${java_sdk_dir}/LICENSE"
+echo "==> ensuring MIT LICENSE in ${java_license}"
+if [ ! -e "${java_license}" ]; then
+	cat > "${java_license}" <<'EOF'
+MIT License
+
+This package is a redistribution of the Java SDK from the upstream project
+symbol/symbol (https://github.com/symbol/symbol), published by its authors —
+identified in the upstream package metadata as "Symbol Contributors
+<contributors@symbol.dev>" — under the MIT License. The nemtus mirror asserts no
+copyright over this software and changes nothing but the published Maven groupId
+(to `com.nemtus`). The Java package namespace (`org.symbol.sdk`) and the artifactId
+(`symbol-sdk`) are unchanged. The authoritative copyright and license are upstream's.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+EOF
+	echo "    LICENSE created"
+else
+	echo "    LICENSE already present (left as-is)"
+fi
+
+java_readme="${java_sdk_dir}/README.md"
+echo "==> ensuring mirror notice in ${java_readme}"
+if [ -f "${java_readme}" ] && ! grep -qF '<!-- nemtus-mirror-notice -->' "${java_readme}"; then
+	tmp="$(mktemp)"
+	cat > "${tmp}" <<'EOF'
+<!-- nemtus-mirror-notice -->
+> **Note (nemtus mirror):** This package is a content mirror of the **Java** SDK from
+> [`symbol/symbol`](https://github.com/symbol/symbol) (`sdk/java`). nemtus republishes
+> it to Maven Central as `com.nemtus:symbol-sdk`; the only change from upstream is the
+> Maven **groupId** (`org.symbol` -> `com.nemtus`). The artifactId (`symbol-sdk`) and
+> the Java package namespace are unchanged — you still `import org.symbol.sdk.*`. This
+> is distinct from `@nemtus/symbol-sdk` on npm (JavaScript) and `nemtus-symbol-sdk` on
+> PyPI (Python). For the canonical project, see
+> [symbol/symbol](https://github.com/symbol/symbol).
+<!-- /nemtus-mirror-notice -->
+
+EOF
+	cat "${java_readme}" >> "${tmp}"
+	mv "${tmp}" "${java_readme}"
+	echo "    notice inserted"
+else
+	echo "    notice already present or no README"
+fi
+# --- end Maven Central mirror layer ---------------------------------------------
 
 echo "==> ensuring mirror notice in ${readme}"
 notice_marker='<!-- nemtus-mirror-notice -->'
