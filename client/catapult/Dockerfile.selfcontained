@@ -96,6 +96,21 @@ RUN mkdir _build && cd _build \
 # --- collect artifacts + runtime shared libraries into a clean tree -----------
 # Also bundle the license texts and third-party notices so the published image is
 # self-describing for LGPL-3.0 compliance (license + corresponding-source pointer).
+#
+# The dependency loop below searches <prefix>/lib, <prefix>/lib64 AND <prefix> itself,
+# and FAILS when a dependency yields no shared library at all. Both properties are
+# load-bearing:
+#
+#   - OpenSSL 4 (upstream moved client/catapult from 3.6.2 to 4.0.3) installs with
+#     LIBDIR="" — i.e. libcrypto.so* lands directly in <prefix>, with no lib/ or lib64/
+#     subdirectory. A fixed `<prefix>/lib*/*.so*` glob silently matches nothing there.
+#   - The previous `2>/dev/null || true` then swallowed that, so the BUILD went green and
+#     produced an image whose every binary died at run time with
+#     "libcrypto.so.4: cannot open shared object file". Only the workflow's smoke test
+#     caught it, and only because this PR happened to touch catapult-image.yml — the
+#     path filter had kept that job from running since the OpenSSL bump landed.
+#
+# A missing runtime library is a build failure, not a warning.
 RUN set -eux; \
     mkdir -p /opt/catapult/bin /opt/catapult/lib /opt/catapult/deps /opt/catapult/resources /opt/catapult/licenses; \
     cp -aL _build/bin/*     /opt/catapult/bin/; \
@@ -104,9 +119,17 @@ RUN set -eux; \
     cp -aL COPYING.LESSER   /opt/catapult/licenses/LGPL-3.0.txt; \
     cp -aL LICENSE.txt      /opt/catapult/licenses/LICENSE.txt; \
     cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
-    cp -aL /opt/deps/boost/lib/*.so* /opt/catapult/deps/ 2>/dev/null || true; \
-    for d in facebook google mongodb zeromq openssl; do \
-        cp -aL /opt/deps/$d/lib*/*.so* /opt/catapult/deps/ 2>/dev/null || true; \
+    for d in boost facebook google mongodb zeromq openssl; do \
+        copied=0; \
+        for libdir in "/opt/deps/$d/lib" "/opt/deps/$d/lib64" "/opt/deps/$d"; do \
+            [ -d "${libdir}" ] || continue; \
+            set -- "${libdir}"/*.so*; \
+            [ -e "$1" ] || continue; \
+            cp -aL "$@" /opt/catapult/deps/; \
+            copied=1; \
+            break; \
+        done; \
+        [ "${copied}" = 1 ] || { echo "ERROR: no shared libraries found for dependency '${d}' under /opt/deps/${d}{,/lib,/lib64}" >&2; exit 1; }; \
     done
 
 ############################ Stage 2: runtime ############################
@@ -144,6 +167,29 @@ LABEL org.opencontainers.image.title="catapult-server" \
 
 ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps
 ENV PATH=/opt/catapult/bin:$PATH
+
+# Fail the BUILD if any shipped binary has an unresolved shared library, instead of
+# shipping an image whose binaries exit 127 the first time anyone runs them. This runs
+# in the runtime stage, so it validates exactly what the published image contains:
+# LD_LIBRARY_PATH above, the distro packages installed here, and whatever the builder
+# staged into /opt/catapult/deps — the combination no earlier stage can check.
+#
+# `ldd` prints "not found" for each unresolved entry, so grep is the actual gate. Its
+# stderr is discarded only because bin/ also holds non-ELF files, which ldd rejects
+# noisily and harmlessly; the grep result is never suppressed.
+RUN set -eu; \
+    missing=""; \
+    for f in /opt/catapult/bin/* /opt/catapult/lib/*.so* /opt/catapult/deps/*.so*; do \
+        [ -f "${f}" ] || continue; \
+        if ldd "${f}" 2>/dev/null | grep -q 'not found'; then \
+            missing="${missing}\n  ${f}:\n$(ldd "${f}" 2>/dev/null | grep 'not found' | sed 's/^/    /')"; \
+        fi; \
+    done; \
+    if [ -n "${missing}" ]; then \
+        printf 'ERROR: shipped binaries have unresolved shared libraries:%b\n' "${missing}" >&2; \
+        exit 1; \
+    fi; \
+    echo "runtime link check: all shipped binaries resolve"
 
 # Numeric USER avoids coupling to the image's default user name (ubuntu).
 USER 1000
