@@ -27,6 +27,39 @@ Socket Firewall Free needs no account or API key.
    The Socket check is a required status check on `dev`, so no PR (including C++ changes)
    merges while Socket flags an unresolved high-severity risk.
 
+## Gaps we accept, and what covers them instead
+
+- **Java/Gradle has no `sfw` gate.** Socket Firewall does not wrap Gradle's dependency
+  resolution, so `mirror-ci.yml`'s `java` job and `maven-sdk-publish.yml` install their
+  dependencies ungated. Those dependencies come from upstream's own
+  `sdk/java/build.gradle.kts` and are the same ones upstream builds against, so this is
+  not mirror-specific exposure; layer 1 still sees manifest changes on the sync PR.
+
+- **Maven Central publishing uses long-lived credentials.** This is the only publish path
+  in the repo that does. npm and PyPI both support OIDC Trusted Publishing, so
+  `publish.yml`, `openapi-publish.yml` and the two `pypi-*` workflows hold **no secrets
+  at all**. The Sonatype Central Portal has no OIDC equivalent: it authenticates with a
+  user token, and every artifact must carry a PGP signature. So a token and a private
+  signing key have to live in GitHub.
+
+  What contains that:
+
+  - all five secrets are **`maven-production` environment secrets, never repository
+    secrets**, so they are decrypted only for a job that cleared that environment's
+    required-reviewer approval;
+  - the `maven-production` environment accepts deployments **only from `dev`**;
+  - the `publish` job runs at `contents: read`; the `contents: write` tag job is separate
+    and runs no build and no third-party code;
+  - `maven-sdk-publish.yml` is `workflow_dispatch` only (see RELEASE.md "Java SDK"), so
+    nothing fires automatically.
+
+  **Why the approval gate is load-bearing:** Maven Central is immutable, so a leaked
+  token cannot rewrite a published version — but it *could* publish a **new**
+  `com.nemtus:*` version signed with the attacker's own key, because Central validates
+  only that a signature is well-formed and its key is on a keyserver, not that the key is
+  ours. Nothing else in the chain stops that. Do not remove the required reviewers, and do
+  not move these secrets to the repository scope.
+
 ## One-time manual setup (no code, $0)
 
 - **Install the Socket GitHub App** on `nemtus/symbol` from the GitHub Marketplace

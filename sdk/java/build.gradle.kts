@@ -5,7 +5,7 @@ plugins {
 	id("com.diffplug.spotless") version "8.9.0"
 }
 
-group = "org.symbol"
+group = "com.nemtus"
 version = "3.3.1"
 
 java {
@@ -22,8 +22,8 @@ mavenPublishing {
 
 	pom {
 		name.set("symbol-sdk")
-		description.set("Java SDK for the Symbol and NEM blockchains")
-		url.set("https://github.com/symbol/symbol/tree/main/sdk/java")
+		description.set("Java SDK for the Symbol and NEM blockchains (nemtus mirror of upstream symbol/symbol sdk/java; Java package: org.symbol.sdk)")
+		url.set("https://github.com/nemtus/symbol/tree/dev/sdk/java")
 		licenses {
 			license {
 				name.set("MIT License")
@@ -38,9 +38,9 @@ mavenPublishing {
 			}
 		}
 		scm {
-			connection.set("scm:git:https://github.com/symbol/symbol.git")
-			developerConnection.set("scm:git:ssh://github.com/symbol/symbol.git")
-			url.set("https://github.com/symbol/symbol")
+			connection.set("scm:git:https://github.com/nemtus/symbol.git")
+			developerConnection.set("scm:git:ssh://github.com/nemtus/symbol.git")
+			url.set("https://github.com/nemtus/symbol")
 		}
 	}
 }
