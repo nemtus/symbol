@@ -97,25 +97,34 @@ RUN mkdir _build && cd _build \
 # Also bundle the license texts and third-party notices so the published image is
 # self-describing for LGPL-3.0 compliance (license + corresponding-source pointer).
 #
-# The library set is DERIVED FROM THE BINARIES — ldd tells us what they need — rather
-# than copied out of a list of dependency directories. The previous version globbed
-# `/opt/deps/<dep>/lib*/*.so*`, which encoded two assumptions that are both false:
+# The bundled library set is derived from what the built artifacts ASK FOR (their ELF
+# NEEDED entries), then located wherever upstream happened to install it. Three earlier
+# shapes of this step were wrong, each for its own reason, and the comment is long
+# because every one of them failed silently or expensively:
 #
-#   - That every dependency's shared libraries live in a `lib*` SUBDIRECTORY. Upstream's
-#     installDepsLocal.py passes OpenSSL `--libdir` equal to the prefix, so libcrypto.so*
-#     sits flat in <prefix> and the glob matched nothing. `2>/dev/null || true` swallowed
-#     that, the build went green, and the image shipped with every binary dying at run
-#     time on "libcrypto.so.4: cannot open shared object file". It had in fact never
-#     bundled OpenSSL — it only worked while catapult needed the same SONAME the distro's
-#     openssl happens to provide, and the 3 -> 4 bump ended that coincidence.
-#   - That every dependency HAS a shared library. `google` (googletest / benchmark) is a
-#     static, test-only dependency: /opt/deps/google/lib holds .a files and cmake config
-#     and no .so at all. Requiring one there turns a correct build into a failure.
+#   1. Globbing `/opt/deps/<dep>/lib*/*.so*` assumed every dependency's libraries live in
+#      a `lib*` SUBDIRECTORY. Upstream's installDepsLocal.py passes OpenSSL `--libdir`
+#      equal to the prefix, so libcrypto.so* sits FLAT in `/opt/deps/openssl`. The glob
+#      matched nothing, `2>/dev/null || true` swallowed it, and the image shipped having
+#      never bundled OpenSSL at all — it only worked while catapult needed the same
+#      SONAME the distro's openssl provides, until the 3 -> 4 bump ended that.
+#   2. Requiring each dependency to yield at least one `.so` assumed every dependency HAS
+#      one. `google` (googletest / benchmark) is static and test-only:
+#      `/opt/deps/google/lib` holds `.a` files and cmake config and no `.so`. That turned
+#      a correct build into a failed one.
+#   3. Deriving the set from `ldd` output assumed the BUILDER can resolve these libraries.
+#      It cannot — nothing sets LD_LIBRARY_PATH there and the binaries carry no RPATH — so
+#      ldd reported "not found", the path-capturing pattern matched nothing, and the stage
+#      bundled ZERO libraries.
 #
-# Asking ldd avoids both: it needs no dependency list, no layout knowledge, and no
-# static-vs-shared distinction. Libraries the runtime image installs from apt are skipped
-# (see the runtime stage), and resolving nothing at all is treated as a failure, since
-# that would mean the binaries are not what we think they are.
+# `objdump -p` reads NEEDED straight out of the ELF header, so it answers "what does this
+# binary require" without needing to resolve anything. `find` then answers "where did
+# upstream put it" without us encoding a layout. A SONAME that cannot be located anywhere
+# is reported by name and fails the build; nothing is skipped quietly.
+#
+# Skipped on purpose: libraries the runtime stage installs from apt (libc, libstdc++,
+# libgcc_s, libatomic, …) and catapult's own `libcatapult.*` / `libextension.*`, which are
+# build outputs already staged above.
 RUN set -eux; \
     mkdir -p /opt/catapult/bin /opt/catapult/lib /opt/catapult/deps /opt/catapult/resources /opt/catapult/licenses; \
     cp -aL _build/bin/*     /opt/catapult/bin/; \
@@ -125,22 +134,28 @@ RUN set -eux; \
     cp -aL LICENSE.txt      /opt/catapult/licenses/LICENSE.txt; \
     cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
     : > /tmp/needed; \
-    for f in /opt/catapult/bin/* /opt/catapult/lib/*.so*; do \
+    for f in /opt/catapult/bin/*; do \
         [ -f "${f}" ] || continue; \
-        ldd "${f}" 2>/dev/null \
-            | sed -n 's|^[[:space:]]*[^[:space:]]*\.so[^[:space:]]* => \(/[^[:space:]]*\).*|\1|p' \
-            >> /tmp/needed || true; \
+        objdump -p "${f}" 2>/dev/null | awk '/NEEDED/ { print $2 }' >> /tmp/needed || true; \
     done; \
     sort -u /tmp/needed > /tmp/needed.u; \
-    [ -s /tmp/needed.u ] || { echo "ERROR: ldd resolved no libraries at all; the binaries are not what we expect" >&2; exit 1; }; \
-    while read -r lib; do \
-        case "${lib}" in /opt/catapult/*) continue ;; esac; \
-        case "$(basename "${lib}")" in \
+    [ -s /tmp/needed.u ] || { echo "ERROR: no NEEDED entries found in any artifact; the build output is not what we expect" >&2; exit 1; }; \
+    missing=''; \
+    while read -r soname; do \
+        case "${soname}" in \
             ld-linux*|libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*) continue ;; \
             libstdc++.so.*|libgcc_s.so.*|libatomic.so.*) continue ;; \
+            libcatapult.*|libextension.*) continue ;; \
         esac; \
-        cp -aL "${lib}" /opt/catapult/deps/; \
+        src="$(find /opt/deps -name "${soname}" \( -type f -o -type l \) -print -quit 2>/dev/null)"; \
+        if [ -z "${src}" ]; then missing="${missing} ${soname}"; continue; fi; \
+        cp -aL "${src}" /opt/catapult/deps/; \
     done < /tmp/needed.u; \
+    if [ -n "${missing}" ]; then \
+        echo "ERROR: these SONAMEs are required by the built artifacts but were not found anywhere under /opt/deps:" >&2; \
+        for s in ${missing}; do echo "  ${s}" >&2; done; \
+        exit 1; \
+    fi; \
     rm -f /tmp/needed /tmp/needed.u; \
     ls -1 /opt/catapult/deps | sed 's/^/bundled: /'
 
@@ -177,7 +192,20 @@ LABEL org.opencontainers.image.title="catapult-server" \
       org.opencontainers.image.licenses="LGPL-3.0-or-later" \
       org.opencontainers.image.documentation="https://github.com/nemtus/symbol/blob/dev/client/catapult/docs/PUBLISHING-COMPLIANCE.md"
 
-ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps
+# /opt/catapult/bin is on this path, not just PATH, because catapult's build emits its
+# plugins as shared objects into _build/bin alongside the executables — so
+# `cp -aL _build/bin/*` lands all 25 libcatapult.*.so / libextension.*.so there. They are
+# real NEEDED entries of catapult.tools.nemgen and of the mongo plugins, and with only
+# /opt/catapult/{lib,deps} on the path the loader could not find any of them.
+#
+# This was broken from the start and invisible: the companion
+# `cp -aL _build/lib/*.so* /opt/catapult/lib/` silently copied nothing (there is no
+# _build/lib), and nothing checked. The link check below is what surfaced it.
+#
+# Adding bin to the path rather than relocating the .so files keeps plugin discovery
+# exactly as it is in the already-published image — catapult resolves plugins through the
+# loader, and moving them could change which directory it finds them in.
+ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps:/opt/catapult/bin
 ENV PATH=/opt/catapult/bin:$PATH
 
 # Verify the published image actually is what it claims to be. This runs in the RUNTIME
@@ -211,7 +239,7 @@ ENV PATH=/opt/catapult/bin:$PATH
 # there is no nested command substitution and no subshell to lose state in — this check
 # gates publishing, so it is written to be obvious rather than clever.
 RUN set -eu; \
-    ls /opt/catapult/lib /opt/catapult/deps 2>/dev/null \
+    ls /opt/catapult/lib /opt/catapult/deps /opt/catapult/bin 2>/dev/null \
         | grep -E '\.so' | sort -u > /tmp/shipped; \
     echo "self-contained libraries: $(wc -l < /tmp/shipped)"; \
     : > /tmp/problems; \

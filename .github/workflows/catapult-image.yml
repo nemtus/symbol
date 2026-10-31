@@ -172,6 +172,18 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       # PR / non-push: build and load locally so we can smoke-test the artifact.
+      #
+      # This build WRITES to the GitHub Actions cache as well as reading it, which it did
+      # not before. Without that, a verify build populated nothing, so every iteration
+      # paid the full from-source C++ compile — roughly 1h40m — even when the only change
+      # was the last few seconds of the Dockerfile. Three consecutive failures in the
+      # staging step each cost a full build to discover.
+      #
+      # `type=gha` rather than the registry cache on purpose: GitHub scopes it per branch
+      # (with fallback to the default branch), so a PR cannot write anything the publish
+      # path reads. The publish job keeps using `type=registry,ref=…:buildcache`
+      # exclusively, so its supply-chain posture is unchanged — a PR still cannot place
+      # bytes into the cache a released image is built from.
       - name: Build (verify, no push)
         if: steps.meta.outputs.push != 'true'
         run: |
@@ -179,6 +191,8 @@ jobs:
             -f client/catapult/Dockerfile.selfcontained \
             --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
             --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+            --cache-from "type=gha,scope=catapult-image" \
+            --cache-to "type=gha,scope=catapult-image,mode=max" \
             -t "${IMAGE}:ci" \
             --load \
             .
