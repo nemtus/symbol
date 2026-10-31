@@ -97,20 +97,25 @@ RUN mkdir _build && cd _build \
 # Also bundle the license texts and third-party notices so the published image is
 # self-describing for LGPL-3.0 compliance (license + corresponding-source pointer).
 #
-# The dependency loop below searches <prefix>/lib, <prefix>/lib64 AND <prefix> itself,
-# and FAILS when a dependency yields no shared library at all. Both properties are
-# load-bearing:
+# The library set is DERIVED FROM THE BINARIES — ldd tells us what they need — rather
+# than copied out of a list of dependency directories. The previous version globbed
+# `/opt/deps/<dep>/lib*/*.so*`, which encoded two assumptions that are both false:
 #
-#   - OpenSSL 4 (upstream moved client/catapult from 3.6.2 to 4.0.3) installs with
-#     LIBDIR="" — i.e. libcrypto.so* lands directly in <prefix>, with no lib/ or lib64/
-#     subdirectory. A fixed `<prefix>/lib*/*.so*` glob silently matches nothing there.
-#   - The previous `2>/dev/null || true` then swallowed that, so the BUILD went green and
-#     produced an image whose every binary died at run time with
-#     "libcrypto.so.4: cannot open shared object file". Only the workflow's smoke test
-#     caught it, and only because this PR happened to touch catapult-image.yml — the
-#     path filter had kept that job from running since the OpenSSL bump landed.
+#   - That every dependency's shared libraries live in a `lib*` SUBDIRECTORY. Upstream's
+#     installDepsLocal.py passes OpenSSL `--libdir` equal to the prefix, so libcrypto.so*
+#     sits flat in <prefix> and the glob matched nothing. `2>/dev/null || true` swallowed
+#     that, the build went green, and the image shipped with every binary dying at run
+#     time on "libcrypto.so.4: cannot open shared object file". It had in fact never
+#     bundled OpenSSL — it only worked while catapult needed the same SONAME the distro's
+#     openssl happens to provide, and the 3 -> 4 bump ended that coincidence.
+#   - That every dependency HAS a shared library. `google` (googletest / benchmark) is a
+#     static, test-only dependency: /opt/deps/google/lib holds .a files and cmake config
+#     and no .so at all. Requiring one there turns a correct build into a failure.
 #
-# A missing runtime library is a build failure, not a warning.
+# Asking ldd avoids both: it needs no dependency list, no layout knowledge, and no
+# static-vs-shared distinction. Libraries the runtime image installs from apt are skipped
+# (see the runtime stage), and resolving nothing at all is treated as a failure, since
+# that would mean the binaries are not what we think they are.
 RUN set -eux; \
     mkdir -p /opt/catapult/bin /opt/catapult/lib /opt/catapult/deps /opt/catapult/resources /opt/catapult/licenses; \
     cp -aL _build/bin/*     /opt/catapult/bin/; \
@@ -119,18 +124,25 @@ RUN set -eux; \
     cp -aL COPYING.LESSER   /opt/catapult/licenses/LGPL-3.0.txt; \
     cp -aL LICENSE.txt      /opt/catapult/licenses/LICENSE.txt; \
     cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
-    for d in boost facebook google mongodb zeromq openssl; do \
-        copied=0; \
-        for libdir in "/opt/deps/$d/lib" "/opt/deps/$d/lib64" "/opt/deps/$d"; do \
-            [ -d "${libdir}" ] || continue; \
-            set -- "${libdir}"/*.so*; \
-            [ -e "$1" ] || continue; \
-            cp -aL "$@" /opt/catapult/deps/; \
-            copied=1; \
-            break; \
-        done; \
-        [ "${copied}" = 1 ] || { echo "ERROR: no shared libraries found for dependency '${d}' under /opt/deps/${d}{,/lib,/lib64}" >&2; exit 1; }; \
-    done
+    : > /tmp/needed; \
+    for f in /opt/catapult/bin/* /opt/catapult/lib/*.so*; do \
+        [ -f "${f}" ] || continue; \
+        ldd "${f}" 2>/dev/null \
+            | sed -n 's|^[[:space:]]*[^[:space:]]*\.so[^[:space:]]* => \(/[^[:space:]]*\).*|\1|p' \
+            >> /tmp/needed || true; \
+    done; \
+    sort -u /tmp/needed > /tmp/needed.u; \
+    [ -s /tmp/needed.u ] || { echo "ERROR: ldd resolved no libraries at all; the binaries are not what we expect" >&2; exit 1; }; \
+    while read -r lib; do \
+        case "${lib}" in /opt/catapult/*) continue ;; esac; \
+        case "$(basename "${lib}")" in \
+            ld-linux*|libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*) continue ;; \
+            libstdc++.so.*|libgcc_s.so.*|libatomic.so.*) continue ;; \
+        esac; \
+        cp -aL "${lib}" /opt/catapult/deps/; \
+    done < /tmp/needed.u; \
+    rm -f /tmp/needed /tmp/needed.u; \
+    ls -1 /opt/catapult/deps | sed 's/^/bundled: /'
 
 ############################ Stage 2: runtime ############################
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
