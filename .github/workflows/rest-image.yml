@@ -18,7 +18,35 @@ name: rest-image (build / publish)
 # Triggers:
 #   - pull_request touching client/rest -> build + smoke-test ONLY (read-only token).
 #   - push of a tag `rest-image-v*` -> publish to GHCR (+ SBOM/provenance).
-#   - workflow_dispatch -> build (push=false) or publish (push=true).
+#   - workflow_dispatch -> build (push=false) or publish (push=true), optionally
+#     REBUILDING an already-released version via `release_tag` (see below).
+#
+# SECURITY REBUILDS (`release_tag`):
+# A published image rots even when upstream ships nothing: its baked Ubuntu and
+# NodeSource layers stop receiving patches the moment it is built. Dispatching with
+# `release_tag: rest-image-v2.5.1` checks out THAT tag — byte-identical upstream source —
+# and rebuilds it, so `apt-get update && apt-get upgrade -y` in the Dockerfile picks up
+# everything published since. Zero divergence from upstream; only the base layers move.
+#
+# Tagging for a rebuild is deliberate:
+#   - `:v2.5.1`            MOVES to the rebuild. This is what versions.env in
+#                          nemtus/symbol-networks pins, so `docker compose pull`
+#                          downstream picks the patched image up with no cross-repo
+#                          change. Moving a version tag to a patched rebuild of the same
+#                          source is the container-ecosystem norm (official images do it);
+#                          the immutable identifier is the digest.
+#   - `:latest`            MOVES, as on a normal release.
+#   - `:v2.5.1-YYYYMMDD`   NEW, and never moves — a permanent handle for this exact
+#                          rebuild, so "which base did v2.5.1 have in October" stays
+#                          answerable. upstream-release-watch.yml filters tags through
+#                          `^[0-9]+(\.[0-9]+)*$` after stripping the prefix, so a dated
+#                          tag is invisible to it and cannot trip its pin/version
+#                          comparisons.
+#   - `:sha-<sha>`         moves (same commit, newest build of it).
+#
+# Without `release_tag`, a dispatch builds the dispatched ref and publishes ONLY
+# `:sha-<sha>`. It must never publish `:<ref_name>` / `:latest`: dispatching from `dev`
+# used to tag the image `:dev` and clobber `:latest` with an unreleased build.
 #
 # Publishing posture: symbol-rest is published as a PUBLIC image. The license-scope gate
 # is automated and the evidence is recorded automatically — no per-release manual step
@@ -40,12 +68,18 @@ on:
         description: 'Publish the image to GHCR'
         type: boolean
         default: false
+      release_tag:
+        description: 'Security rebuild: existing release tag to rebuild (e.g. rest-image-v2.5.1). Empty = build the dispatched ref, publishing only :sha-<sha>.'
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: rest-image-${{ github.ref }}
+  # Keyed on the rebuild target when there is one, so two rebuilds of the same release
+  # cannot race to move :v<version> / :latest.
+  group: rest-image-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -59,7 +93,7 @@ jobs:
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/symbol-rest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -105,8 +139,12 @@ jobs:
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/symbol-rest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # On a security rebuild, build the RELEASED source, not the dispatched ref.
+          # The workflow logic still comes from the dispatched ref (this file), which is
+          # what we want: current build/publish logic, byte-identical upstream source.
+          ref: ${{ inputs.release_tag || github.ref }}
           persist-credentials: false
 
       - name: License-scope check (no commercial-licensed files)
@@ -115,12 +153,35 @@ jobs:
       - name: Decide tags
         id: meta
         run: |
-          ref="${{ github.ref_name }}"
-          version="${ref#rest-image-}"   # tag rest-image-v2.5.1 -> v2.5.1
+          set -euo pipefail
+          # A rebuild names its target explicitly; otherwise fall back to the pushed ref.
+          ref="${{ inputs.release_tag || github.ref_name }}"
           sha="$(git rev-parse --short HEAD)"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "vcs_ref=${sha}" >> "$GITHUB_OUTPUT"
-          echo "tags=${IMAGE}:sha-${sha},${IMAGE}:${version},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+
+          if [ "${ref#rest-image-}" = "${ref}" ]; then
+            # Not a release tag (e.g. a plain dispatch from `dev`). Publish ONLY the
+            # commit-addressed tag: tagging the image `:dev` and moving `:latest` to an
+            # unreleased build is exactly the bug this guard exists to prevent.
+            echo "::warning::'${ref}' is not a rest-image-v* release tag; publishing only :sha-${sha}. Pass release_tag to rebuild a release."
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "tags=${IMAGE}:sha-${sha}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          version="${ref#rest-image-}"   # tag rest-image-v2.5.1 -> v2.5.1
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          tags="${IMAGE}:sha-${sha},${IMAGE}:${version},${IMAGE}:latest"
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            # Immutable per-rebuild handle alongside the moving :<version>. Dated rather
+            # than a counter so it needs no state, and it is filtered out by
+            # upstream-release-watch.yml's `^[0-9]+(\.[0-9]+)*$` tag filter.
+            stamp="$(date -u +%Y%m%d)"
+            tags="${tags},${IMAGE}:${version}-${stamp}"
+            echo "rebuild=${version}-${stamp}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Security rebuild of ${ref} (source ${sha}): moving :${version} and :latest, recording :${version}-${stamp}."
+          fi
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
 
       - name: Set up buildx
         run: docker buildx create --use --name nemtus --driver docker-container
@@ -133,7 +194,7 @@ jobs:
           docker buildx build \
             -f client/rest/Dockerfile.nemtus \
             --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
-            --build-arg "IMAGE_VERSION=${{ steps.meta.outputs.version }}" \
+            --build-arg "IMAGE_VERSION=${{ steps.meta.outputs.version || format('sha-{0}', steps.meta.outputs.vcs_ref) }}" \
             --cache-from "type=registry,ref=${IMAGE}:buildcache" \
             --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
             --provenance=true --sbom=true \
@@ -152,7 +213,13 @@ jobs:
             echo "|---|---|"
             echo "| tags | \`${{ steps.meta.outputs.tags }}\` |"
             echo "| digest | \`${digest}\` |"
-            echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` (\`${{ github.sha }}\`) |"
+            # The built commit, which on a security rebuild is the RELEASE TAG's commit,
+            # not github.sha (that is the dispatched ref, i.e. dev).
+            echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` |"
+            if [ -n "${{ inputs.release_tag }}" ]; then
+              echo "| security rebuild of | \`${{ inputs.release_tag }}\` — upstream source unchanged, base layers refreshed |"
+              echo "| immutable rebuild tag | \`${{ steps.meta.outputs.rebuild }}\` |"
+            fi
             echo "| license-scope gate | PASSED (also bundled in image at /app/licenses/LICENSE-SCOPE-REPORT.txt) |"
             echo "| attestations | SBOM + SLSA provenance attached via buildx |"
             echo "| run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
