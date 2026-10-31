@@ -168,28 +168,65 @@ LABEL org.opencontainers.image.title="catapult-server" \
 ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps
 ENV PATH=/opt/catapult/bin:$PATH
 
-# Fail the BUILD if any shipped binary has an unresolved shared library, instead of
-# shipping an image whose binaries exit 127 the first time anyone runs them. This runs
-# in the runtime stage, so it validates exactly what the published image contains:
-# LD_LIBRARY_PATH above, the distro packages installed here, and whatever the builder
-# staged into /opt/catapult/deps — the combination no earlier stage can check.
+# Verify the published image actually is what it claims to be. This runs in the RUNTIME
+# stage on purpose: only here do LD_LIBRARY_PATH, the distro packages installed above and
+# whatever the builder staged into /opt/catapult coexist, which is the combination no
+# earlier stage can check. Two separate failure modes are gated:
 #
-# `ldd` prints "not found" for each unresolved entry, so grep is the actual gate. Its
-# stderr is discarded only because bin/ also holds non-ELF files, which ldd rejects
-# noisily and harmlessly; the grep result is never suppressed.
+#   (1) UNRESOLVED — a binary has a shared library the image does not contain. Without
+#       this gate the build goes green and every binary exits 127 on first run (this is
+#       how `libcrypto.so.4: cannot open shared object file` shipped).
+#
+#   (2) SHADOWED — a library IS staged under /opt/catapult, but something resolves that
+#       same SONAME from elsewhere (normally /usr/lib). That silently defeats the point of
+#       a self-contained image: the binary then runs against the distro's build instead of
+#       the version upstream pins in client/catapult/CMakeLists.txt.
+#
+#       This is not hypothetical. Until the staging fix in the builder stage, OpenSSL was
+#       never copied at all — upstream's installDepsLocal.py passes `--libdir` equal to the
+#       prefix, so libcrypto.so* lands flat in /opt/deps/openssl and the old `lib*/` glob
+#       matched nothing. The image worked anyway only because catapult was built against
+#       OpenSSL 3.6.2 while `ca-certificates` pulls in Ubuntu's openssl 3.0.13 — the same
+#       SONAME, so the linker resolved it by coincidence. The 4.0.3 bump ended the
+#       coincidence. Check (1) alone would NOT have caught that era; this one does.
+#
+# Only SONAMEs we actually ship are checked, so libc / libstdc++ / libgcc_s / libatomic
+# legitimately keep resolving to the distro.
+#
+# `ldd` exits 0 even when entries are unresolved, so the greps are the real gates; its
+# stderr is discarded only because bin/ also holds non-ELF files that ldd rejects noisily.
+# Findings accumulate in a file and each loop reads from a file rather than a pipe, so
+# there is no nested command substitution and no subshell to lose state in — this check
+# gates publishing, so it is written to be obvious rather than clever.
 RUN set -eu; \
-    missing=""; \
+    ls /opt/catapult/lib /opt/catapult/deps 2>/dev/null \
+        | grep -E '\.so' | sort -u > /tmp/shipped; \
+    echo "self-contained libraries: $(wc -l < /tmp/shipped)"; \
+    : > /tmp/problems; \
     for f in /opt/catapult/bin/* /opt/catapult/lib/*.so* /opt/catapult/deps/*.so*; do \
         [ -f "${f}" ] || continue; \
-        if ldd "${f}" 2>/dev/null | grep -q 'not found'; then \
-            missing="${missing}\n  ${f}:\n$(ldd "${f}" 2>/dev/null | grep 'not found' | sed 's/^/    /')"; \
-        fi; \
+        ldd "${f}" > /tmp/ldd 2>/dev/null || continue; \
+        grep 'not found' /tmp/ldd | sed "s|^[[:space:]]*|UNRESOLVED  ${f}: |" >> /tmp/problems || true; \
+        sed -n 's|^[[:space:]]*\([^[:space:]]*\.so[^[:space:]]*\) => \(/[^[:space:]]*\).*|\1 \2|p' \
+            /tmp/ldd > /tmp/links; \
+        while read -r soname path; do \
+            grep -Fxq "${soname}" /tmp/shipped || continue; \
+            case "${path}" in \
+                /opt/catapult/*) ;; \
+                *) echo "SHADOWED    ${f}: ${soname} => ${path}" >> /tmp/problems ;; \
+            esac; \
+        done < /tmp/links; \
     done; \
-    if [ -n "${missing}" ]; then \
-        printf 'ERROR: shipped binaries have unresolved shared libraries:%b\n' "${missing}" >&2; \
+    if [ -s /tmp/problems ]; then \
+        echo 'ERROR: runtime link check failed.' >&2; \
+        echo '  UNRESOLVED = the image does not contain a library a binary needs (it would exit 127).' >&2; \
+        echo '  SHADOWED   = a bundled library lost resolution to a copy outside /opt/catapult, so the' >&2; \
+        echo '               image would run against that instead of the version upstream pins.' >&2; \
+        sed 's/^/  /' /tmp/problems >&2; \
         exit 1; \
     fi; \
-    echo "runtime link check: all shipped binaries resolve"
+    rm -f /tmp/shipped /tmp/problems /tmp/ldd /tmp/links; \
+    echo "runtime link check: all binaries resolve, and every bundled library wins resolution"
 
 # Numeric USER avoids coupling to the image's default user name (ubuntu).
 USER 1000
