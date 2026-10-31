@@ -19,7 +19,32 @@ name: catapult-image (build / publish)
 #   - pull_request touching the catapult build inputs -> build + smoke-test ONLY
 #     (never pushes an image).
 #   - push of a tag `catapult-image-v*` -> build + PUBLISH to GHCR (+ SBOM/provenance).
-#   - workflow_dispatch -> build; push only when `push=true` is selected.
+#   - workflow_dispatch -> build; push only when `push=true` is selected, optionally
+#     REBUILDING an already-released version via `release_tag` (see below).
+#
+# SECURITY REBUILDS (`release_tag`):
+# A published image rots even when upstream ships nothing: its baked Ubuntu layers stop
+# receiving patches the moment it is built. Dispatching with
+# `release_tag: catapult-image-v1.0.3.9` (plus `push: true`) checks out THAT tag —
+# byte-identical upstream source — and rebuilds it, so the Dockerfile's `apt-get update`
+# picks up everything published since. Zero divergence from upstream; only base layers move.
+#
+# Tagging for a rebuild is deliberate:
+#   - `:v1.0.3.9`            MOVES to the rebuild. This is what versions.env in
+#                            nemtus/symbol-networks pins, so `docker compose pull`
+#                            downstream picks the patched image up with no cross-repo
+#                            change. Moving a version tag to a patched rebuild of the
+#                            same source is the container-ecosystem norm; the immutable
+#                            identifier is the digest.
+#   - `:latest`              MOVES, as on a normal release.
+#   - `:v1.0.3.9-YYYYMMDD`   NEW, and never moves — a permanent handle for this exact
+#                            rebuild. upstream-release-watch.yml filters tags through
+#                            `^[0-9]+(\.[0-9]+)*$` after stripping the prefix, so a dated
+#                            tag is invisible to it and cannot trip its comparisons.
+#   - `:sha-<sha>`           moves (same commit, newest build of it).
+#
+# Without `release_tag`, a dispatch publishes ONLY `:sha-<sha>` even with `push=true`:
+# `:<ref_name>` / `:latest` must never point at an unreleased build.
 #
 # Publishing posture: catapult is published as a PUBLIC image. The gate is fully
 # automated and the licensing evidence is recorded automatically — no per-release
@@ -52,12 +77,18 @@ on:
         description: 'Publish the image to GHCR'
         type: boolean
         default: false
+      release_tag:
+        description: 'Security rebuild: existing release tag to rebuild (e.g. catapult-image-v1.0.3.9). Empty = build the dispatched ref, publishing only :sha-<sha>.'
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: catapult-image-${{ github.ref }}
+  # Keyed on the rebuild target when there is one, so two rebuilds of the same release
+  # cannot race to move :v<version> / :latest.
+  group: catapult-image-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -79,6 +110,10 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # On a security rebuild, build the RELEASED source, not the dispatched ref.
+          # The workflow logic still comes from the dispatched ref (this file), which is
+          # what we want: current build/publish logic, byte-identical upstream source.
+          ref: ${{ inputs.release_tag || github.ref }}
           # This workflow authenticates to GHCR with GITHUB_TOKEN via docker login,
           # not git, so don't persist credentials into the local git config.
           persist-credentials: false
@@ -99,12 +134,34 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.push }}" = "true" ]; then push=true; fi
           echo "push=${push}" >> "$GITHUB_OUTPUT"
 
-          ref="${{ github.ref_name }}"
-          version="${ref#catapult-image-}"   # tag catapult-image-v1.2.3 -> v1.2.3
+          # A rebuild names its target explicitly; otherwise fall back to the pushed ref.
+          ref="${{ inputs.release_tag || github.ref_name }}"
           sha="$(git rev-parse --short HEAD)"
           echo "vcs_ref=${sha}" >> "$GITHUB_OUTPUT"
           tags="${IMAGE}:sha-${sha}"
-          if [ "${{ github.event_name }}" = "push" ]; then tags="${tags},${IMAGE}:${version},${IMAGE}:latest"; fi
+
+          if [ "${ref#catapult-image-}" = "${ref}" ]; then
+            # Not a release tag (PR, or a plain dispatch from `dev`). Only the
+            # commit-addressed tag — never :<ref_name> / :latest for an unreleased build.
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          version="${ref#catapult-image-}"   # tag catapult-image-v1.2.3 -> v1.2.3
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "${push}" = "true" ]; then
+            tags="${tags},${IMAGE}:${version},${IMAGE}:latest"
+            if [ -n "${{ inputs.release_tag }}" ]; then
+              # Immutable per-rebuild handle alongside the moving :<version>. Dated rather
+              # than a counter so it needs no state, and it is filtered out by
+              # upstream-release-watch.yml's `^[0-9]+(\.[0-9]+)*$` tag filter.
+              stamp="$(date -u +%Y%m%d)"
+              tags="${tags},${IMAGE}:${version}-${stamp}"
+              echo "rebuild=${version}-${stamp}" >> "$GITHUB_OUTPUT"
+              echo "::notice::Security rebuild of ${ref} (source ${sha}): moving :${version} and :latest, recording :${version}-${stamp}."
+            fi
+          fi
           echo "tags=${tags}" >> "$GITHUB_OUTPUT"
 
       - name: Set up buildx (docker-container driver for registry cache)
@@ -163,7 +220,13 @@ jobs:
             echo "|---|---|"
             echo "| tags | \`${{ steps.meta.outputs.tags }}\` |"
             echo "| digest | \`${digest}\` |"
-            echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` (\`${{ github.sha }}\`) |"
+            # The built commit, which on a security rebuild is the RELEASE TAG's commit,
+            # not github.sha (that is the dispatched ref, i.e. dev).
+            echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` |"
+            if [ -n "${{ inputs.release_tag }}" ]; then
+              echo "| security rebuild of | \`${{ inputs.release_tag }}\` — upstream source unchanged, base layers refreshed |"
+              echo "| immutable rebuild tag | \`${{ steps.meta.outputs.rebuild }}\` |"
+            fi
             echo "| license-scope gate | PASSED (also bundled in image at /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt) |"
             echo "| attestations | SBOM + SLSA provenance attached via buildx |"
             echo "| run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
