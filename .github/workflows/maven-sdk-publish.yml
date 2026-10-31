@@ -50,6 +50,11 @@ name: publish com.nemtus:symbol-sdk (Maven Central)
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Verify the signing chain only — build and sign into a local file: repository, then verify. Publishes NOTHING to Maven Central.'
+        type: boolean
+        default: false
 
 # Minimal default for every job; the tag job re-grants contents: write below.
 permissions:
@@ -65,10 +70,141 @@ env:
   PIN_MODE: strict
 
 jobs:
+  # Pre-flight for the credentials + signing chain, WITHOUT touching Maven Central.
+  #
+  # This path is dormant (see the header): it may be years before a real publish runs,
+  # and by then a broken secret would surface at the worst possible moment. So this job
+  # exercises the exact same mechanism the publish job uses — the same five
+  # maven-production secrets, the same ORG_GRADLE_PROJECT_* env var form, the same
+  # Gradle plugin — but points the Maven repository at a local `file:` URL. Upstream's
+  # build.gradle.kts already supports that: its `internal` repository skips credentials
+  # when the URL scheme is not http(s).
+  #
+  # It verifies, in order:
+  #   1. Gradle picks the signing key up at all — build.gradle.kts gates signing on
+  #      `providers.gradleProperty("signingInMemoryKey").isPresent`, which is what makes
+  #      an ORG_GRADLE_PROJECT_* env var typo fail loudly here instead of silently
+  #      producing unsigned artifacts.
+  #   2. The full artifact set Maven Central requires is produced: jar + sources jar +
+  #      javadoc jar + pom, each with a .asc.
+  #   3. Every signature verifies against the PUBLIC key fetched from a keyserver —
+  #      not from the private key in the secret. That also proves the key is actually
+  #      distributed, which Sonatype needs in order to validate a real publish.
+  #
+  # Deliberately does NOT run pin-upstream-tag.sh: with no sdk/java/v* tag in existence
+  # PIN_MODE=strict would (correctly) abort, and pinning is not what this job tests.
+  verify-signing:
+    if: ${{ inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: maven-production
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ./sdk/java
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # apply-nemtus-patch.sh also rewrites sdk/javascript/package.json via `npm pkg set`.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+
+      - name: Apply nemtus rename layer (com.nemtus:symbol-sdk)
+        working-directory: ${{ github.workspace }}
+        run: bash .github/scripts/apply-nemtus-patch.sh
+
+      - name: Resolve coordinate
+        id: coord
+        run: |
+          set -euo pipefail
+          group="$(sed -n 's/^group = "\([^"]*\)"[[:space:]]*$/\1/p' build.gradle.kts | head -n1)"
+          artifact="$(sed -n 's/^rootProject\.name = "\([^"]*\)"[[:space:]]*$/\1/p' settings.gradle.kts | head -n1)"
+          version="$(sed -n 's/^version = "\([^"]*\)"[[:space:]]*$/\1/p' build.gradle.kts | head -n1)"
+          echo "coordinate: ${group}:${artifact}:${version}"
+          [ "${group}" = "${MAVEN_GROUP}" ] || { echo "::error::groupId is '${group}', expected '${MAVEN_GROUP}'." >&2; exit 1; }
+          [ "${artifact}" = "${MAVEN_ARTIFACT}" ] || { echo "::error::artifactId is '${artifact}', expected '${MAVEN_ARTIFACT}'." >&2; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      # Same env var form the real publish uses, so a typo there fails here too.
+      - name: Build and sign into a local file repository
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.MAVEN_GPG_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          ./gradlew --no-daemon publishInternal \
+            -PmavenRepoUrl=file://${{ runner.temp }}/maven-verify
+
+      - name: Verify the artifact set and every signature
+        env:
+          KEY_ID: ${{ secrets.MAVEN_GPG_KEY_ID }}
+        run: |
+          set -euo pipefail
+          repo="${{ runner.temp }}/maven-verify"
+          group_path="${MAVEN_GROUP//./\/}"
+          dir="${repo}/${group_path}/${MAVEN_ARTIFACT}/${{ steps.coord.outputs.version }}"
+          base="${MAVEN_ARTIFACT}-${{ steps.coord.outputs.version }}"
+
+          echo "### signing chain verification" >> "$GITHUB_STEP_SUMMARY"
+          [ -d "${dir}" ] || { echo "::error::nothing published under ${dir}" >&2; exit 1; }
+          find "${repo}" -type f -printf '%P\n' | sort
+
+          # Maven Central rejects a deployment missing any of these.
+          missing=0
+          for f in "${base}.jar" "${base}-sources.jar" "${base}-javadoc.jar" "${base}.pom"; do
+            for suffix in '' '.asc'; do
+              if [ ! -f "${dir}/${f}${suffix}" ]; then
+                echo "::error::missing ${f}${suffix}" >&2
+                missing=1
+              fi
+            done
+          done
+          [ "${missing}" = 0 ] || exit 1
+
+          # Verify against the PUBLIC key as distributed, not the private key we hold:
+          # this is the same lookup Sonatype performs, so an unpropagated key fails here.
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "${GNUPGHOME}"
+          fetched=0
+          for ks in keyserver.ubuntu.com keys.openpgp.org; do
+            if gpg --batch --keyserver "${ks}" --recv-keys "${KEY_ID}" 2>/dev/null; then
+              echo "public key ${KEY_ID} fetched from ${ks}"
+              fetched=1
+              break
+            fi
+            echo "could not fetch ${KEY_ID} from ${ks}; trying next"
+          done
+          if [ "${fetched}" = 0 ]; then
+            echo "::error::public key ${KEY_ID} is not retrievable from any supported keyserver — Sonatype could not validate a real publish either." >&2
+            exit 1
+          fi
+
+          for asc in "${dir}"/*.asc; do
+            gpg --batch --verify "${asc}" "${asc%.asc}"
+          done
+
+          {
+            echo "- coordinate: \`${MAVEN_GROUP}:${MAVEN_ARTIFACT}:${{ steps.coord.outputs.version }}\`"
+            echo "- artifact set complete (jar / sources / javadoc / pom, each signed)"
+            echo "- every \`.asc\` verified against the public key fetched from a keyserver"
+            echo "- **nothing was uploaded to Maven Central**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Decide whether the version on dev differs from what is already on Maven Central.
   # Kept separate so the maven-production approval prompt only appears when we
   # actually intend to publish.
   check:
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     outputs:
       should_publish: ${{ steps.decide.outputs.should_publish }}

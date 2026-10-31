@@ -209,10 +209,32 @@ validate the signature.
 > `maven-production` approval gate is the only control preventing that. Do not remove it,
 > and do not move these secrets to the repository scope.
 
-### Local verification without touching Maven Central
+### Verifying the signing chain without touching Maven Central
 
-Upstream's `build.gradle.kts` accepts a `file:` repository, so the full signed artifact
-set can be produced locally:
+Because this path is dormant, a broken secret would otherwise surface only at go-live.
+Run the **dry-run** instead — `maven-sdk-publish.yml` with `dry_run: true`:
+
+```sh
+gh workflow run maven-sdk-publish.yml --ref dev -f dry_run=true
+```
+
+It uses the same five `maven-production` secrets, the same `ORG_GRADLE_PROJECT_*` env
+var form and the same Gradle plugin as a real publish, but points the Maven repository
+at a local `file:` URL, so **nothing is uploaded**. It asserts:
+
+1. **Gradle actually picks the signing key up.** `build.gradle.kts` gates signing on
+   `providers.gradleProperty("signingInMemoryKey").isPresent`, so an env-var typo would
+   otherwise silently produce *unsigned* artifacts; here it fails.
+2. **The artifact set Maven Central requires is complete** — jar + sources jar + javadoc
+   jar + pom, each with a `.asc`.
+3. **Every signature verifies against the public key fetched from a keyserver**, not
+   from the private key we hold. That is the same lookup Sonatype performs, so a key
+   that was never propagated fails here rather than at publish time.
+
+It still needs one `maven-production` approval click — that is the point: it exercises
+the real credential path. Re-run it after any key or token rotation.
+
+Fully local alternative (needs a JDK 21 and does *not* exercise the GitHub secrets):
 
 ```sh
 cd sdk/java
