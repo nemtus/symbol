@@ -117,14 +117,25 @@ RUN mkdir _build && cd _build \
 #      ldd reported "not found", the path-capturing pattern matched nothing, and the stage
 #      bundled ZERO libraries.
 #
+#   4. Reading NEEDED only from /opt/catapult/bin assumed the dependency graph is one
+#      level deep. It is not: mongo's C++ drivers (libmongocxx1, libbsoncxx1) need
+#      mongo's C drivers (libmongoc2, libbson2), which nothing in bin/ names. The bundle
+#      was therefore incomplete in a way that only shows up at load time.
+#
 # `objdump -p` reads NEEDED straight out of the ELF header, so it answers "what does this
-# binary require" without needing to resolve anything. `find` then answers "where did
-# upstream put it" without us encoding a layout. A SONAME that cannot be located anywhere
-# is reported by name and fails the build; nothing is skipped quietly.
+# object require" without needing to resolve anything. `find` then answers "where did
+# upstream put it" without us encoding a layout. The loop repeats over everything newly
+# staged until the set stops growing, so the bundle is the TRANSITIVE closure — adding a
+# library pulls in whatever that library needs too. A SONAME that cannot be located
+# anywhere is reported by name and fails the build; nothing is skipped quietly.
 #
 # Skipped on purpose: libraries the runtime stage installs from apt (libc, libstdc++,
-# libgcc_s, libatomic, …) and catapult's own `libcatapult.*` / `libextension.*`, which are
-# build outputs already staged above.
+# libgcc_s, libatomic, …). catapult's own libcatapult.* / libextension.* are not special-
+# cased — they are already staged into bin/ above, so the "already present" test covers
+# them, which also means a renamed or relocated build output cannot slip through.
+#
+# The round cap only exists so a pathological cycle fails loudly instead of hanging a
+# 90-minute build; the closure settles in two or three rounds in practice.
 RUN set -eux; \
     mkdir -p /opt/catapult/bin /opt/catapult/lib /opt/catapult/deps /opt/catapult/resources /opt/catapult/licenses; \
     cp -aL _build/bin/*     /opt/catapult/bin/; \
@@ -133,30 +144,43 @@ RUN set -eux; \
     cp -aL COPYING.LESSER   /opt/catapult/licenses/LGPL-3.0.txt; \
     cp -aL LICENSE.txt      /opt/catapult/licenses/LICENSE.txt; \
     cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
-    : > /tmp/needed; \
-    for f in /opt/catapult/bin/*; do \
-        [ -f "${f}" ] || continue; \
-        objdump -p "${f}" 2>/dev/null | awk '/NEEDED/ { print $2 }' >> /tmp/needed || true; \
+    : > /tmp/scanned; \
+    : > /tmp/missing; \
+    round=0; \
+    while :; do \
+        round=$((round + 1)); \
+        [ "${round}" -le 20 ] || { echo "ERROR: dependency closure did not settle in 20 rounds" >&2; exit 1; }; \
+        : > /tmp/todo; \
+        for f in /opt/catapult/bin/* /opt/catapult/lib/* /opt/catapult/deps/*; do \
+            [ -f "${f}" ] || continue; \
+            grep -Fxq "${f}" /tmp/scanned && continue; \
+            echo "${f}" >> /tmp/scanned; \
+            objdump -p "${f}" 2>/dev/null | awk '/NEEDED/ { print $2 }' >> /tmp/todo || true; \
+        done; \
+        [ -s /tmp/todo ] || break; \
+        added=0; \
+        sort -u /tmp/todo | while read -r soname; do echo "${soname}"; done > /tmp/todo.u; \
+        while read -r soname; do \
+            case "${soname}" in \
+                ld-linux*|libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*) continue ;; \
+                libstdc++.so.*|libgcc_s.so.*|libatomic.so.*) continue ;; \
+            esac; \
+            [ -e "/opt/catapult/deps/${soname}" ] && continue; \
+            [ -e "/opt/catapult/lib/${soname}" ] && continue; \
+            [ -e "/opt/catapult/bin/${soname}" ] && continue; \
+            src="$(find /opt/deps -name "${soname}" \( -type f -o -type l \) -print -quit 2>/dev/null)"; \
+            if [ -z "${src}" ]; then echo "${soname}" >> /tmp/missing; continue; fi; \
+            cp -aL "${src}" /opt/catapult/deps/; \
+            added=$((added + 1)); \
+        done < /tmp/todo.u; \
     done; \
-    sort -u /tmp/needed > /tmp/needed.u; \
-    [ -s /tmp/needed.u ] || { echo "ERROR: no NEEDED entries found in any artifact; the build output is not what we expect" >&2; exit 1; }; \
-    missing=''; \
-    while read -r soname; do \
-        case "${soname}" in \
-            ld-linux*|libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*) continue ;; \
-            libstdc++.so.*|libgcc_s.so.*|libatomic.so.*) continue ;; \
-            libcatapult.*|libextension.*) continue ;; \
-        esac; \
-        src="$(find /opt/deps -name "${soname}" \( -type f -o -type l \) -print -quit 2>/dev/null)"; \
-        if [ -z "${src}" ]; then missing="${missing} ${soname}"; continue; fi; \
-        cp -aL "${src}" /opt/catapult/deps/; \
-    done < /tmp/needed.u; \
-    if [ -n "${missing}" ]; then \
-        echo "ERROR: these SONAMEs are required by the built artifacts but were not found anywhere under /opt/deps:" >&2; \
-        for s in ${missing}; do echo "  ${s}" >&2; done; \
+    [ -s /tmp/scanned ] || { echo "ERROR: no artifacts were scanned; the build output is not what we expect" >&2; exit 1; }; \
+    if [ -s /tmp/missing ]; then \
+        echo "ERROR: these SONAMEs are required (directly or transitively) but were not found anywhere under /opt/deps:" >&2; \
+        sort -u /tmp/missing | sed 's/^/  /' >&2; \
         exit 1; \
     fi; \
-    rm -f /tmp/needed /tmp/needed.u; \
+    rm -f /tmp/scanned /tmp/missing /tmp/todo /tmp/todo.u; \
     ls -1 /opt/catapult/deps | sed 's/^/bundled: /'
 
 ############################ Stage 2: runtime ############################
