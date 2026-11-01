@@ -93,95 +93,13 @@ RUN mkdir _build && cd _build \
         -GNinja \
     && ninja -j"$(nproc)"
 
-# --- collect artifacts + runtime shared libraries into a clean tree -----------
-# Also bundle the license texts and third-party notices so the published image is
-# self-describing for LGPL-3.0 compliance (license + corresponding-source pointer).
-#
-# The bundled library set is derived from what the built artifacts ASK FOR (their ELF
-# NEEDED entries), then located wherever upstream happened to install it. Three earlier
-# shapes of this step were wrong, each for its own reason, and the comment is long
-# because every one of them failed silently or expensively:
-#
-#   1. Globbing `/opt/deps/<dep>/lib*/*.so*` assumed every dependency's libraries live in
-#      a `lib*` SUBDIRECTORY. Upstream's installDepsLocal.py passes OpenSSL `--libdir`
-#      equal to the prefix, so libcrypto.so* sits FLAT in `/opt/deps/openssl`. The glob
-#      matched nothing, `2>/dev/null || true` swallowed it, and the image shipped having
-#      never bundled OpenSSL at all — it only worked while catapult needed the same
-#      SONAME the distro's openssl provides, until the 3 -> 4 bump ended that.
-#   2. Requiring each dependency to yield at least one `.so` assumed every dependency HAS
-#      one. `google` (googletest / benchmark) is static and test-only:
-#      `/opt/deps/google/lib` holds `.a` files and cmake config and no `.so`. That turned
-#      a correct build into a failed one.
-#   3. Deriving the set from `ldd` output assumed the BUILDER can resolve these libraries.
-#      It cannot — nothing sets LD_LIBRARY_PATH there and the binaries carry no RPATH — so
-#      ldd reported "not found", the path-capturing pattern matched nothing, and the stage
-#      bundled ZERO libraries.
-#
-#   4. Reading NEEDED only from /opt/catapult/bin assumed the dependency graph is one
-#      level deep. It is not: mongo's C++ drivers (libmongocxx1, libbsoncxx1) need
-#      mongo's C drivers (libmongoc2, libbson2), which nothing in bin/ names. The bundle
-#      was therefore incomplete in a way that only shows up at load time.
-#
-# `objdump -p` reads NEEDED straight out of the ELF header, so it answers "what does this
-# object require" without needing to resolve anything. `find` then answers "where did
-# upstream put it" without us encoding a layout. The loop repeats over everything newly
-# staged until the set stops growing, so the bundle is the TRANSITIVE closure — adding a
-# library pulls in whatever that library needs too. A SONAME that cannot be located
-# anywhere is reported by name and fails the build; nothing is skipped quietly.
-#
-# Skipped on purpose: libraries the runtime stage installs from apt (libc, libstdc++,
-# libgcc_s, libatomic, …). catapult's own libcatapult.* / libextension.* are not special-
-# cased — they are already staged into bin/ above, so the "already present" test covers
-# them, which also means a renamed or relocated build output cannot slip through.
-#
-# The round cap only exists so a pathological cycle fails loudly instead of hanging a
-# 90-minute build; the closure settles in two or three rounds in practice.
-RUN set -eux; \
-    mkdir -p /opt/catapult/bin /opt/catapult/lib /opt/catapult/deps /opt/catapult/resources /opt/catapult/licenses; \
-    cp -aL _build/bin/*     /opt/catapult/bin/; \
-    cp -aL _build/lib/*.so* /opt/catapult/lib/  2>/dev/null || true; \
-    cp -aL resources/*      /opt/catapult/resources/ 2>/dev/null || true; \
-    cp -aL COPYING.LESSER   /opt/catapult/licenses/LGPL-3.0.txt; \
-    cp -aL LICENSE.txt      /opt/catapult/licenses/LICENSE.txt; \
-    cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
-    : > /tmp/scanned; \
-    : > /tmp/missing; \
-    round=0; \
-    while :; do \
-        round=$((round + 1)); \
-        [ "${round}" -le 20 ] || { echo "ERROR: dependency closure did not settle in 20 rounds" >&2; exit 1; }; \
-        : > /tmp/todo; \
-        for f in /opt/catapult/bin/* /opt/catapult/lib/* /opt/catapult/deps/*; do \
-            [ -f "${f}" ] || continue; \
-            grep -Fxq "${f}" /tmp/scanned && continue; \
-            echo "${f}" >> /tmp/scanned; \
-            objdump -p "${f}" 2>/dev/null | awk '/NEEDED/ { print $2 }' >> /tmp/todo || true; \
-        done; \
-        [ -s /tmp/todo ] || break; \
-        added=0; \
-        sort -u /tmp/todo | while read -r soname; do echo "${soname}"; done > /tmp/todo.u; \
-        while read -r soname; do \
-            case "${soname}" in \
-                ld-linux*|libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*) continue ;; \
-                libstdc++.so.*|libgcc_s.so.*|libatomic.so.*) continue ;; \
-            esac; \
-            [ -e "/opt/catapult/deps/${soname}" ] && continue; \
-            [ -e "/opt/catapult/lib/${soname}" ] && continue; \
-            [ -e "/opt/catapult/bin/${soname}" ] && continue; \
-            src="$(find /opt/deps -name "${soname}" \( -type f -o -type l \) -print -quit 2>/dev/null)"; \
-            if [ -z "${src}" ]; then echo "${soname}" >> /tmp/missing; continue; fi; \
-            cp -aL "${src}" /opt/catapult/deps/; \
-            added=$((added + 1)); \
-        done < /tmp/todo.u; \
-    done; \
-    [ -s /tmp/scanned ] || { echo "ERROR: no artifacts were scanned; the build output is not what we expect" >&2; exit 1; }; \
-    if [ -s /tmp/missing ]; then \
-        echo "ERROR: these SONAMEs are required (directly or transitively) but were not found anywhere under /opt/deps:" >&2; \
-        sort -u /tmp/missing | sed 's/^/  /' >&2; \
-        exit 1; \
-    fi; \
-    rm -f /tmp/scanned /tmp/missing /tmp/todo /tmp/todo.u; \
-    ls -1 /opt/catapult/deps | sed 's/^/bundled: /'
+# --- collect artifacts + the libraries they actually need --------------------------
+# Delegated to a script so it can be tested without compiling catapult first. Four
+# consecutive CI builds — about five and a half hours — were spent finding four separate
+# bugs in this logic, every one of them in shell that runs in under a minute. It is now
+# exercised by scripts/test-runtime-staging.sh in ~18s against the NEEDED graph those
+# builds actually recorded. See the script header for what each bug was.
+RUN bash scripts/stage-runtime-tree.sh
 
 ############################ Stage 2: runtime ############################
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
@@ -232,65 +150,13 @@ LABEL org.opencontainers.image.title="catapult-server" \
 ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps:/opt/catapult/bin
 ENV PATH=/opt/catapult/bin:$PATH
 
-# Verify the published image actually is what it claims to be. This runs in the RUNTIME
-# stage on purpose: only here do LD_LIBRARY_PATH, the distro packages installed above and
-# whatever the builder staged into /opt/catapult coexist, which is the combination no
-# earlier stage can check. Two separate failure modes are gated:
-#
-#   (1) UNRESOLVED — a binary has a shared library the image does not contain. Without
-#       this gate the build goes green and every binary exits 127 on first run (this is
-#       how `libcrypto.so.4: cannot open shared object file` shipped).
-#
-#   (2) SHADOWED — a library IS staged under /opt/catapult, but something resolves that
-#       same SONAME from elsewhere (normally /usr/lib). That silently defeats the point of
-#       a self-contained image: the binary then runs against the distro's build instead of
-#       the version upstream pins in client/catapult/CMakeLists.txt.
-#
-#       This is not hypothetical. Until the staging fix in the builder stage, OpenSSL was
-#       never copied at all — upstream's installDepsLocal.py passes `--libdir` equal to the
-#       prefix, so libcrypto.so* lands flat in /opt/deps/openssl and the old `lib*/` glob
-#       matched nothing. The image worked anyway only because catapult was built against
-#       OpenSSL 3.6.2 while `ca-certificates` pulls in Ubuntu's openssl 3.0.13 — the same
-#       SONAME, so the linker resolved it by coincidence. The 4.0.3 bump ended the
-#       coincidence. Check (1) alone would NOT have caught that era; this one does.
-#
-# Only SONAMEs we actually ship are checked, so libc / libstdc++ / libgcc_s / libatomic
-# legitimately keep resolving to the distro.
-#
-# `ldd` exits 0 even when entries are unresolved, so the greps are the real gates; its
-# stderr is discarded only because bin/ also holds non-ELF files that ldd rejects noisily.
-# Findings accumulate in a file and each loop reads from a file rather than a pipe, so
-# there is no nested command substitution and no subshell to lose state in — this check
-# gates publishing, so it is written to be obvious rather than clever.
-RUN set -eu; \
-    ls /opt/catapult/lib /opt/catapult/deps /opt/catapult/bin 2>/dev/null \
-        | grep -E '\.so' | sort -u > /tmp/shipped; \
-    echo "self-contained libraries: $(wc -l < /tmp/shipped)"; \
-    : > /tmp/problems; \
-    for f in /opt/catapult/bin/* /opt/catapult/lib/*.so* /opt/catapult/deps/*.so*; do \
-        [ -f "${f}" ] || continue; \
-        ldd "${f}" > /tmp/ldd 2>/dev/null || continue; \
-        grep 'not found' /tmp/ldd | sed "s|^[[:space:]]*|UNRESOLVED  ${f}: |" >> /tmp/problems || true; \
-        sed -n 's|^[[:space:]]*\([^[:space:]]*\.so[^[:space:]]*\) => \(/[^[:space:]]*\).*|\1 \2|p' \
-            /tmp/ldd > /tmp/links; \
-        while read -r soname path; do \
-            grep -Fxq "${soname}" /tmp/shipped || continue; \
-            case "${path}" in \
-                /opt/catapult/*) ;; \
-                *) echo "SHADOWED    ${f}: ${soname} => ${path}" >> /tmp/problems ;; \
-            esac; \
-        done < /tmp/links; \
-    done; \
-    if [ -s /tmp/problems ]; then \
-        echo 'ERROR: runtime link check failed.' >&2; \
-        echo '  UNRESOLVED = the image does not contain a library a binary needs (it would exit 127).' >&2; \
-        echo '  SHADOWED   = a bundled library lost resolution to a copy outside /opt/catapult, so the' >&2; \
-        echo '               image would run against that instead of the version upstream pins.' >&2; \
-        sed 's/^/  /' /tmp/problems >&2; \
-        exit 1; \
-    fi; \
-    rm -f /tmp/shipped /tmp/problems /tmp/ldd /tmp/links; \
-    echo "runtime link check: all binaries resolve, and every bundled library wins resolution"
+# Verify the published image actually is what it claims to be: every binary resolves, and
+# every library we bundled is the one that wins resolution. Runs in the RUNTIME stage on
+# purpose — only here do the staged tree, LD_LIBRARY_PATH and the distro's libraries
+# coexist. Same script the staging test exercises; see its header for the two failure
+# modes it gates and why the second one is not redundant.
+COPY --from=builder /src/client/catapult/scripts/verify-runtime-links.sh /tmp/verify-runtime-links.sh
+RUN sh /tmp/verify-runtime-links.sh && rm -f /tmp/verify-runtime-links.sh
 
 # Numeric USER avoids coupling to the image's default user name (ubuntu).
 USER 1000
