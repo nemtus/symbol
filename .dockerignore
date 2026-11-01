@@ -23,3 +23,14 @@ client/catapult/build
 **/.DS_Store
 **/.idea
 **/.vscode
+
+# --- cache stability -----------------------------------------------------------
+# `COPY client/catapult /src/client/catapult` sits ABOVE the ~50 minute cmake/ninja
+# layer, so its cache key — the content hash of that directory — decides whether a
+# rebuild recompiles catapult. Anything in there that the image does not actually need
+# therefore costs an hour every time it is edited. The Dockerfile itself was the worst
+# offender: editing it invalidated the compile it describes.
+#
+# The nemtus staging scripts live in .github/catapult/scripts for the same reason and are
+# copied in their own layer below the compile; only test-only material is excluded here.
+client/catapult/Dockerfile.selfcontained

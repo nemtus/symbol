@@ -97,9 +97,15 @@ RUN mkdir _build && cd _build \
 # Delegated to a script so it can be tested without compiling catapult first. Four
 # consecutive CI builds — about five and a half hours — were spent finding four separate
 # bugs in this logic, every one of them in shell that runs in under a minute. It is now
-# exercised by scripts/test-runtime-staging.sh in ~18s against the NEEDED graph those
-# builds actually recorded. See the script header for what each bug was.
-RUN bash scripts/stage-runtime-tree.sh
+# exercised by .github/catapult/scripts/test-runtime-staging.sh in ~18s against the NEEDED
+# graph those builds actually recorded. See the script header for what each bug was.
+#
+# COPIED HERE, AFTER THE COMPILE, ON PURPOSE. The scripts live outside client/catapult so
+# that editing them does not change the content of `COPY client/catapult` above — which
+# would invalidate its cache key and with it the ~50 minute cmake/ninja layer below it.
+# Every iteration on this script used to pay a full recompile for that reason.
+COPY .github/catapult/scripts/stage-runtime-tree.sh /opt/nemtus/stage-runtime-tree.sh
+RUN bash /opt/nemtus/stage-runtime-tree.sh
 
 ############################ Stage 2: runtime ############################
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
@@ -155,7 +161,7 @@ ENV PATH=/opt/catapult/bin:$PATH
 # purpose — only here do the staged tree, LD_LIBRARY_PATH and the distro's libraries
 # coexist. Same script the staging test exercises; see its header for the two failure
 # modes it gates and why the second one is not redundant.
-COPY --from=builder /src/client/catapult/scripts/verify-runtime-links.sh /tmp/verify-runtime-links.sh
+COPY .github/catapult/scripts/verify-runtime-links.sh /tmp/verify-runtime-links.sh
 RUN sh /tmp/verify-runtime-links.sh && rm -f /tmp/verify-runtime-links.sh
 
 # Numeric USER avoids coupling to the image's default user name (ubuntu).
