@@ -37,10 +37,10 @@ jobs:
   verify-rename-layer:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       - name: Re-apply rename layer and assert no drift
@@ -63,10 +63,10 @@ jobs:
       run:
         working-directory: ./sdk/javascript
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
@@ -84,10 +84,10 @@ jobs:
       run:
         working-directory: ./sdk/javascript
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
@@ -106,10 +106,10 @@ jobs:
       run:
         working-directory: ./sdk/javascript
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
@@ -130,10 +130,10 @@ jobs:
   crypto-wasm-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       - name: Install pinned Rust toolchain
@@ -160,10 +160,10 @@ jobs:
       run:
         working-directory: ./sdk/javascript
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
@@ -183,10 +183,10 @@ jobs:
       run:
         working-directory: ./sdk/javascript
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
@@ -210,10 +210,10 @@ jobs:
       run:
         working-directory: ./openapi
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
       # Socket Firewall: Free (no account/API key) via Socket's official SHA-pinned
@@ -248,7 +248,7 @@ jobs:
       run:
         working-directory: ./sdk/java
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # build.gradle.kts pins a Java 21 toolchain.
@@ -262,3 +262,65 @@ jobs:
       - run: ./gradlew --no-daemon vectors      # ... and nem
         env:
           BLOCKCHAIN: nem
+
+  # The catapult image's runtime-tree assembly and its link check, exercised WITHOUT
+  # compiling catapult. This exists because four consecutive catapult-image builds — about
+  # five and a half hours — were each spent discovering one bug in that shell, and the
+  # image build is both path-filtered and ~90 minutes, so it is a terrible place to find
+  # out. The fixture is the NEEDED graph those builds actually recorded (148 objects, 639
+  # edges), so this is not a restatement of the implementation's assumptions: three of the
+  # four bugs were caused by test data invented to match the assumption being tested.
+  #
+  # Runs on EVERY PR, unlike the image build, so an upstream dependency change that breaks
+  # the assembly surfaces on the sync PR. Takes about 20 seconds and needs no Docker.
+  catapult-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash .github/catapult/scripts/test-runtime-links.sh
+
+  # Second fast canary for the catapult image, covering what the staging test cannot: that
+  # the Dockerfile can still be GENERATED from upstream's tree at all. The image build is
+  # path-filtered and well over an hour, so it does not run on most sync PRs — which is
+  # how an upstream change to the dependency build reached a published image unnoticed.
+  #
+  # Generating takes seconds and needs no Docker, yet it exercises every assumption the
+  # build makes about upstream: that each layer fragment still has exactly one leading
+  # FROM (so the stage rewrite is valid), that versions.properties and
+  # compilers/ubuntu-gcc/Dockerfile agree on the Ubuntu release, that the compiler
+  # configuration resolves, and that no symbolplatform/* image would be pulled.
+  catapult-dockerfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # PyYAML is what upstream's configuration loader needs; apt rather than pip because
+      # Ubuntu's system python is PEP 668 externally-managed.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3-yaml
+      - name: Generate the catapult Dockerfile from upstream's layers
+        run: |
+          bash .github/scripts/gen-catapult-dockerfile.sh \
+            --out /tmp/Dockerfile.catapult --summary /tmp/catapult-inputs.md
+          # A leaked symbolplatform/* reference would mean a stage is PULLED from Docker
+          # Hub instead of built here — the one thing this image must never do.
+          if grep -q 'symbolplatform' /tmp/Dockerfile.catapult; then
+            echo "::error::generated Dockerfile references symbolplatform/*; a stage would be pulled from Docker Hub." >&2
+            grep -n 'symbolplatform' /tmp/Dockerfile.catapult >&2
+            exit 1
+          fi
+          if grep -E '^FROM ' /tmp/Dockerfile.catapult | grep -vqE '^FROM (ubuntu:[0-9.]+|compiler|preimage[123])( AS .*)?$'; then
+            echo "::error::unexpected external FROM in the generated Dockerfile:" >&2
+            grep -E '^FROM ' /tmp/Dockerfile.catapult >&2
+            exit 1
+          fi
+          grep -E '^FROM ' /tmp/Dockerfile.catapult | sed 's/^/  /'
+      - name: Report inherited values
+        run: |
+          {
+            echo '## catapult build inputs (followed from upstream)'
+            echo ''
+            cat /tmp/catapult-inputs.md
+          } >> "$GITHUB_STEP_SUMMARY"

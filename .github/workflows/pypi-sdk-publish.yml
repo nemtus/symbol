@@ -53,7 +53,7 @@ jobs:
       version: ${{ steps.decide.outputs.version }}
       upstream_tag: ${{ steps.pin.outputs.upstream_tag }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           # This workflow never pushes to git (publishing is via OIDC), so don't
@@ -117,7 +117,7 @@ jobs:
       id-token: write   # required for PyPI Trusted Publishing (OIDC)
       contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -128,7 +128,7 @@ jobs:
 
       # The rename layer also rewrites sdk/javascript/package.json via `npm pkg set`,
       # so Node must be present for the idempotent safety net to run (matches publish.yml).
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
 

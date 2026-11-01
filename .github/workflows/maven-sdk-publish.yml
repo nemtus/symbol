@@ -103,7 +103,7 @@ jobs:
       run:
         working-directory: ./sdk/java
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -113,7 +113,7 @@ jobs:
           java-version: '21'
 
       # apply-nemtus-patch.sh also rewrites sdk/javascript/package.json via `npm pkg set`.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
 
@@ -211,7 +211,7 @@ jobs:
       version: ${{ steps.decide.outputs.version }}
       upstream_tag: ${{ steps.pin.outputs.upstream_tag }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Pin the run to one commit: the dispatched ref tip. Keeps check/publish/tag
           # all on the same tree even if dev advances mid-run, matching the other
@@ -296,7 +296,7 @@ jobs:
       run:
         working-directory: ./sdk/java
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Same commit the check job evaluated (and the tag job will target).
           ref: ${{ github.sha }}
@@ -320,7 +320,7 @@ jobs:
       # even on a dispatch from a not-yet-patched tree (and re-applies what the pin above
       # just reverted). Node is needed because the same script also rewrites
       # sdk/javascript/package.json via `npm pkg set` (matches pypi-*-publish.yml).
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.x
 

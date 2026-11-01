@@ -20,10 +20,15 @@ updates:
       prefix: '[dependency]'
     # Buffer so a freshly published action release has time to surface regressions
     # before Dependabot proposes it (Socket's recommended cooldown).
+    #
+    # MUST be `default-days` only. `cooldown` itself supports github-actions, but the
+    # semver-granular keys (semver-major-days / semver-minor-days / semver-patch-days)
+    # are documented for a SUBSET of ecosystems that does NOT include github-actions.
+    # Using them here made the whole config invalid, and Dependabot then opened zero
+    # PRs for this repo — actions/checkout sat on v4.3.1 (node20, deprecated) for over a
+    # year while we believed Dependabot was keeping the pins current.
     cooldown:
-      semver-major-days: 14
-      semver-minor-days: 7
-      semver-patch-days: 3
+      default-days: 7
     groups:
       github-actions:
         patterns:

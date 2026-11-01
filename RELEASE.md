@@ -296,6 +296,64 @@ upstream `org.symbol:symbol-sdk`, which would carry the same version numbers.)
   outside the tag namespace; see "Upstream tag archive" below.)
 - Do not tag the non-published `client/rest`.
 
+## Container images: security rebuilds
+
+`ghcr.io/nemtus/catapult-server` and `ghcr.io/nemtus/symbol-rest` are built from upstream
+release tags (`client/catapult/v*`, `rest/v*`) by pushing a `catapult-image-v*` /
+`rest-image-v*` tag here. Upstream releases these components rarely, which creates a
+problem the npm/PyPI packages do not have:
+
+> **A published image rots even when upstream ships nothing.** Its baked `ubuntu:24.04`
+> and NodeSource layers stop receiving patches the moment it is built. An image sitting
+> at the same version for months accumulates unpatched OS CVEs with no upstream release
+> to trigger a rebuild.
+
+So both image workflows accept a **security rebuild** dispatch:
+
+```sh
+gh workflow run rest-image.yml     --ref dev -f push=true -f release_tag=rest-image-v2.5.1
+gh workflow run catapult-image.yml --ref dev -f push=true -f release_tag=catapult-image-v1.0.3.9
+```
+
+This checks out **that tag** — byte-identical upstream source — and rebuilds it, so the
+Dockerfile's `apt-get update && apt-get upgrade -y` picks up everything published since.
+**Zero divergence from upstream**: only the base layers move. (The workflow logic itself
+comes from the dispatched ref, so you get current build/publish logic with the released
+source.)
+
+> **A security rebuild is forced to `--no-cache`, and this is load-bearing.** The whole
+> point is to rebuild source that has NOT changed — which is exactly the condition under
+> which every layer, `apt-get update && apt-get install` included, is a cache hit. With
+> the cache on, rebuilding `catapult-image-v1.0.3.9` would reproduce the identical image
+> and apply no patches whatsoever, while reporting success. Passing `release_tag`
+> therefore switches the build to `--no-cache`; a normal release keeps the cache, since
+> its source differs and the layers that matter rebuild anyway.
+>
+> Both image builds also pass `--pull` unconditionally. Without it buildx may reuse an
+> already-resolved `ubuntu:<X>` instead of re-checking the registry, which would pin the
+> image to whatever base was seen first rather than tracking it — silently defeating the
+> same goal.
+
+### What the tags do
+
+| tag | behaviour | why |
+| --- | --- | --- |
+| `:v2.5.1` | **moves** to the rebuild | This is what `versions.env` in `nemtus/symbol-networks` pins, so `docker compose pull` downstream picks the patched image up with **no cross-repo change**. Moving a version tag to a patched rebuild of identical source is the container-ecosystem norm (official images do it); the immutable identifier is the digest. |
+| `:latest` | **moves** | same as a normal release |
+| `:v2.5.1-YYYYMMDD` | **new, never moves** | permanent handle for this exact rebuild, so "which base did v2.5.1 have in October" stays answerable |
+| `:sha-<sha>` | moves | same commit, newest build of it |
+
+The dated tag is deliberately invisible to `upstream-release-watch.yml`: that workflow
+filters tags through `^[0-9]+(\.[0-9]+)*$` after stripping the prefix, so `2.5.1-20261031`
+is dropped and cannot trip its upstream/image/pin comparisons or its MISCONFIG error.
+`versions.env` needs no change either.
+
+### Dispatch without `release_tag`
+
+Publishes **only** `:sha-<sha>`. This is a guard, not a limitation: dispatching from `dev`
+used to tag the image `:dev` **and move `:latest`** to an unreleased build, because the tag
+logic assumed `github.ref_name` was always a release tag.
+
 ## Upstream tag archive
 
 Every upstream `symbol/symbol` tag is mirrored into this fork's
