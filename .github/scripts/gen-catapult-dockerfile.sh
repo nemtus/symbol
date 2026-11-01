@@ -106,7 +106,16 @@ done
 # The compiler Dockerfile hardcodes its own `FROM ubuntu:X`. If that ever disagrees with
 # versions.properties, the runtime stage would be built on a different release than the
 # binaries — a silent ABI mismatch. Fail instead of guessing which one is right.
-compiler_from_ubuntu="$(sed -n '1s|^FROM ubuntu:\(.*\)$|\1|p' "${compiler_dockerfile}")"
+# Located by pattern, not by line number. The v1.0.3.9 tag's copy opens with a comment
+# ("# use Ubuntu 25.10 to get gcc 14/15…") and has FROM on line 2, so assuming line 1
+# broke security rebuilds of already-released tags — the one case where this script is
+# pointed at an OLDER upstream tree than the one it was written against.
+compiler_from_line="$(grep -n '^FROM ubuntu:' "${compiler_dockerfile}" | head -n1 | cut -d: -f1)"
+if [ -z "${compiler_from_line}" ]; then
+	echo "::error::no 'FROM ubuntu:<version>' line found in ${compiler_dockerfile}." >&2
+	exit 1
+fi
+compiler_from_ubuntu="$(sed -n "${compiler_from_line}s|^FROM ubuntu:\(.*\)$|\1|p" "${compiler_dockerfile}")"
 if [ "${compiler_from_ubuntu}" != "${ubuntu_version}" ]; then
 	echo "::error::upstream disagrees with itself: ${compiler_dockerfile} is FROM ubuntu:${compiler_from_ubuntu} but versions.properties says ubuntu = ${ubuntu_version}. Resolve before building; picking either silently risks a libstdc++ ABI mismatch between the build and runtime stages." >&2
 	exit 1
@@ -169,10 +178,10 @@ EOF
 	# compiler definition. The ARG must come before the RUNs that consume it, and
 	# upstream declares it mid-file, so re-declaring it here would be too late —
 	# rewrite the existing declaration instead.
-	awk -v ver="${compiler_version}" '
-		NR == 1            { print $0 " AS compiler"; next }
-		/^ARG COMPILER_VERSION=/ { print "ARG COMPILER_VERSION=" ver; next }
-		                   { print }
+	awk -v ver="${compiler_version}" -v fromline="${compiler_from_line}" '
+		NR == fromline            { print $0 " AS compiler"; next }
+		/^ARG COMPILER_VERSION=/  { print "ARG COMPILER_VERSION=" ver; next }
+		                          { print }
 	' "${compiler_dockerfile}"
 
 	printf '\n################### Stage 2: os packages (upstream, generated) ###################\n'
