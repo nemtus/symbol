@@ -220,34 +220,62 @@ RUN cd /src && git init -q -b dev \
 # BOOST_ROOT and OPENSSL_ROOT_DIR are upstream's own install locations from stages 3 and
 # 4, not nemtus choices. USE_CONAN defaults to OFF, so this is the manual build path with
 # no conan remote.
-RUN mkdir _build && cd _build \
-    && BOOST_ROOT=/mybuild cmake .. \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DOPENSSL_ROOT_DIR=/usr/catapult/deps \
-        -GNinja \
-    && ninja -j"$(nproc)"
-
-# --- collect artifacts + the libraries they actually need --------------------------
-# Delegated to the same script the non-generated path uses, so there is one definition
-# and one test. It derives the bundled set from the artifacts' own ELF NEEDED entries,
-# transitively, and locates each wherever upstream installed it — which matters here
-# because upstream spreads dependencies across /usr/catapult/deps (OpenSSL), /mybuild
-# (boost) and /usr (mongo, zeromq, rocksdb), and that last one interleaves with the
-# distro's own libraries. See the script header: five separate bugs came from trying to
-# encode those locations instead of asking.
+# --- build + stage, BY UPSTREAM'S OWN SCRIPT ---------------------------------------
+# runDockerBuildInnerBuild.py is what upstream runs to build catapult: it sets BOOST_ROOT
+# and GTEST_ROOT, derives the whole cmake command line from the two configuration files,
+# runs ninja and `ninja install`, and then copies the runtime dependencies into
+# <out>/deps. Calling it means none of those decisions are re-derived here.
 #
-# Copied in its own layer AFTER the compile so editing it does not invalidate the compile.
-COPY .github/catapult/scripts/stage-runtime-tree.sh /opt/nemtus/stage-runtime-tree.sh
-# Upstream's three install locations, all passed explicitly: OpenSSL goes to
-# /usr/catapult/deps (flat, --libdir equals the prefix), boost to /mybuild, and
-# mongo/zeromq/rocksdb to /usr via -DCMAKE_INSTALL_PREFIX. That last one puts
-# dependencies in the SYSTEM library path, which is why the script decides what is
-# distro-provided by package OWNERSHIP (dpkg) rather than by location.
-RUN bash /opt/nemtus/stage-runtime-tree.sh \
-        --deps-dir /usr/catapult/deps \
-        --deps-dir /mybuild \
-        --deps-dir /usr/lib/x86_64-linux-gnu \
-        --deps-dir /usr/lib
+# Everything nemtus previously hand-wrote in this stage was wrong in some way that only
+# showed up after a 90-minute build:
+#
+#   - The cmake invocation. Upstream passes -DENABLE_TESTS=OFF for a release, so GTest is
+#     never needed; ours omitted that and failed with "Could NOT find GTest". It also
+#     passes -DARCHITECTURE_NAME (which is how -march is set), plus
+#     CATAPULT_BUILD_RELEASE / CATAPULT_BUILD_RELEASE_PUBLIC. Our nemtus architecture
+#     choice reaches it as -DARCHITECTURE_NAME=<arch> with no extra wiring.
+#   - The dependency staging. Upstream's copy_dependencies already knows the exact set,
+#     including libbson2 / libmongoc2 (mongo's C drivers, named by nothing in bin/),
+#     snappy and gflags (rocksdb's), OpenSSL's flat libdir — and `ossl-modules`, the
+#     OpenSSL 4 provider directory, which is loaded by dlopen and so appears in NO ELF
+#     NEEDED entry. A SONAME-based reimplementation cannot find it even in principle, and
+#     an OpenSSL 4 build without its providers is a plausible cause of the SIGSEGV that
+#     ended the hand-written path.
+#
+# `release-public` is upstream's own build configuration for a public release
+# (disposition: public, use_conan: false, enable_diagnostics: false).
+#
+# PyYAML is what upstream's configuration loader needs. Installed at upstream's pinned
+# version from jenkins/catapult/requirements.txt rather than from the distro, and with
+# --break-system-packages because Ubuntu's system python is PEP 668 externally-managed.
+# conan is in that file too but is not installed: use_conan is false here.
+USER root
+COPY jenkins/catapult /src/jenkins/catapult
+# The compiler configuration resolves its `compiler:` path relative to its own
+# grandparent directory, so it must sit at /src/.github/catapult for
+# ../jenkins/catapult/compilers/gcc-latest.yaml to land on the copy above.
+COPY .github/catapult/compiler-amd64.yaml /src/.github/catapult/compiler-amd64.yaml
+RUN python3 -m pip install --break-system-packages --no-cache-dir \
+        "$(grep -E '^PyYAML==' /src/jenkins/catapult/requirements.txt)"
+
+RUN PYTHONPATH=/src/jenkins/catapult python3 /src/jenkins/catapult/runDockerBuildInnerBuild.py \
+        --compiler-configuration /src/.github/catapult/compiler-amd64.yaml \
+        --build-configuration /src/jenkins/catapult/configurations/release-public.yaml \
+        --source-path /src/client/catapult \
+        --out-dir /opt/catapult
+
+# LGPL-3.0 redistribution material. Not part of upstream's install target — upstream does
+# not redistribute this image, nemtus does — so it is added here rather than re-derived
+# inside upstream's script. The scope report was written before the build (above) and is
+# already in place.
+RUN set -eu; \
+    cd /src/client/catapult; \
+    cp -aL COPYING.LESSER /opt/catapult/licenses/LGPL-3.0.txt; \
+    cp -aL LICENSE.txt /opt/catapult/licenses/LICENSE.txt; \
+    cp -aL THIRD_PARTY_NOTICES.md /opt/catapult/licenses/THIRD_PARTY_NOTICES.md; \
+    ls -1 /opt/catapult; \
+    ls -1 /opt/catapult/deps | sed 's/^/dep: /'
+
 BUILDER
 
 	cat <<EOF
@@ -288,7 +316,20 @@ LABEL org.opencontainers.image.title="catapult-server" \
       org.opencontainers.image.licenses="LGPL-3.0-or-later" \
       org.opencontainers.image.documentation="https://github.com/nemtus/symbol/blob/dev/client/catapult/docs/PUBLISHING-COMPLIANCE.md"
 
+# Both values are upstream's own, from runDockerBuild.py's image `--change` arguments:
+#   ENV LD_LIBRARY_PATH="<home>/lib:<home>/deps"
+#   ENV OPENSSL_MODULES="<home>/deps/ossl-modules"
+#
+# Note bin/ is deliberately NOT on the library path. The hand-written build needed it
+# there because `cp -aL _build/bin/*` dumped catapult's plugin shared objects in with the
+# executables; upstream's `ninja install` puts them in lib/, where they belong.
+#
+# OPENSSL_MODULES is the one that was missing entirely. OpenSSL 4 delegates algorithms to
+# provider modules loaded by dlopen, so they appear in no ELF NEEDED entry and a
+# SONAME-based dependency scan cannot discover them. An OpenSSL 4 build whose providers
+# are absent is a plausible cause of the SIGSEGV the hand-written path ended on.
 ENV LD_LIBRARY_PATH=/opt/catapult/lib:/opt/catapult/deps
+ENV OPENSSL_MODULES=/opt/catapult/deps/ossl-modules
 ENV PATH=/opt/catapult/bin:$PATH
 
 # Verify the published image actually is what it claims to be: every binary resolves, and
