@@ -42,17 +42,22 @@
 set -eu
 
 build_dir=_build
-deps_dir=/opt/deps
+deps_dirs=''
 dest=/opt/catapult
 
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 		--build-dir) build_dir="$2"; shift 2 ;;
-		--deps-dir) deps_dir="$2"; shift 2 ;;
+		# Repeatable: upstream spreads dependencies over several prefixes (OpenSSL in
+		# /usr/catapult/deps, boost in /mybuild, mongo/zeromq/rocksdb in /usr), so a
+		# single search root is not enough.
+		--deps-dir) deps_dirs="${deps_dirs} $2"; shift 2 ;;
 		--dest) dest="$2"; shift 2 ;;
 		*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
+
+[ -n "${deps_dirs}" ] || deps_dirs=/opt/deps
 
 work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
@@ -78,31 +83,46 @@ cp -aL THIRD_PARTY_NOTICES.md "${dest}/licenses/THIRD_PARTY_NOTICES.md"
 # SONAMEs the base image's own packages provide. Bundling these would shadow the distro's,
 # which is the opposite of what we want.
 #
-# ASKED OF THE LOADER, NOT HAND-LISTED. A hand-written list was the fifth bug in this
-# step: glibc alone ships libc, libm, libdl, librt, libpthread, libresolv, libnss_* and
-# more, and the one that was missing — libresolv.so.2, pulled in transitively — turned a
-# correct build into a failure after an hour. Enumerating another project's package
-# contents by hand is the same mistake as hardcoding its install layout.
+# DECIDED BY PACKAGE OWNERSHIP, NOT BY NAME AND NOT BY LOCATION. Two earlier shapes of
+# this test were wrong:
 #
-# Paths under /opt are excluded so a dependency prefix that ever lands in the loader cache
-# cannot mask itself as distro-provided.
-ldconfig -p 2>/dev/null \
-	| sed -n 's|^[[:space:]]*\([^[:space:]]*\.so[^[:space:]]*\).*=> \(/[^[:space:]]*\)$|\1 \2|p' \
-	| while read -r so path; do
-		case "${path}" in /opt/*) ;; *) echo "${so}" ;; esac
-	done | sort -u > "${work}/distro"
-
-# If ldconfig gives us nothing, every SONAME looks un-provided and the loop below would
-# try to bundle libc itself out of /opt/deps — failing confusingly, or worse succeeding.
-if [ ! -s "${work}/distro" ]; then
-	echo "ERROR: ldconfig -p reported no shared libraries, so the set of distro-provided" >&2
-	echo "       SONAMEs cannot be determined. Refusing to guess." >&2
+#   - A hand-written name list. glibc alone ships libc, libm, libdl, librt, libpthread,
+#     libresolv, libnss_*, libanl … and the one that was missing — libresolv.so.2,
+#     reached transitively through mongo's C driver — failed a correct build after an
+#     hour. Enumerating another project's package contents by hand is the same mistake as
+#     hardcoding its install layout.
+#   - `ldconfig -p`. Better, but it answers "is this on the loader path", which is not the
+#     same question. Upstream installs mongo, zeromq and rocksdb with
+#     `-DCMAKE_INSTALL_PREFIX=/usr`, i.e. INTO the system library path, so those would be
+#     classified as distro-provided and silently left out of the image.
+#
+# `dpkg -S` answers the actual question: does a package own this file? A dependency built
+# from source does not, wherever it was installed. That makes the test independent of
+# both naming and layout, which is the property every earlier version lacked.
+# Overridable so the test can exercise the "ownership unavailable" path without needing
+# a PATH that has a shell but no dpkg.
+DPKG="${DPKG:-dpkg}"
+if ! command -v "${DPKG}" >/dev/null 2>&1; then
+	echo "ERROR: dpkg is unavailable, so package ownership cannot be determined." >&2
+	echo "       Refusing to guess which libraries the base image provides." >&2
 	exit 1
 fi
-echo "distro-provided libraries: $(wc -l < "${work}/distro" | tr -d ' ')"
 
+# Memoised: dpkg -S is a database lookup and the same SONAME recurs across 148 objects.
 is_distro_provided() {
-	grep -Fxq "$1" "${work}/distro"
+	_soname="$1"
+	if grep -Fxq "${_soname}" "${work}/distro" 2>/dev/null; then return 0; fi
+	if grep -Fxq "${_soname}" "${work}/not-distro" 2>/dev/null; then return 1; fi
+
+	# Resolve the SONAME to a path the way the loader would, then ask who owns it.
+	_path="$(ldconfig -p 2>/dev/null \
+		| sed -n "s|^[[:space:]]*${_soname} .*=> \(/[^[:space:]]*\)$|\1|p" | head -n1)"
+	if [ -n "${_path}" ] && "${DPKG}" -S "${_path}" >/dev/null 2>&1; then
+		echo "${_soname}" >> "${work}/distro"
+		return 0
+	fi
+	echo "${_soname}" >> "${work}/not-distro"
+	return 1
 }
 
 # Already in the tree? Covers both previously staged dependencies and catapult's own
@@ -139,7 +159,12 @@ while :; do
 	while read -r soname; do
 		is_distro_provided "${soname}" && continue
 		already_present "${soname}" && continue
-		src="$(find "${deps_dir}" -name "${soname}" \( -type f -o -type l \) -print -quit 2>/dev/null)"
+		src=''
+		for d in ${deps_dirs}; do
+			[ -d "${d}" ] || continue
+			src="$(find "${d}" -name "${soname}" \( -type f -o -type l \) -print -quit 2>/dev/null)"
+			[ -n "${src}" ] && break
+		done
 		if [ -z "${src}" ]; then
 			echo "${soname}" >> "${work}/missing"
 			continue
@@ -167,10 +192,11 @@ if [ ! -s "${work}/seen-needed" ]; then
 fi
 
 if [ -s "${work}/missing" ]; then
-	echo "ERROR: these SONAMEs are required (directly or transitively) but were not found anywhere under ${deps_dir}:" >&2
+	echo "ERROR: these SONAMEs are required (directly or transitively) but were not found under any of:${deps_dirs}" >&2
 	sort -u "${work}/missing" | sed 's/^/  /' >&2
 	exit 1
 fi
 
 ls -1 "${dest}/deps" | sed 's/^/bundled: /'
+echo "classified $(wc -l < "${work}/distro" 2>/dev/null | tr -d ' ') SONAMEs as distro-provided (dpkg-owned)"
 echo "staged $(ls -1 "${dest}/bin" | wc -l | tr -d ' ') artifacts and $(ls -1 "${dest}/deps" | wc -l | tr -d ' ') bundled libraries"

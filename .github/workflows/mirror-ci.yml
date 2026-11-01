@@ -280,3 +280,47 @@ jobs:
         with:
           persist-credentials: false
       - run: bash .github/catapult/scripts/test-runtime-staging.sh
+
+  # Second fast canary for the catapult image, covering what the staging test cannot: that
+  # the Dockerfile can still be GENERATED from upstream's tree at all. The image build is
+  # path-filtered and well over an hour, so it does not run on most sync PRs — which is
+  # how an upstream change to the dependency build reached a published image unnoticed.
+  #
+  # Generating takes seconds and needs no Docker, yet it exercises every assumption the
+  # build makes about upstream: that each layer fragment still has exactly one leading
+  # FROM (so the stage rewrite is valid), that versions.properties and
+  # compilers/ubuntu-gcc/Dockerfile agree on the Ubuntu release, that the compiler
+  # configuration resolves, and that no symbolplatform/* image would be pulled.
+  catapult-dockerfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # PyYAML is what upstream's configuration loader needs; apt rather than pip because
+      # Ubuntu's system python is PEP 668 externally-managed.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3-yaml
+      - name: Generate the catapult Dockerfile from upstream's layers
+        run: |
+          bash .github/scripts/gen-catapult-dockerfile.sh \
+            --out /tmp/Dockerfile.catapult --summary /tmp/catapult-inputs.md
+          # A leaked symbolplatform/* reference would mean a stage is PULLED from Docker
+          # Hub instead of built here — the one thing this image must never do.
+          if grep -q 'symbolplatform' /tmp/Dockerfile.catapult; then
+            echo "::error::generated Dockerfile references symbolplatform/*; a stage would be pulled from Docker Hub." >&2
+            grep -n 'symbolplatform' /tmp/Dockerfile.catapult >&2
+            exit 1
+          fi
+          if grep -E '^FROM ' /tmp/Dockerfile.catapult | grep -vqE '^FROM (ubuntu:[0-9.]+|compiler|preimage[123])( AS .*)?$'; then
+            echo "::error::unexpected external FROM in the generated Dockerfile:" >&2
+            grep -E '^FROM ' /tmp/Dockerfile.catapult >&2
+            exit 1
+          fi
+          grep -E '^FROM ' /tmp/Dockerfile.catapult | sed 's/^/  /'
+      - name: Report inherited values
+        run: |
+          {
+            echo '## catapult build inputs (followed from upstream)'
+            echo ''
+            cat /tmp/catapult-inputs.md
+          } >> "$GITHUB_STEP_SUMMARY"

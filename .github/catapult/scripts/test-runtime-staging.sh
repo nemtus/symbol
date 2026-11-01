@@ -102,6 +102,28 @@ cat <<'LIBS'
 LIBS
 EOS
 	chmod +x "${root}/stub/ldconfig"
+
+	# dpkg stub: ownership is the real question — does a PACKAGE own this file? Only the
+	# base image's own libraries do. Anything built from source does not, wherever it was
+	# installed, which is what makes this independent of layout. Upstream installs mongo,
+	# zeromq and rocksdb into /usr, so a location-based test would misclassify those.
+	cat > "${root}/stub/dpkg" <<'EOS'
+#!/bin/sh
+# dpkg -S <path>
+[ "$1" = "-S" ] || exit 1
+case "$2" in
+  /lib/x86_64-linux-gnu/libc.so.6|/lib/x86_64-linux-gnu/libm.so.6|\
+  /lib/x86_64-linux-gnu/libresolv.so.2|/lib/x86_64-linux-gnu/libpthread.so.0|\
+  /lib/x86_64-linux-gnu/libdl.so.2|/lib/x86_64-linux-gnu/librt.so.1)
+      echo "libc6:amd64: $2"; exit 0 ;;
+  /lib/x86_64-linux-gnu/libstdc++.so.6) echo "libstdc++6:amd64: $2"; exit 0 ;;
+  /lib/x86_64-linux-gnu/libgcc_s.so.1) echo "libgcc-s1:amd64: $2"; exit 0 ;;
+  /lib/x86_64-linux-gnu/libatomic.so.1) echo "libatomic1:amd64: $2"; exit 0 ;;
+esac
+echo "dpkg-query: no path found matching pattern $2" >&2
+exit 1
+EOS
+	chmod +x "${root}/stub/dpkg"
 }
 
 # ldd stub: resolve every recorded edge the way the runtime image would, i.e. out of the
@@ -124,7 +146,8 @@ EOS
 
 stage() {
 	local root="$1"; shift
-	( cd "${root}/src" && PATH="${root}/stub:${PATH}" sh "${script_dir}/stage-runtime-tree.sh" \
+	( cd "${root}/src" && PATH="${root}/stub:${PATH}" DPKG="${DPKG:-dpkg}" \
+		sh "${script_dir}/stage-runtime-tree.sh" \
 		--deps-dir "${root}/opt/deps" --dest "${root}/opt/catapult" "$@" )
 }
 
@@ -273,20 +296,38 @@ else
 		|| { bad "link check failed without reporting SHADOWED"; printf '%s\n' "${out}" | sed 's/^/    /'; }
 fi
 
-# ---------------------------------- staging: ldconfig yields nothing (attempt 5's shape)
-# Without a distro set, every SONAME looks un-provided and the loop would try to bundle
-# libc itself out of /opt/deps. Refusing to guess is the only safe answer.
+# --------------------------------------------- staging: dpkg unavailable must fail
+# Without package ownership there is no way to tell a base-image library from a dependency,
+# and the loop would try to bundle libc itself out of the dependency prefixes.
 t6="$(mktemp -d)"; make_sandbox "${t6}"
-printf '#!/bin/sh\nexit 0\n' > "${t6}/stub/ldconfig"; chmod +x "${t6}/stub/ldconfig"
-if out="$(stage "${t6}" 2>&1)"; then
-	bad "staging should fail when the distro-provided set cannot be determined"
+if out="$(DPKG=/nonexistent/dpkg stage "${t6}" 2>&1)"; then
+	bad "staging should fail when dpkg is unavailable"
 else
-	printf '%s\n' "${out}" | grep -q 'ldconfig' \
-		&& ok "an undeterminable distro set is treated as a failure" \
-		|| { bad "staging failed but not because of ldconfig"; printf '%s\n' "${out}" | sed 's/^/    /'; }
+	printf '%s\n' "${out}" | grep -q 'dpkg' \
+		&& ok "missing package ownership information is treated as a failure" \
+		|| { bad "staging failed but not because of dpkg"; printf '%s\n' "${out}" | sed 's/^/    /'; }
 fi
 
-rm -rf "${t}" "${t2}" "${t3}" "${t4}" "${t5}" "${t6}"
+# -------------------- staging: a dependency installed into /usr must still be bundled
+# This is what broke the ldconfig-based test: upstream builds mongo, zeromq and rocksdb
+# with -DCMAKE_INSTALL_PREFIX=/usr, so they sit in the SYSTEM library path while belonging
+# to no package. Location says "distro"; ownership says "ours". Ownership is right.
+t7="$(mktemp -d)"; make_sandbox "${t7}"
+mkdir -p "${t7}/usr/lib"
+mv "${t7}/opt/deps/zeromq/lib/libzmq.so.5" "${t7}/usr/lib/libzmq.so.5"
+if out="$(( cd "${t7}/src" && PATH="${t7}/stub:${PATH}" sh "${script_dir}/stage-runtime-tree.sh" \
+		--deps-dir "${t7}/opt/deps" --deps-dir "${t7}/usr/lib" \
+		--dest "${t7}/opt/catapult" ) 2>&1)"; then
+	if [ -e "${t7}/opt/catapult/deps/libzmq.so.5" ]; then
+		ok "a dependency installed into a system path is still bundled (ownership, not location)"
+	else
+		bad "libzmq.so.5 in /usr/lib was treated as distro-provided and skipped"
+	fi
+else
+	bad "staging failed with a dependency in /usr/lib"; printf '%s\n' "${out}" | sed 's/^/    /'
+fi
+
+rm -rf "${t}" "${t2}" "${t3}" "${t4}" "${t5}" "${t6}" "${t7}"
 
 printf '\n%s passed, %s failed\n' "${pass}" "${fail}"
 [ "${fail}" = 0 ]

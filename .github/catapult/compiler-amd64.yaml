@@ -1,0 +1,43 @@
+# nemtus-owned compiler configuration for the catapult-server image build.
+#
+# WHY THIS FILE EXISTS AT ALL
+# ---------------------------
+# jenkins/catapult/baseImageDockerfileGenerator.py needs a "compiler configuration":
+# a compiler definition plus a target architecture. Upstream ships several under
+# jenkins/catapult/configurations/amd64/, but every one of them pins an architecture
+# we do not want (see below), and that directory is upstream's tree — editing it there
+# would be reverted by the next mirror sync. So nemtus owns exactly this file, and
+# nothing else about the dependency build.
+#
+# `compiler:` DELIBERATELY POINTS AT UPSTREAM
+# -------------------------------------------
+# It references upstream's own compiler definition, so the compiler family, version
+# (gcc 16 today) and STL settings keep tracking upstream with no action from us. The
+# path is resolved by configuration.py as
+#   dirname(dirname(this file)) / <compiler value>
+# i.e. relative to .github/, which is why it starts with `../`.
+#
+# `architecture:` IS THE ONE VALUE NEMTUS FIXES
+# ---------------------------------------------
+# It is passed straight through to the compiler as `-march=<architecture>`.
+#
+# Upstream's amd64 configurations offer only `skylake` (2015+) or `westmere` (2010+);
+# there is no generic option, and upstream stopped publishing westmere images after
+# 1.0.3.6. catapult itself needs NEITHER: its sources contain no CPU intrinsics and no
+# -march references, so this is purely an optimization choice.
+#
+# We pin the generic baseline because:
+#   - The currently published ghcr.io/nemtus/catapult-server passes no -march at all,
+#     so x86-64 keeps the image running on exactly the hardware it runs on today.
+#     Adopting skylake would SIGILL on pre-2015 CPUs — a hard outage for a node, and a
+#     regression introduced by us, not inherited from upstream.
+#   - nemtus targets small machines (up to and including single-board hosts), not only
+#     datacenter CPUs, so compatibility outranks autovectorization here.
+#   - The gain is smaller than it looks: OpenSSL and RocksDB pick AES-NI / SHA-NI /
+#     CRC32C via runtime CPUID dispatch regardless of -march, so -march only affects
+#     autovectorization of ordinary scalar code.
+#
+# Raising this later is a one-line change, and should be driven by a benchmark rather
+# than by matching upstream's default.
+compiler: ../jenkins/catapult/compilers/gcc-latest.yaml
+architecture: x86-64
