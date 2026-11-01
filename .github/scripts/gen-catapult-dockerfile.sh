@@ -347,6 +347,14 @@ ENV PATH=/opt/catapult/bin:$PATH
 # redundant with the first.
 COPY .github/catapult/scripts/verify-runtime-links.sh /tmp/verify-runtime-links.sh
 RUN sh /tmp/verify-runtime-links.sh && rm -f /tmp/verify-runtime-links.sh
+
+# Then actually run a binary. The check above is static — it reads NEEDED entries — so it
+# cannot see a dependency loaded by dlopen, and OpenSSL 4's provider modules are loaded
+# exactly that way. Running addressgen is what catches a missing ossl-modules, and it has
+# to happen here rather than in a workflow step: the step of the same name is gated on
+# `push != 'true'`, so it never ran on the builds that ship. See the script's header.
+COPY .github/catapult/scripts/smoke-test.sh /tmp/smoke-test.sh
+RUN sh /tmp/smoke-test.sh && rm -f /tmp/smoke-test.sh
 RUNTIME
 }
 

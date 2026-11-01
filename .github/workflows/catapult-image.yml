@@ -206,6 +206,19 @@ jobs:
             grep -E '^FROM ' /tmp/Dockerfile.catapult >&2
             exit 1
           fi
+          # Every COPY source has to exist in the tree being built. BuildKit would catch
+          # this too, but only an hour into the build, and only on the builds that reach
+          # it — whereas this is the failure mode that killed the first rebuild of
+          # catapult-image-v1.0.3.9 (a script the released tag did not contain). Cheap to
+          # assert here, where the answer is already known.
+          missing=0
+          for src in $(grep -oE '^COPY [^ -][^ ]*' /tmp/Dockerfile.catapult | awk '{print $2}' | sort -u); do
+            if [ ! -e "${src}" ]; then
+              echo "::error::generated Dockerfile COPYs ${src}, which does not exist in this tree." >&2
+              missing=1
+            fi
+          done
+          [ "${missing}" = 0 ] || exit 1
           {
             echo "## catapult image build inputs"
             echo ''
@@ -289,6 +302,11 @@ jobs:
             --load \
             .
 
+      # Secondary check only. The authoritative smoke test is a RUN in the runtime stage
+      # (.github/catapult/scripts/smoke-test.sh), so it gates every build including the ones
+      # that publish; this step previously carried that job alone and, being gated on
+      # `push != 'true'`, never ran on a build that shipped. What it still adds is a run
+      # through the image's real entrypoint and env, from outside BuildKit.
       - name: Smoke test (toolchain runs)
         if: steps.meta.outputs.push != 'true'
         run: |
