@@ -109,8 +109,12 @@ jobs:
       - name: Build (verify, no push)
         run: |
           sha="$(git rev-parse --short HEAD)"
+          # --pull: without it buildx may reuse an already-resolved `ubuntu:<X>` rather
+          # than re-checking the registry, which would silently pin this image to
+          # whatever base was seen first instead of tracking it.
           docker buildx build \
             -f client/rest/Dockerfile.nemtus \
+            --pull \
             --build-arg "VCS_REF=${sha}" \
             --build-arg "IMAGE_VERSION=${{ github.ref_name }}" \
             --cache-from "type=registry,ref=${IMAGE}:buildcache" \
@@ -189,14 +193,28 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+      # A SECURITY REBUILD MUST NOT USE THE CACHE. Its purpose is to pick up base image
+      # and OS/Node package updates for source that has not changed — and "source has not
+      # changed" is precisely when every layer, including the apt and NodeSource installs,
+      # is a cache hit. With the cache on, a rebuild of rest-image-v2.5.1 would reproduce
+      # the identical image and apply no patches, while reporting success.
+      #
+      # A normal release keeps the cache: its source differs, so the layers that matter
+      # rebuild anyway, and --pull still re-resolves the base image.
       - name: Build and publish (GHCR)
         run: |
+          cache_args='--cache-from type=registry,ref='"${IMAGE}"':buildcache --cache-to type=registry,ref='"${IMAGE}"':buildcache,mode=max'
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            echo "::notice::security rebuild of ${{ inputs.release_tag }} — building with --no-cache so base image and OS updates are actually applied."
+            cache_args='--no-cache'
+          fi
+          # shellcheck disable=SC2086  # cache_args is a deliberate word-split argument list
           docker buildx build \
             -f client/rest/Dockerfile.nemtus \
+            --pull \
+            ${cache_args} \
             --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
             --build-arg "IMAGE_VERSION=${{ steps.meta.outputs.version || format('sha-{0}', steps.meta.outputs.vcs_ref) }}" \
-            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
-            --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
             --provenance=true --sbom=true \
             --metadata-file /tmp/build-meta.json \
             $(printf -- '-t %s ' $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' ')) \

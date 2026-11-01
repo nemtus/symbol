@@ -321,6 +321,19 @@ Dockerfile's `apt-get update && apt-get upgrade -y` picks up everything publishe
 comes from the dispatched ref, so you get current build/publish logic with the released
 source.)
 
+> **A security rebuild is forced to `--no-cache`, and this is load-bearing.** The whole
+> point is to rebuild source that has NOT changed — which is exactly the condition under
+> which every layer, `apt-get update && apt-get install` included, is a cache hit. With
+> the cache on, rebuilding `catapult-image-v1.0.3.9` would reproduce the identical image
+> and apply no patches whatsoever, while reporting success. Passing `release_tag`
+> therefore switches the build to `--no-cache`; a normal release keeps the cache, since
+> its source differs and the layers that matter rebuild anyway.
+>
+> Both image builds also pass `--pull` unconditionally. Without it buildx may reuse an
+> already-resolved `ubuntu:<X>` instead of re-checking the registry, which would pin the
+> image to whatever base was seen first rather than tracking it — silently defeating the
+> same goal.
+
 ### What the tags do
 
 | tag | behaviour | why |

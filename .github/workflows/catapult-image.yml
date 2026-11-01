@@ -185,11 +185,17 @@ jobs:
       # path reads. The publish job keeps using `type=registry,ref=…:buildcache`
       # exclusively, so its supply-chain posture is unchanged — a PR still cannot place
       # bytes into the cache a released image is built from.
+      #
+      # `--pull` on every build: without it buildx may reuse an already-resolved
+      # `ubuntu:<X>` instead of re-checking the registry, so a build could silently keep
+      # using a superseded base image. Cheap (a manifest HEAD when unchanged) and it is
+      # the difference between tracking the base and pinning to whatever was seen first.
       - name: Build (verify, no push)
         if: steps.meta.outputs.push != 'true'
         run: |
           docker buildx build \
             -f client/catapult/Dockerfile.selfcontained \
+            --pull \
             --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
             --cache-from "type=registry,ref=${IMAGE}:buildcache" \
             --cache-from "type=gha,scope=catapult-image" \
@@ -207,14 +213,30 @@ jobs:
       # Release tag / dispatch-with-push: publish to GHCR with SBOM + provenance, and
       # warm the registry build cache for future runs. The in-Dockerfile license-scope
       # gate also runs here, so a non-LGPL tree cannot produce a pushed image.
+      #
+      # A SECURITY REBUILD MUST NOT USE THE CACHE. Its whole purpose is to pick up base
+      # image and OS package updates for source that has not changed — and "source has
+      # not changed" is exactly the condition under which every layer, including
+      # `apt-get update && apt-get install`, is a cache hit. With the cache on, a rebuild
+      # of catapult-image-v1.0.3.9 would reproduce the identical image and apply no
+      # patches at all, while reporting success. So `release_tag` forces --no-cache.
+      #
+      # A normal release keeps the cache: its source differs, so the layers that matter
+      # rebuild anyway, and --pull still re-resolves the base image.
       - name: Build and publish (GHCR)
         if: steps.meta.outputs.push == 'true'
         run: |
+          cache_args='--cache-from type=registry,ref='"${IMAGE}"':buildcache --cache-to type=registry,ref='"${IMAGE}"':buildcache,mode=max'
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            echo "::notice::security rebuild of ${{ inputs.release_tag }} — building with --no-cache so base image and OS updates are actually applied."
+            cache_args='--no-cache'
+          fi
+          # shellcheck disable=SC2086  # cache_args is a deliberate word-split argument list
           docker buildx build \
             -f client/catapult/Dockerfile.selfcontained \
+            --pull \
+            ${cache_args} \
             --build-arg "VCS_REF=${{ steps.meta.outputs.vcs_ref }}" \
-            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
-            --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
             --provenance=true --sbom=true \
             --metadata-file /tmp/build-meta.json \
             $(printf -- '-t %s ' $(echo "${{ steps.meta.outputs.tags }}" | tr ',' ' ')) \
