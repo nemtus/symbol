@@ -126,12 +126,49 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # On a security rebuild, build the RELEASED source, not the dispatched ref.
-          # The workflow logic still comes from the dispatched ref (this file), which is
-          # what we want: current build/publish logic, byte-identical upstream source.
           ref: ${{ inputs.release_tag || github.ref }}
           # This workflow authenticates to GHCR with GITHUB_TOKEN via docker login,
           # not git, so don't persist credentials into the local git config.
           persist-credentials: false
+
+      # GitHub reads this workflow file from the dispatched ref, but every file the
+      # workflow then reads from DISK comes from the checkout above — which, on a security
+      # rebuild, is the released tag. catapult-image-v1.0.3.9 predates
+      # gen-catapult-dockerfile.sh entirely, so the first rebuild attempt died with
+      # "gen-catapult-dockerfile.sh: No such file or directory".
+      #
+      # So overlay the nemtus-owned tooling from the dispatched ref on top of the released
+      # tree. That is what "current build logic, released source" actually requires:
+      #
+      #   from the release tag      client/catapult (the source) and jenkins/catapult
+      #                             (upstream's build definition and dependency versions
+      #                             AS OF THAT RELEASE — the point of a rebuild)
+      #   from the dispatched ref   .github/scripts and .github/catapult (the generator,
+      #                             the architecture choice, the link check)
+      #
+      # Only on a rebuild: a normal release has both from the same commit already.
+      - name: Overlay current build tooling onto the released source
+        if: inputs.release_tag != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          path: .nemtus-tooling
+          persist-credentials: false
+      - name: Apply the tooling overlay
+        if: inputs.release_tag != ''
+        run: |
+          set -eu
+          for d in scripts catapult; do
+            [ -d ".nemtus-tooling/.github/${d}" ] || {
+              echo "::error::.github/${d} missing from ${{ github.ref }}; cannot rebuild." >&2
+              exit 1
+            }
+            rm -rf ".github/${d}"
+            cp -a ".nemtus-tooling/.github/${d}" .github/
+          done
+          # Must not become part of the Docker build context.
+          rm -rf .nemtus-tooling
+          echo "overlaid .github/scripts and .github/catapult from ${{ github.ref }}"
 
       # Licensing gate: fail if the source carries any Tech Bureau Commercial-licensed
       # file (dual-license clause in client/catapult/LICENSE.txt). On a PR this is just a
