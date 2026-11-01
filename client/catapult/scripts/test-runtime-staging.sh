@@ -62,10 +62,15 @@ make_sandbox() {
 	touch "${root}/opt/deps/mongodb/lib/libbson2.so.2" "${root}/opt/deps/mongodb/lib/libmongoc2.so.2"
 	touch "${root}/opt/deps/zeromq/lib/libzmq.so.5"
 
-	# The real artifact list. Libraries that live in /opt/deps are excluded: in a real
-	# build they are dependencies, not build outputs.
+	# The real artifact list — every object the recorded graph names as a source. Anything
+	# that exists under /opt/deps above is excluded: in a real build those are
+	# dependencies, not build outputs, and creating them in _build/bin would make staging
+	# find them "already present" and never copy them. Derived from what was just placed
+	# there rather than from a hand-written name list, so adding a dependency to the
+	# sandbox cannot silently break this.
+	find "${root}/opt/deps" -name '*.so*' -exec basename {} \; | sort -u > "${root}/dep-sonames"
 	cut -f1 "${graph}" | sort -u \
-		| grep -vE '^lib(bsoncxx1|mongocxx1)\.so' \
+		| grep -vxF -f "${root}/dep-sonames" \
 		| while read -r a; do touch "${root}/src/_build/bin/${a}"; done
 
 	touch "${root}/src/resources/config.properties" \
@@ -78,6 +83,25 @@ for a in "\$@"; do last="\$a"; done
 awk -F'\t' -v b="\$(basename "\$last")" '\$1==b { print "  NEEDED               "\$2 }' "${graph}"
 EOS
 	chmod +x "${root}/stub/objdump"
+
+	# ldconfig stub: what the base image's own packages provide. Deliberately includes
+	# libresolv.so.2 — a glibc library reached only TRANSITIVELY, via mongo's C driver
+	# resolving DNS SRV records, and the one a hand-written exclusion list missed.
+	cat > "${root}/stub/ldconfig" <<'EOS'
+#!/bin/sh
+cat <<'LIBS'
+	libc.so.6 (libc6,x86-64) => /lib/x86_64-linux-gnu/libc.so.6
+	libm.so.6 (libc6,x86-64) => /lib/x86_64-linux-gnu/libm.so.6
+	libresolv.so.2 (libc6,x86-64) => /lib/x86_64-linux-gnu/libresolv.so.2
+	libpthread.so.0 (libc6,x86-64) => /lib/x86_64-linux-gnu/libpthread.so.0
+	libdl.so.2 (libc6,x86-64) => /lib/x86_64-linux-gnu/libdl.so.2
+	librt.so.1 (libc6,x86-64) => /lib/x86_64-linux-gnu/librt.so.1
+	libstdc++.so.6 (libc6,x86-64) => /lib/x86_64-linux-gnu/libstdc++.so.6
+	libgcc_s.so.1 (libc6,x86-64) => /lib/x86_64-linux-gnu/libgcc_s.so.1
+	libatomic.so.1 (libc6,x86-64) => /lib/x86_64-linux-gnu/libatomic.so.1
+LIBS
+EOS
+	chmod +x "${root}/stub/ldconfig"
 }
 
 # ldd stub: resolve every recorded edge the way the runtime image would, i.e. out of the
@@ -140,6 +164,15 @@ for lib in libbson2.so.2 libmongoc2.so.2; do
 		bad "transitive dependency ${lib} is MISSING"
 	fi
 done
+
+# libresolv.so.2 reaches the graph only through libmongoc2, and belongs to glibc. A
+# hand-written exclusion list missed it and failed a correct build after an hour; the set
+# now comes from ldconfig, so a transitively-reached distro library must be skipped.
+if [ ! -e "${t}/opt/catapult/deps/libresolv.so.2" ]; then
+	ok "transitively-reached distro library (libresolv.so.2) is not bundled"
+else
+	bad "libresolv.so.2 belongs to glibc and must not be bundled"
+fi
 
 # googletest is static and test-only; requiring a .so from it broke attempt 2.
 if [ -z "$(ls -A "${t}/opt/catapult/deps" | grep -i gtest || true)" ]; then
@@ -240,7 +273,20 @@ else
 		|| { bad "link check failed without reporting SHADOWED"; printf '%s\n' "${out}" | sed 's/^/    /'; }
 fi
 
-rm -rf "${t}" "${t2}" "${t3}" "${t4}" "${t5}"
+# ---------------------------------- staging: ldconfig yields nothing (attempt 5's shape)
+# Without a distro set, every SONAME looks un-provided and the loop would try to bundle
+# libc itself out of /opt/deps. Refusing to guess is the only safe answer.
+t6="$(mktemp -d)"; make_sandbox "${t6}"
+printf '#!/bin/sh\nexit 0\n' > "${t6}/stub/ldconfig"; chmod +x "${t6}/stub/ldconfig"
+if out="$(stage "${t6}" 2>&1)"; then
+	bad "staging should fail when the distro-provided set cannot be determined"
+else
+	printf '%s\n' "${out}" | grep -q 'ldconfig' \
+		&& ok "an undeterminable distro set is treated as a failure" \
+		|| { bad "staging failed but not because of ldconfig"; printf '%s\n' "${out}" | sed 's/^/    /'; }
+fi
+
+rm -rf "${t}" "${t2}" "${t3}" "${t4}" "${t5}" "${t6}"
 
 printf '\n%s passed, %s failed\n' "${pass}" "${fail}"
 [ "${fail}" = 0 ]

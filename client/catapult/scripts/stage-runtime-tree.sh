@@ -75,14 +75,34 @@ cp -aL COPYING.LESSER "${dest}/licenses/LGPL-3.0.txt"
 cp -aL LICENSE.txt "${dest}/licenses/LICENSE.txt"
 cp -aL THIRD_PARTY_NOTICES.md "${dest}/licenses/THIRD_PARTY_NOTICES.md"
 
-# SONAMEs the runtime image gets from its own distro packages. Bundling these would
-# shadow the distro's, which is the opposite of what we want.
+# SONAMEs the base image's own packages provide. Bundling these would shadow the distro's,
+# which is the opposite of what we want.
+#
+# ASKED OF THE LOADER, NOT HAND-LISTED. A hand-written list was the fifth bug in this
+# step: glibc alone ships libc, libm, libdl, librt, libpthread, libresolv, libnss_* and
+# more, and the one that was missing — libresolv.so.2, pulled in transitively — turned a
+# correct build into a failure after an hour. Enumerating another project's package
+# contents by hand is the same mistake as hardcoding its install layout.
+#
+# Paths under /opt are excluded so a dependency prefix that ever lands in the loader cache
+# cannot mask itself as distro-provided.
+ldconfig -p 2>/dev/null \
+	| sed -n 's|^[[:space:]]*\([^[:space:]]*\.so[^[:space:]]*\).*=> \(/[^[:space:]]*\)$|\1 \2|p' \
+	| while read -r so path; do
+		case "${path}" in /opt/*) ;; *) echo "${so}" ;; esac
+	done | sort -u > "${work}/distro"
+
+# If ldconfig gives us nothing, every SONAME looks un-provided and the loop below would
+# try to bundle libc itself out of /opt/deps — failing confusingly, or worse succeeding.
+if [ ! -s "${work}/distro" ]; then
+	echo "ERROR: ldconfig -p reported no shared libraries, so the set of distro-provided" >&2
+	echo "       SONAMEs cannot be determined. Refusing to guess." >&2
+	exit 1
+fi
+echo "distro-provided libraries: $(wc -l < "${work}/distro" | tr -d ' ')"
+
 is_distro_provided() {
-	case "$1" in
-		ld-linux*|libc.so.*|libm.so.*|libdl.so.*|librt.so.*|libpthread.so.*) return 0 ;;
-		libstdc++.so.*|libgcc_s.so.*|libatomic.so.*) return 0 ;;
-	esac
-	return 1
+	grep -Fxq "$1" "${work}/distro"
 }
 
 # Already in the tree? Covers both previously staged dependencies and catapult's own

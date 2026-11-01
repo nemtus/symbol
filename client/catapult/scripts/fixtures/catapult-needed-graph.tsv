@@ -198,6 +198,7 @@ libextension.unbondedpruning.so	libcrypto.so.4
 libextension.zeromq.so	libboost_log.so.1.91.0
 libextension.zeromq.so	libcrypto.so.4
 libextension.zeromq.so	libzmq.so.5
+libmongoc2.so.2	libresolv.so.2
 libmongocxx1.so.1	libbson2.so.2
 libmongocxx1.so.1	libmongoc2.so.2
 tests.catapult.addressextraction	libboost_log.so.1.91.0
