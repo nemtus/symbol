@@ -11,7 +11,8 @@ name: upstream-release-watch
 # DISCORD_WEBHOOK_URL secret is configured) to Discord, prefixed [release-watch].
 # The bump itself stays human-ordered per the versions.env contract ("only bump
 # after the image is actually published"). The only failure case is a
-# MISCONFIGURATION: versions.env pinning an image version that is not published.
+# MISCONFIGURATION: versions.env pinning an image version that is not published
+# (checked against ghcr, so dated rebuild pins like v1.0.3.9-20261101 are fine).
 #
 # NOTE: this filename must stay listed in BOTH
 #   - nemtus_workflows in .github/scripts/apply-nemtus-patch.sh (else mirror-sync strips it)
@@ -51,6 +52,19 @@ jobs:
           }
           newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]; }
 
+          # Is image tag $2 published for ghcr image $1? 0 = yes, 1 = no (404), 2 = could not tell.
+          # Anonymous pull token + manifest HEAD; fail closed on anything but 200/404.
+          image_published() {
+            local repo="${1#ghcr.io/}" token code
+            token="$(curl -fsS --retry 3 "https://ghcr.io/token?service=ghcr.io&scope=repository:${repo}:pull" | jq -r '.token // empty')" || return 2
+            [ -n "${token}" ] || return 2
+            code="$(curl -sS --retry 3 -o /dev/null -w '%{http_code}' -I \
+              -H "Authorization: Bearer ${token}" \
+              -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+              "https://ghcr.io/v2/${repo}/manifests/${2}")" || return 2
+            case "${code}" in 200) return 0 ;; 404) return 1 ;; *) return 2 ;; esac
+          }
+
           echo "collecting versions..."
           # Fail closed: an empty upstream tag list is a network/query anomaly,
           # not "no releases" (these tags exist today).
@@ -87,8 +101,18 @@ jobs:
               findings+=("ACTION(${label}): versions.env pins v${pin} but image v${img} is published — bump ${key} in nemtus/symbol-networks")
             fi
             if newer "${pin}" "${img}"; then
-              echo "::error::versions.env pins ${label} v${pin}, newer than the newest published image v${img} — an unpublished pin breaks 'docker compose pull' downstream."
-              exit 1
+              # A pin newer than the newest image TAG is expected for a NEMTUS rebuild
+              # (e.g. v1.0.3.9-20261101): rebuilds re-publish an existing release tag
+              # under a dated image tag and create no git tag. So ask the registry.
+              local rc=0
+              image_published "${ghcr}" "v${pin}" || rc=$?
+              case "${rc}" in
+                0) echo "${label}: pin v${pin} is newer than the newest image tag v${img}, but ${ghcr}:v${pin} is published (rebuild) — OK." ;;
+                1) echo "::error::versions.env pins ${label} v${pin}, but ${ghcr}:v${pin} is not published — an unpublished pin breaks 'docker compose pull' downstream."
+                   exit 1 ;;
+                *) echo "::error::could not verify that ${ghcr}:v${pin} is published (registry/network anomaly?)"
+                   exit 1 ;;
+              esac
             fi
           }
           check_pair catapult "${up_cat}"  "${img_cat}"  "${pin_cat}"  catapult-image-v CATAPULT_IMAGE_VERSION ghcr.io/nemtus/catapult-server
