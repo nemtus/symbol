@@ -15,6 +15,13 @@ name: mirror-sync (upstream symbol/symbol)
 # re-renamed tree and only opens a PR when that tree actually differs from dev.
 # This is robust even if dev's ancestry is ever disconnected from upstream/dev.
 #
+# Only ONE sync PR is kept open: every sync PR contains everything the older ones did,
+# so once the current PR exists, .github/scripts/close-superseded-sync-prs.sh closes the
+# older automated sync PRs (comment "Superseded by #N") and deletes their branches; on
+# the fast path (dev already contains upstream) it closes leftovers as already merged.
+# Branches a human pushed to are never touched, and nothing is closed when no new PR
+# was opened (e.g. the content guard below).
+#
 # Requires repo setting: Settings -> Actions -> General ->
 #   "Allow GitHub Actions to create and approve pull requests" = enabled.
 #
@@ -58,11 +65,20 @@ jobs:
 
       - name: Build sync branch and decide (content-based)
         id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pin gh to this repo: with an `upstream` remote added, gh would otherwise follow the
+          # fork convention and target the parent repo.
+          GH_REPO: ${{ github.repository }}
         run: |
           # Fast path: if dev already contains every upstream commit, stop early.
           if git merge-base --is-ancestor upstream/dev HEAD; then
             echo "dev already contains upstream/dev; nothing to sync."
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            # A sync PR may have been merged by hand while older ones are still open; they are
+            # now redundant, so close them too.
+            bash .github/scripts/close-superseded-sync-prs.sh base \
+              || echo "::warning::Could not clean up superseded sync PRs; see the log above."
             exit 0
           fi
 
@@ -98,16 +114,23 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           git push -u origin "${SYNC_BRANCH}" --force-with-lease
-          open_count="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${SYNC_BRANCH}" --state open --json number --jq 'length')"
-          if [ "${open_count}" != "0" ]; then
-            echo "PR already open for ${SYNC_BRANCH}."
+          sync_pr="$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${SYNC_BRANCH}" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "${sync_pr}" ]; then
+            echo "PR #${sync_pr} already open for ${SYNC_BRANCH}."
           else
-            gh pr create --repo "${GITHUB_REPOSITORY}" --base dev --head "${SYNC_BRANCH}" \
+            sync_pr_url="$(gh pr create --repo "${GITHUB_REPOSITORY}" --base dev --head "${SYNC_BRANCH}" \
               --title "Sync upstream symbol/symbol@${{ steps.check.outputs.upstream_sha }}" \
-              --body "Automated mirror sync. Merges upstream symbol/symbol@dev and re-applies the @nemtus/symbol-sdk rename layer. After merge, publish.yml publishes if the version changed."
+              --body "Automated mirror sync. Merges upstream symbol/symbol@dev and re-applies the @nemtus/symbol-sdk rename layer. After merge, publish.yml publishes if the version changed.")"
+            echo "Opened ${sync_pr_url}"
+            sync_pr="${sync_pr_url##*/}"
           fi
+          # Keep a single open sync PR: close the older automated ones (all contained in this
+          # one). Runs only after this PR exists, so there is never a moment with none open.
+          KEEP_BRANCH="${SYNC_BRANCH}" bash .github/scripts/close-superseded-sync-prs.sh "${sync_pr}" \
+            || echo "::warning::Could not clean up superseded sync PRs; see the log above."
 
   # Reset GitHub's 60-day scheduled-workflow auto-disable clock on every run
   # (scheduled workflows in repos with no recent activity get disabled; upstream
