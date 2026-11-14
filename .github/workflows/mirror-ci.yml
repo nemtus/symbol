@@ -281,6 +281,17 @@ jobs:
           persist-credentials: false
       - run: bash .github/catapult/scripts/test-runtime-links.sh
 
+  # Offline tests for the Release step of catapult-image.yml / rest-image.yml. That step
+  # runs only after an image has been PUBLISHED, so a bug in it would otherwise surface
+  # only on a real release. A stub `gh` stands in for the API; seconds, no credentials.
+  image-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: bash .github/scripts/test-image-release.sh
+
   # Second fast canary for the catapult image, covering what the staging test cannot: that
   # the Dockerfile can still be GENERATED from upstream's tree at all. The image build is
   # path-filtered and well over an hour, so it does not run on most sync PRs — which is

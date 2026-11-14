@@ -31,7 +31,8 @@ name: catapult-image (build / publish)
 # Triggers:
 #   - pull_request touching the catapult build inputs -> build + smoke-test ONLY
 #     (never pushes an image).
-#   - push of a tag `catapult-image-v*` -> build + PUBLISH to GHCR (+ SBOM/provenance).
+#   - push of a tag `catapult-image-v*` -> build + PUBLISH to GHCR (+ SBOM/provenance),
+#     then create the GitHub Release (`release` job).
 #   - workflow_dispatch -> build; push only when `push=true` is selected, optionally
 #     REBUILDING an already-released version via `release_tag` (see below).
 #
@@ -42,22 +43,28 @@ name: catapult-image (build / publish)
 # byte-identical upstream source — and rebuilds it, so the Dockerfile's `apt-get update`
 # picks up everything published since. Zero divergence from upstream; only base layers move.
 #
-# Tagging for a rebuild is deliberate:
-#   - `:v1.0.3.9`            MOVES to the rebuild. This is what versions.env in
-#                            nemtus/symbol-networks pins, so `docker compose pull`
-#                            downstream picks the patched image up with no cross-repo
-#                            change. Moving a version tag to a patched rebuild of the
-#                            same source is the container-ecosystem norm; the immutable
-#                            identifier is the digest.
-#   - `:latest`              MOVES, as on a normal release.
-#   - `:v1.0.3.9-YYYYMMDD`   NEW, and never moves — a permanent handle for this exact
-#                            rebuild. upstream-release-watch.yml filters tags through
+# Tags of every release publish (first publish and each rebuild alike):
+#   - `:v1.0.3.9-YYYYMMDD`   NEW, and never moves — the immutable handle for this exact
+#                            build. This is what versions.env in nemtus/symbol-networks
+#                            pins (a moved mutable tag never reaches nodes that already
+#                            cached it). A publish whose dated tag already exists — a
+#                            second one on the same UTC day — FAILS before building.
+#                            upstream-release-watch.yml filters tags through
 #                            `^[0-9]+(\.[0-9]+)*$` after stripping the prefix, so a dated
 #                            tag is invisible to it and cannot trip its comparisons.
+#   - `:v1.0.3.9`            MOVES to the newest build of that version. Moving a version
+#                            tag to a patched rebuild of the same source is the
+#                            container-ecosystem norm; the immutable identifier is the
+#                            digest (and the dated tag).
+#   - `:latest`              MOVES.
 #   - `:sha-<sha>`           moves (same commit, newest build of it).
+# The `release` job then records the build in the GitHub Release `catapult-image-v<X>`:
+# a first publish creates it, a rebuild appends a row to its Builds table
+# (.github/scripts/image-release.sh).
 #
 # Without `release_tag`, a dispatch publishes ONLY `:sha-<sha>` even with `push=true`:
-# `:<ref_name>` / `:latest` must never point at an unreleased build.
+# `:<ref_name>` / `:latest` must never point at an unreleased build, and no Release is
+# touched.
 #
 # Publishing posture: catapult is published as a PUBLIC image. The gate is fully
 # automated and the licensing evidence is recorded automatically — no per-release
@@ -112,6 +119,13 @@ jobs:
     permissions:
       contents: read
       packages: write # only used by the push step below
+    # Consumed by the `release` job. `dated` is empty unless this run published a release.
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      dated: ${{ steps.meta.outputs.dated }}
+      kind: ${{ steps.meta.outputs.kind }}
+      vcs_ref: ${{ steps.meta.outputs.vcs_ref }}
+      digest: ${{ steps.evidence.outputs.digest }}
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/catapult-server
     steps:
@@ -258,14 +272,23 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           if [ "${push}" = "true" ]; then
             tags="${tags},${IMAGE}:${version},${IMAGE}:latest"
+            # Every publish of a release — the first one (tag push) as well as each
+            # security rebuild — also records an IMMUTABLE dated tag next to the moving
+            # :<version>. nemtus/symbol-networks versions.env pins that dated tag, so a
+            # new release needs no second build just to get one. Dated rather than a
+            # counter so it needs no state; filtered out by upstream-release-watch.yml's
+            # `^[0-9]+(\.[0-9]+)*$` tag filter. "Refuse to overwrite" below keeps it
+            # immutable (a second publish on the same UTC day fails instead).
+            stamp="$(date -u +%Y%m%d)"
+            tags="${tags},${IMAGE}:${version}-${stamp}"
+            echo "dated=${version}-${stamp}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${ref}" >> "$GITHUB_OUTPUT"
             if [ -n "${{ inputs.release_tag }}" ]; then
-              # Immutable per-rebuild handle alongside the moving :<version>. Dated rather
-              # than a counter so it needs no state, and it is filtered out by
-              # upstream-release-watch.yml's `^[0-9]+(\.[0-9]+)*$` tag filter.
-              stamp="$(date -u +%Y%m%d)"
-              tags="${tags},${IMAGE}:${version}-${stamp}"
-              echo "rebuild=${version}-${stamp}" >> "$GITHUB_OUTPUT"
+              echo "kind=rebuild" >> "$GITHUB_OUTPUT"
               echo "::notice::Security rebuild of ${ref} (source ${sha}): moving :${version} and :latest, recording :${version}-${stamp}."
+            else
+              echo "kind=release" >> "$GITHUB_OUTPUT"
+              echo "::notice::Release ${ref} (source ${sha}): publishing :${version}, :latest and :${version}-${stamp}."
             fi
           fi
           echo "tags=${tags}" >> "$GITHUB_OUTPUT"
@@ -276,6 +299,30 @@ jobs:
       - name: Log in to GHCR
         if: steps.meta.outputs.push == 'true'
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # The dated tag is the immutable handle downstream pins. Publishing a second build on
+      # the same UTC day would silently move it, so fail instead — and fail HERE, before the
+      # from-source build spends its hour. Re-run on a later UTC day (revisit the scheme if
+      # same-day rebuilds become a real need).
+      - name: Refuse to overwrite an immutable dated tag
+        if: steps.meta.outputs.push == 'true' && steps.meta.outputs.dated != ''
+        env:
+          DATED_REF: ${{ env.IMAGE }}:${{ steps.meta.outputs.dated }}
+        # Inline rather than a script: a rebuild checks out the RELEASED tree, which may
+        # predate any helper added later.
+        run: |
+          if out="$(docker buildx imagetools inspect "${DATED_REF}" 2>&1)"; then
+            echo "::error::${DATED_REF} already exists. Dated tags are immutable; publish again on a later UTC day." >&2
+            exit 1
+          fi
+          # Only a definite "not found" means the tag is free; any other failure (registry
+          # or auth trouble) must not be mistaken for it.
+          if ! printf '%s' "${out}" | grep -qiE 'not found|manifest unknown'; then
+            echo "::error::could not determine whether ${DATED_REF} exists:" >&2
+            printf '%s\n' "${out}" >&2
+            exit 1
+          fi
+          echo "${DATED_REF} is free."
 
       # PR / non-push: build and load locally so we can smoke-test the artifact.
       #
@@ -350,9 +397,11 @@ jobs:
       # retained with the workflow run; the same PASS report is also bundled inside the
       # image and an SBOM/provenance attestation is attached to it in the registry.
       - name: Record publish evidence
+        id: evidence
         if: steps.meta.outputs.push == 'true'
         run: |
           digest="$(jq -r '."containerimage.digest" // "unknown"' /tmp/build-meta.json 2>/dev/null || echo unknown)"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
           {
             echo "## catapult-server image published"
             echo ""
@@ -365,7 +414,9 @@ jobs:
             echo "| source revision | \`${{ steps.meta.outputs.vcs_ref }}\` |"
             if [ -n "${{ inputs.release_tag }}" ]; then
               echo "| security rebuild of | \`${{ inputs.release_tag }}\` — upstream source unchanged, base layers refreshed |"
-              echo "| immutable rebuild tag | \`${{ steps.meta.outputs.rebuild }}\` |"
+            fi
+            if [ -n "${{ steps.meta.outputs.dated }}" ]; then
+              echo "| immutable dated tag | \`${{ steps.meta.outputs.dated }}\` |"
             fi
             echo "| license-scope gate | PASSED (also bundled in image at /opt/catapult/licenses/LICENSE-SCOPE-REPORT.txt) |"
             echo "| attestations | SBOM + SLSA provenance attached via buildx |"
@@ -383,3 +434,35 @@ jobs:
         run: |
           echo "::notice::If ghcr.io/${{ github.repository_owner }}/catapult-server is still PRIVATE,"
           echo "::notice::set it to Public once in the package settings; later releases stay public automatically."
+
+  # Create the GitHub Release (first publish) or add this build's row to it (security
+  # rebuild). The ONLY job with `contents: write`, and it runs no build and no third-party
+  # code — just .github/scripts/image-release.sh and the gh CLI, taken from the commit the
+  # workflow itself runs from (github.sha), never from the released tree. Same split as the
+  # tag job in publish.yml: the build/publish job never sees a write token for the repo.
+  release:
+    needs: build
+    # A publish that could not read its digest still reaches the script, which fails
+    # loudly instead of silently leaving the image without a Release.
+    if: needs.build.outputs.dated != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/scripts/image-release.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Create or update the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPONENT: catapult
+          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+          DATED_TAG: ${{ needs.build.outputs.dated }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+          VCS_REF: ${{ needs.build.outputs.vcs_ref }}
+          BUILD_KIND: ${{ needs.build.outputs.kind }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .github/scripts/image-release.sh
