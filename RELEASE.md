@@ -296,12 +296,41 @@ upstream `org.symbol:symbol-sdk`, which would carry the same version numbers.)
   outside the tag namespace; see "Upstream tag archive" below.)
 - Do not tag the non-published `client/rest`.
 
-## Container images: security rebuilds
+## Container images
 
 `ghcr.io/nemtus/catapult-server` and `ghcr.io/nemtus/symbol-rest` are built from upstream
-release tags (`client/catapult/v*`, `rest/v*`) by pushing a `catapult-image-v*` /
-`rest-image-v*` tag here. Upstream releases these components rarely, which creates a
-problem the npm/PyPI packages do not have:
+release tags (`client/catapult/v*`, `rest/v*`) by `catapult-image.yml` / `rest-image.yml`.
+Unlike the npm/PyPI packages they are **not** version-diff driven: a release is started by
+pushing a `catapult-image-v<X>` / `rest-image-v<Y>` tag on the `dev` commit that carries
+the upstream release (the mirror-sync merge of that upstream tag).
+
+### Releasing a new upstream version
+
+```sh
+git tag -a catapult-image-v1.0.3.10 -m "catapult-server self-contained image v1.0.3.10" <dev-merge-sha>
+git tag -a rest-image-v2.5.2        -m "symbol-rest image v2.5.2"                        <dev-merge-sha>
+git push origin catapult-image-v1.0.3.10 rest-image-v2.5.2
+```
+
+Each tag push then, with no further manual step:
+
+1. builds and publishes the image as `:v<X>`, `:latest`, `:sha-<sha>` **and the immutable
+   dated tag `:v<X>-<YYYYMMDD>`** (UTC date of the build);
+2. creates the GitHub Release `catapult-image-v<X>` / `rest-image-v<Y>` (`release` job,
+   `.github/scripts/image-release.sh`): pull command, a **Builds** table (dated tag,
+   digest, source commit, run), and the upstream CHANGELOG section of that version. It is
+   created with `--latest=false`, so the repository's "Latest" badge stays on the SDK.
+
+Then pin the new dated tags in `nemtus/symbol-networks`
+(`.github/network-config/versions.env`) — that bump stays a human step there, per its
+"only bump after the image is actually published" contract.
+
+As with the npm/PyPI `tag` jobs, `contents: write` is granted **only** to the `release`
+job, which runs nothing but that script and the `gh` CLI (taken from the workflow's own
+commit, never from the released tree); the build/publish job never holds a repository
+write token.
+
+### Security rebuilds
 
 > **A published image rots even when upstream ships nothing.** Its baked `ubuntu:24.04`
 > and NodeSource layers stop receiving patches the moment it is built. An image sitting
@@ -311,15 +340,18 @@ problem the npm/PyPI packages do not have:
 So both image workflows accept a **security rebuild** dispatch:
 
 ```sh
-gh workflow run rest-image.yml     --ref dev -f push=true -f release_tag=rest-image-v2.5.1
-gh workflow run catapult-image.yml --ref dev -f push=true -f release_tag=catapult-image-v1.0.3.9
+gh workflow run rest-image.yml     --repo nemtus/symbol --ref dev -f push=true -f release_tag=rest-image-v2.5.2
+gh workflow run catapult-image.yml --repo nemtus/symbol --ref dev -f push=true -f release_tag=catapult-image-v1.0.3.10
 ```
 
 This checks out **that tag** — byte-identical upstream source — and rebuilds it, so the
 Dockerfile's `apt-get update && apt-get upgrade -y` picks up everything published since.
 **Zero divergence from upstream**: only the base layers move. (The workflow logic itself
 comes from the dispatched ref, so you get current build/publish logic with the released
-source.)
+source.) The rebuild publishes a new dated tag and the `release` job appends a row to the
+Release's Builds table (a hand-written Release without one gets a Builds section added).
+Bump `versions.env` in `nemtus/symbol-networks` to the new dated tag so existing nodes
+pick it up.
 
 > **A security rebuild is forced to `--no-cache`, and this is load-bearing.** The whole
 > point is to rebuild source that has NOT changed — which is exactly the condition under
@@ -338,21 +370,27 @@ source.)
 
 | tag | behaviour | why |
 | --- | --- | --- |
-| `:v2.5.1` | **moves** to the rebuild | This is what `versions.env` in `nemtus/symbol-networks` pins, so `docker compose pull` downstream picks the patched image up with **no cross-repo change**. Moving a version tag to a patched rebuild of identical source is the container-ecosystem norm (official images do it); the immutable identifier is the digest. |
-| `:latest` | **moves** | same as a normal release |
-| `:v2.5.1-YYYYMMDD` | **new, never moves** | permanent handle for this exact rebuild, so "which base did v2.5.1 have in October" stays answerable |
+| `:v2.5.1-YYYYMMDD` | **new on every publish, never moves** | The immutable handle for one exact build, and what `versions.env` in `nemtus/symbol-networks` pins: a moved mutable tag never reaches nodes that already cached it (Compose's default `pull_policy: missing`), so changing the pinned string is what delivers a rebuild. Also keeps "which base did v2.5.1 have in October" answerable. |
+| `:v2.5.1` | **moves** to the newest build | Moving a version tag to a patched rebuild of identical source is the container-ecosystem norm (official images do it); the immutable identifiers are the digest and the dated tag. |
+| `:latest` | **moves** | newest build |
 | `:sha-<sha>` | moves | same commit, newest build of it |
+
+**One publish per release per UTC day.** Because the dated tag carries only the date, a
+second publish of the same release on the same UTC day would move it. Both workflows
+therefore check the registry right after logging in and **fail before building** if the
+dated tag already exists; re-run on a later UTC day. (Deliberately simple; revisit — e.g.
+with a same-day suffix — only if same-day rebuilds become a real need.)
 
 The dated tag is deliberately invisible to `upstream-release-watch.yml`: that workflow
 filters tags through `^[0-9]+(\.[0-9]+)*$` after stripping the prefix, so `2.5.1-20261031`
 is dropped and cannot trip its upstream/image/pin comparisons or its MISCONFIG error.
-`versions.env` needs no change either.
 
 ### Dispatch without `release_tag`
 
-Publishes **only** `:sha-<sha>`. This is a guard, not a limitation: dispatching from `dev`
-used to tag the image `:dev` **and move `:latest`** to an unreleased build, because the tag
-logic assumed `github.ref_name` was always a release tag.
+Publishes **only** `:sha-<sha>` and touches no Release. This is a guard, not a limitation:
+dispatching from `dev` used to tag the image `:dev` **and move `:latest`** to an
+unreleased build, because the tag logic assumed `github.ref_name` was always a release
+tag.
 
 ## Upstream tag archive
 
@@ -445,3 +483,8 @@ Implemented: all four publish workflows (npm and PyPI) auto-create the tag +
 Release via an isolated `tag` job — `contents: write` is granted only there, and
 the job runs no build, no third-party code, and no checkout. The manual procedure
 above remains as a recovery fallback.
+
+The two container-image workflows create (or, on a security rebuild, extend) the
+`catapult-image-v*` / `rest-image-v*` Release the same way, from an isolated `release`
+job — see "Container images". The git tag itself is still pushed by hand: it is what
+starts the image release.
