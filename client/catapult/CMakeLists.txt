@@ -44,6 +44,10 @@ function(get_library_path OUTPUT_LIBRARY_PATH TARGET_NAME)
 endfunction()
 
 ### setup boost
+if(POLICY CMP0167)
+	cmake_policy(SET CMP0167 NEW)
+endif()
+
 message("--- locating boost dependencies ---")
 find_package(Boost 1.91.0 EXACT COMPONENTS ${CATAPULT_BOOST_COMPONENTS} REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
@@ -72,7 +76,7 @@ endif()
 ### setup openssl
 message("--- locating openssl dependencies ---")
 
-find_package(OpenSSL 4.0.3 EXACT REQUIRED)
+find_package(OpenSSL 4.1.0 EXACT REQUIRED)
 message("OpenSSL   ver: ${OPENSSL_VERSION}")
 message("OpenSSL  root: ${OPENSSL_ROOT_DIR}")
 message("OpenSSL   inc: ${OPENSSL_INCLUDE_DIR}")
